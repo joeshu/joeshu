@@ -1,5 +1,5 @@
 // src/engine/config-loader.js
-// 配置加载器 - 极速版
+// 配置加载器 - 极速版 (修复版)
 
 class SimpleConfigLoader {
   constructor(requestId) {
@@ -23,7 +23,8 @@ class SimpleConfigLoader {
         const ttl = typeof CONFIG !== 'undefined' ? CONFIG.CONFIG_CACHE_TTL : 86400000;
         if (v === remoteVersion && (Date.now() - t) < ttl) {
           Logger.info('ConfigLoader', `${configId} cache hit`);
-          return d;
+          // FIX: 对缓存配置也进行 _prepareConfig 处理
+          return this._prepareConfig(d);
         }
       } catch (e) {}
     }
@@ -53,27 +54,31 @@ class SimpleConfigLoader {
       if (cached) {
         Logger.warn('ConfigLoader', `${configId} using stale cache`);
         const { d } = JSON.parse(cached);
-        return d;
+        // FIX: 对缓存配置也进行 _prepareConfig 处理
+        return this._prepareConfig(d);
       }
       throw e;
     }
   }
 
   _prepareConfig(raw) {
-    const config = { ...raw };
+    // FIX: 深拷贝避免修改原始对象
+    const config = JSON.parse(JSON.stringify(raw));
 
     if (config.mode === 'forward' || config.mode === 'remote') {
       return config;
     }
 
-    if (raw.regexReplacements) {
+    // 预编译正则替换规则
+    if (raw.regexReplacements && Array.isArray(raw.regexReplacements)) {
       config._regexReplacements = raw.regexReplacements.map(r => ({
         pattern: RegexPool.get(r.pattern, r.flags || 'g'),
         replacement: r.replacement
       }));
     }
 
-    if (raw.gameResources) {
+    // 预编译游戏资源规则
+    if (raw.gameResources && Array.isArray(raw.gameResources)) {
       config._gameResources = raw.gameResources.map(r => ({
         field: r.field,
         value: r.value,
@@ -81,7 +86,8 @@ class SimpleConfigLoader {
       }));
     }
 
-    if (raw.htmlReplacements) {
+    // 预编译 HTML 替换规则
+    if (raw.htmlReplacements && Array.isArray(raw.htmlReplacements)) {
       config._htmlReplacements = raw.htmlReplacements.map(r => ({
         pattern: RegexPool.get(r.pattern, r.flags || 'gi'),
         replacement: r.replacement

@@ -1,1 +1,34 @@
-{"urlPattern":"^https?://res5\\.haotgame\\.com/cu03/static/OpenDoors/Res/data/levels/\\d+\\.json","name":"全民解压找茬","mode":"json","processor":{"processor":"compose","params":{"steps":[{"processor":"setFields","params":{"fields":{"Time":9999}}},{"processor":"notify","params":{"title":"全民解压找茬 - 关卡辅助","subtitleField":"Title","messageField":"answers","prefix":"","separator":"\n","maxLength":400,"template":null,"markField":null,"options":{}}}]}}}
+{
+  "name": "全民解压找茬",
+  "mode": "json",
+  "urlPattern": "^https?://res5\\.haotgame\\.com/cu03/static/OpenDoors/Res/data/levels/\\d+\\.json",
+  "processor": {
+    "processor": "compose",
+    "params": {
+      "steps": [
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "Time": 9999
+            }
+          }
+        },
+        {
+          "processor": "notify",
+          "params": {
+            "title": "全民解压找茬 - 关卡辅助",
+            "subtitleField": "Title",
+            "messageField": "answers",
+            "prefix": "",
+            "separator": "\n",
+            "maxLength": 400,
+            "template": null,
+            "markField": null,
+            "options": {}
+          }
+        }
+      ]
+    }
+  }
+}

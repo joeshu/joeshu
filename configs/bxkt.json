@@ -1,1 +1,51 @@
-{"urlPattern":"^https?:\\/\\/api\\.banxueketang\\.com\\/api\\/classpal\\/app\\/v1","id":"bxkt","name":"伴学课堂","mode":"hybrid","processor":{"processor":"sceneDispatcher","params":{"scenes":[{"name":"objectResponse","when":"isObject","check":"data","then":{"processor":"setFields","params":{"fields":{"data.isVip":true,"data.isHave":true,"data.isLock":false,"data.isSale":true,"data.trialTopNum":999}}}},{"name":"arrayResponse","when":"isArray","check":"data.refBusinessList","then":{"processor":"mapArray","params":{"path":"data.refBusinessList","fields":{"isLock":false}}}}]}},"regexReplacements":[{"pattern":"\"isVip\":false","replacement":"\"isVip\":true","flags":"g"}]}
+{
+  "id": "bxkt",
+  "name": "伴学课堂",
+  "urlPattern": "^https?:\\/\\/api\\.banxueketang\\.com\\/api\\/classpal\\/app\\/v1",
+  "mode": "hybrid",
+  "processor": {
+    "processor": "sceneDispatcher",
+    "params": {
+      "scenes": [
+        {
+          "name": "objectResponse",
+          "when": "isObject",
+          "check": "data",
+          "then": {
+            "processor": "setFields",
+            "params": {
+              "fields": {
+                "data.isVip": true,
+                "data.isHave": true,
+                "data.isLock": false,
+                "data.isSale": true,
+                "data.trialTopNum": 999
+              }
+            }
+          }
+        },
+        {
+          "name": "arrayResponse",
+          "when": "isArray",
+          "check": "data.refBusinessList",
+          "then": {
+            "processor": "mapArray",
+            "params": {
+              "path": "data.refBusinessList",
+              "fields": {
+                "isLock": false
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "regexReplacements": [
+    {
+      "pattern": "\"isVip\":false",
+      "replacement": "\"isVip\":true",
+      "flags": "g"
+    }
+  ]
+}

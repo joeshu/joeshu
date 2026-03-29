@@ -1,1 +1,16 @@
-{"urlPattern":"^https?://jsq\\.mingcalc\\.cn/XMGetMeCount\\.ashx","name":"明计算","mode":"json","processor":{"processor":"setFields","params":{"fields":{"des":"永久会员","result.Token":"328971a2f0b318910dbdf45a4442fc56","result.VipEnd":"2036-03-23","result.VipEndDes":"永久会员"}}}}
+{
+  "name": "明计算",
+  "mode": "json",
+  "urlPattern": "^https?://jsq\\.mingcalc\\.cn/XMGetMeCount\\.ashx",
+  "processor": {
+    "processor": "setFields",
+    "params": {
+      "fields": {
+        "des": "永久会员",
+        "result.Token": "328971a2f0b318910dbdf45a4442fc56",
+        "result.VipEnd": "2036-03-23",
+        "result.VipEndDes": "永久会员"
+      }
+    }
+  }
+}

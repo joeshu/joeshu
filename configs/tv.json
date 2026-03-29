@@ -1,1 +1,75 @@
-{"urlPattern":"^https?:\\/\\/(?:yzy0916|yz1018|yz250907|yz0320|cfvip)\\..+\\.com\\/(?:v2|v1)\\/api\\/(?:basic\\/init|home\\/firstScreen|adInfo\\/getPageAd|home\\/body)","id":"tv","name":"影视去广告","mode":"json","processor":{"processor":"sceneDispatcher","params":{"scenes":[{"name":"basicInit","when":"pathMatch","path":"/basic/init","then":{"processor":"setFields","params":{"fields":{"data.startAdShowTime":0,"data.startAd":null,"data.startAdList":null}}}},{"name":"firstScreen","when":"pathMatch","path":"/home/firstScreen","then":{"processor":"compose","params":{"steps":[{"processor":"deleteFields","params":{"paths":["data.focusAdList"]}},{"processor":"sliceArray","params":{"path":"data.hotMudleList","keepCount":5}}]}}},{"name":"pageAd","when":"pathMatch","path":"/adInfo/getPageAd","then":{"processor":"deleteFields","params":{"paths":["data.floatAd","data.popupAd"]}}},{"name":"homeBody","when":"pathMatch","path":"/home/body","then":{"processor":"shiftArray","params":{"path":"data.adList"}}}]}}}
+{
+  "id": "tv",
+  "name": "影视去广告",
+  "urlPattern": "^https?:\\/\\/(?:yzy0916|yz1018|yz250907|yz0320|cfvip)\\..+\\.com\\/(?:v2|v1)\\/api\\/(?:basic\\/init|home\\/firstScreen|adInfo\\/getPageAd|home\\/body)",
+  "mode": "json",
+  "processor": {
+    "processor": "sceneDispatcher",
+    "params": {
+      "scenes": [
+        {
+          "name": "basicInit",
+          "when": "pathMatch",
+          "path": "/basic/init",
+          "then": {
+            "processor": "setFields",
+            "params": {
+              "fields": {
+                "data.startAdShowTime": 0,
+                "data.startAd": null,
+                "data.startAdList": null
+              }
+            }
+          }
+        },
+        {
+          "name": "firstScreen",
+          "when": "pathMatch",
+          "path": "/home/firstScreen",
+          "then": {
+            "processor": "compose",
+            "params": {
+              "steps": [
+                {
+                  "processor": "deleteFields",
+                  "params": {
+                    "paths": ["data.focusAdList"]
+                  }
+                },
+                {
+                  "processor": "sliceArray",
+                  "params": {
+                    "path": "data.hotMudleList",
+                    "keepCount": 5
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "pageAd",
+          "when": "pathMatch",
+          "path": "/adInfo/getPageAd",
+          "then": {
+            "processor": "deleteFields",
+            "params": {
+              "paths": ["data.floatAd", "data.popupAd"]
+            }
+          }
+        },
+        {
+          "name": "homeBody",
+          "when": "pathMatch",
+          "path": "/home/body",
+          "then": {
+            "processor": "shiftArray",
+            "params": {
+              "path": "data.adList"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

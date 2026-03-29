@@ -1,5 +1,5 @@
 // src/engine/vip-engine.js
-// VIP引擎 - 极速版
+// VIP引擎 - 极速版 (修复版)
 
 class Environment {
   constructor(name) {
@@ -19,6 +19,7 @@ class Environment {
 
   getUrl() {
     let url = this.response?.url || this.request?.url || '';
+    // FIX: QX 平台 $request 可能是字符串（整个 URL）
     if (this.isQX && typeof $request === 'string') {
       url = $request;
     }
@@ -26,7 +27,9 @@ class Environment {
   }
 
   getBody() {
-    return this.response?.body || '';
+    // FIX: 确保返回字符串
+    const body = this.response?.body;
+    return typeof body === 'string' ? body : (body ? String(body) : '');
   }
 
   getRequestHeaders() {
@@ -53,8 +56,11 @@ class VipEngine {
   }
 
   async process(body, config) {
+    // FIX: 确保 body 是字符串
+    const normalizedBody = typeof body === 'string' ? body : (body ? String(body) : '');
+    
     if (!config || !config.mode) {
-      return { body: typeof body === 'string' ? body : Utils.safeJsonStringify(body || {}) };
+      return { body: normalizedBody };
     }
 
     // forward/remote 模式优先处理
@@ -65,8 +71,7 @@ class VipEngine {
       return await this._processRemote(config);
     }
 
-    const normalizedBody = typeof body === 'string' ? body : Utils.safeJsonStringify(body || {});
-    if (!normalizedBody) return { body: '{}' };
+    if (!normalizedBody) return { body: '' };
 
     const maxSize = typeof CONFIG !== 'undefined' ? CONFIG.MAX_BODY_SIZE : 5242880;
     if (normalizedBody.length > maxSize) {
@@ -340,13 +345,19 @@ class VipEngine {
 
   _processHtml(body, config) {
     let modified = body;
+    // FIX: 优先使用预编译的 _htmlReplacements
     const replacements = config._htmlReplacements || config.htmlReplacements || [];
+    
+    // FIX: 添加调试日志
+    Logger.debug('VipEngine', `HTML processing: ${replacements.length} rules`);
 
     for (const rule of replacements) {
       try {
         const regex = rule.pattern instanceof RegExp ? rule.pattern : RegexPool.get(rule.pattern, rule.flags || 'gi');
         modified = modified.replace(regex, rule.replacement);
-      } catch (e) {}
+      } catch (e) {
+        Logger.error('VipEngine', `HTML replace error: ${e.message}`);
+      }
     }
 
     return { body: modified };

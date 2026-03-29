@@ -1,5 +1,5 @@
 // src/core/http.js
-// HTTP 客户端 - 极速版
+// HTTP 客户端 - 极速版 (修复版)
 
 const HTTP = (() => {
   const toQxSec = (ms) => Math.max(1, Math.ceil(ms / 1000));
