@@ -204,7 +204,7 @@ function generateRewriteComments() {
   return Object.entries(APP_REGISTRY).map(([id, cfg]) => {
     const fullCfg = allConfigs[id] || {};
     const name = fullCfg.name || id;
-    return ` * # ${name}\\n * ${cfg.urlPattern} url script-response-body https://joeshu.github.io/UnifiedVIP/Unified_VIP_Unlock_Manager_v22.js`;
+    return ` * # ${name}\\n * ${cfg.urlPattern} url script-response-body https://joeshu.github.io/joeshu/Unified_VIP_Unlock_Manager_v22.js`;
   }).join('\\n');
 }
 
