@@ -1,1 +1,0 @@
-{"urlPattern":"^https?:\\/\\/theater-api\\.sylangyue\\.xyz\\/api\\/user\\/info","id":"sylangyue","name":"思朗月影视","mode":"json","processor":{"processor":"setFields","params":{"fields":{"data.vip.status":true,"data.vip.expired_date":"2999-09-09","data.vip.expired_at":99999999999999,"data.login_way":true,"data.beans":999880}}}}
