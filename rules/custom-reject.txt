@@ -1,0 +1,12 @@
+# 自定义 reject-dict 规则文件
+# 每行一条规则，支持正则匹配
+# 以 # 开头的行为注释，会被忽略
+# 如果规则不含 "url "，会自动追加 " url reject-dict"
+
+# TV广告拦截
+^https?:\/\/(yz\w{4,6}|cfvip)\..+\.com\/(v2|v1)\/api\/(adInfo|vodInfo)\/(getPageAd|getTextAd|getSearchAd|getVodBodyAd|getVodPauseAd|getUserCenterAd) url reject-dict
+^https?:\/\/(yz\w{4,6}|cfvip)\..+\.com\/(v2|v1)\/api\/(home\/notice|gameCenter\/gameDetailList) url reject-dict
+
+# 示例：其他广告拦截
+# ^https?:\/\/api\.example\.com\/v1\/ad\/ url reject-dict
+# ^https?:\/\/.*\.doubleclick\.net\/ url reject-img

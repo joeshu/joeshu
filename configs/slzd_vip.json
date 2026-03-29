@@ -1,0 +1,32 @@
+{
+  "extraInfoMap": {},
+  "model": [
+    {
+      "userHeadPic": "http://zdimg.lifeweek.com.cn/bg/20210528/1622191723831yxclu.png!head",
+      "vipLevel": 6,
+      "vipExpiration": "2099-12-31",
+      "vip": true,
+      "username": "局",
+      "vipValid": true
+    },
+    {
+      "userHeadPic": "http://zdimg.lifeweek.com.cn/bg/20210528/1622191723831yxclu.png!head",
+      "vipLevel": 5,
+      "vipExpiration": "2099-12-31",
+      "vip": true,
+      "username": "局",
+      "vipValid": true
+    },
+    {
+      "userHeadPic": "http://zdimg.lifeweek.com.cn/bg/20210528/1622191723831yxclu.png!head",
+      "vipLevel": 4,
+      "vipExpiration": "2099-12-31",
+      "vip": true,
+      "username": "局",
+      "vipValid": true
+    }
+  ],
+  "resultMsg": "操作成功！",
+  "success": true,
+  "resultCode": "SUCCESS"
+}

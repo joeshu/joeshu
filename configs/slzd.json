@@ -1,0 +1,118 @@
+{
+  "name": "Sanlian Zhongdu VIP Unlock",
+  "mode": "json",
+  "processor": {
+    "processor": "sceneDispatcher",
+    "params": {
+      "scenes": [
+        {
+          "when": "pathMatch",
+          "path": "/vip/loadMyVipV2",
+          "then": {
+            "processor": "compose",
+            "params": {
+              "steps": [
+                {
+                  "processor": "mapArray",
+                  "params": {
+                    "path": "model",
+                    "fields": {
+                      "vip": true,
+                      "vipValid": true,
+                      "vipExpiration": "2099-12-31"
+                    }
+                  }
+                },
+                {
+                  "processor": "setFields",
+                  "params": {
+                    "fields": {
+                      "model[0].vipLevel": 6,
+                      "model[1].vipLevel": 5,
+                      "model[2].vipLevel": 4
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        {
+          "when": "pathMatch",
+          "path": "/user/newindex.do",
+          "then": {
+            "processor": "setFields",
+            "params": {
+              "fields": {
+                "model.vip": true,
+                "model.vipValid": true,
+                "model.vipLevel": 6,
+                "model.expiration": "2099-12-31",
+                "model.integral": 999999,
+                "model.totalCash": 999999,
+                "model.couponNum": 999,
+                "model.couponNumber": 999,
+                "model.buyArticleNum": 999,
+                "model.buyMagazineNum": 999,
+                "model.buyKuaitingNum": 999,
+                "model.buyZhuanlanNum": 999,
+                "model.bookmarkNum": 999,
+                "model.followNum": 999,
+                "model.fansNum": 999,
+                "model.articleNum": 999,
+                "model.medalCount": 99,
+                "model.certificateCount": 99,
+                "model.weeklyStudyTime": 999,
+                "model.totalTime": "9999.9小时",
+                "model.userVflag": 1
+              }
+            }
+          }
+        },
+        {
+          "when": "pathMatch",
+          "path": "/api/magazine/detail",
+          "then": {
+            "processor": "compose",
+            "params": {
+              "steps": [
+                {
+                  "processor": "setFields",
+                  "params": {
+                    "fields": {
+                      "model.vipInfo.vip": true,
+                      "model.userCost.vipType": 6,
+                      "model.vipInfo.vipValid": true,
+                      "model.vipInfo.vipExpiration": "2099-12-31",
+                      "model.vipInfo.message": "VIP会员",
+                      "model.vipInfo.desc": "已开通永久VIP",
+                      "model.vipInfo.price": 0,
+                      "model.vipInfo.originPrice": 0,
+                      "model.buySingleMagazine": true,
+                      "model.isJoinBookShelf": true,
+                      "model.collected": true,
+                      "model.bookShelfId": 1,
+                      "model.collectId": 1
+                    }
+                  }
+                },
+                {
+                  "processor": "mapArray",
+                  "params": {
+                    "path": "model.bottomData",
+                    "fields": {
+                      "isFree": true,
+                      "isVip": true,
+                      "canPlay": true,
+                      "needPay": false
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  }
+}

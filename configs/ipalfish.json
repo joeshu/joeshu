@@ -1,0 +1,140 @@
+{
+  "id": "ipalfish",
+  "name": "伴鱼绘本VIP解锁",
+  "mode": "json",
+  "version": "1.0.0",
+  "processor": {
+    "processor": "compose",
+    "params": {
+      "steps": [
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "data.ent.isbuyyearvip": true,
+              "data.ent.isbuylifevip": true,
+              "data.ent.isofficialkid": true,
+              "data.ent.playcount": 999,
+              "data.ent.classcount": 999,
+              "data.ent.photocount": 999,
+              "data.ent.livecn": 999,
+              "data.ent.likecount": 999,
+              "data.ent.scoredays": 999,
+              "data.ent.productcount": 999,
+              "data.ent.selflivecn": 999,
+              "data.ent.isschoolteacher": true,
+              "data.ent.followcount": 999,
+              "data.ent.fanscount": 9999,
+              "data.ent.sellcn": 999,
+              "data.ent.colleccount": 999,
+              "data.ent.isbindwechat": true,
+              "data.ent.isblack": false
+            }
+          }
+        },
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "data.ent.vipinfo.isvip": true,
+              "data.ent.vipinfo.isforevervip": true,
+              "data.ent.vipinfo.isbuyyearvip": true,
+              "data.ent.vipinfo.isbuylifevip": true,
+              "data.ent.vipinfo.isbuyforevervip": true,
+              "data.ent.vipinfo.isbuyforeverunion": true,
+              "data.ent.vipinfo.isbuyforeverunionpartner": true,
+              "data.ent.vipinfo.isbuyyearunion": true,
+              "data.ent.vipinfo.isbuyhalfyearvip": true,
+              "data.ent.vipinfo.isbuymonthvip": true,
+              "data.ent.vipinfo.isbuymonthlyvip": true,
+              "data.ent.vipinfo.issend7daysvip": true,
+              "data.ent.vipinfo.issend21daysvip": true,
+              "data.ent.vipinfo.issendvipbycurriculum": true,
+              "data.ent.vipinfo.issendvipbyvipcode": true,
+              "data.ent.vipinfo.isauthteachervip": true,
+              "data.ent.vipinfo.isexpiryvip": false,
+              "data.ent.vipinfo.expiry": 4102444800,
+              "data.ent.vipinfo.deadline": 4102444800,
+              "data.ent.vipinfo.ct": 1774366605,
+              "data.ent.vipinfo.ut": 1774366605,
+              "data.ent.vipinfo.vtype": 1,
+              "data.ent.vipinfo.flag": 1,
+              "data.ent.vipinfo.cate": 1,
+              "data.ent.vipinfo.subcate": 1,
+              "data.ent.vipinfo.vipbiztype": 1,
+              "data.ent.vipinfo.cost": 0,
+              "data.ent.vipinfo.coupon": 999,
+              "data.ent.vipinfo.usedcoupon": 999,
+              "data.ent.vipinfo.orderid": 999999,
+              "data.ent.vipinfo.src": 1,
+              "data.ent.vipinfo.usedvipcode": "UNIFIED_VIP_UNLOCK",
+              "data.ent.vipinfo.paycontext": "unified_vip_unlock",
+              "data.ent.vipinfo.reason": "VIP Unlocked by Unified Manager"
+            }
+          }
+        },
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "data.ent.userinfo.iseligible": true,
+              "data.ent.userinfo.title": "VIP Member",
+              "data.ent.userinfo.sign": "VIP Unlocked",
+              "data.ent.userinfo.enname": "VIP User",
+              "data.ent.userinfo.state": 0
+            }
+          }
+        },
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "data.ent.signstaticinfo.continuoussigncount": 999,
+              "data.ent.signstaticinfo.totalsigncount": 999,
+              "data.ent.signstaticinfo.uid": "{{data.ent.userinfo.id}}",
+              "data.ent.signstaticinfo.date": 1774366605
+            }
+          }
+        },
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "data.ent.flowerinfo.today": 999,
+              "data.ent.flowerinfo.nlevel": 99,
+              "data.ent.flowerinfo.level": 99,
+              "data.ent.flowerinfo.upgrade": 0,
+              "data.ent.flowerinfo.total": 99999,
+              "data.ent.flowerinfo.delta": 999
+            }
+          }
+        },
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "data.ent.lv_info.status": 1,
+              "data.ent.lv_info.id": 999,
+              "data.ent.lv_info_opaque.status": 1,
+              "data.ent.lv_info_opaque.id": 999,
+              "data.ent.lv_info_opaque.score": 9999
+            }
+          }
+        },
+        {
+          "processor": "setFields",
+          "params": {
+            "fields": {
+              "data.ent.expinfo.remain": 9999,
+              "data.ent.expinfo.action": 1,
+              "data.ent.expinfo.today": 999,
+              "data.ent.expinfo.total": 9999,
+              "data.ent.expinfo.delta": 999,
+              "data.ent.expinfo.text": "Experience Max"
+            }
+          }
+        }
+      ]
+    }
+  }
+}

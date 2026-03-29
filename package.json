@@ -1,0 +1,25 @@
+{
+  "name": "UnifiedVIP",
+  "version": "22.0.0",
+  "description": "Unified VIP Unlock Manager - QX/Surge/Loon/Stash",
+  "scripts": {
+    "build": "node scripts/build.js",
+    "add-app": "node scripts/add-app.js",
+    "validate": "node scripts/validate.js",
+    "watch": "nodemon --watch src --exec \"npm run build\"",
+    "clean": "rm -rf dist/",
+    "verify": "ls -la dist/ && head -c 200 dist/Unified_VIP_Unlock_Manager_v22.js",
+    "dev": "npm run build && npm run verify",
+    "test": "node scripts/validate.js",
+    "deploy:manual": "npm run build && git add . && git commit -m 'build: update v22' && git push",
+    "deploy:gh-pages": "npm run build && git checkout gh-pages && cp -r dist/* . && git add . && git commit -m 'deploy: manual update' && git push && git checkout main",
+    "release": "npm run release:patch",
+    "release:patch": "npm version patch && git push && git push --tags",
+    "release:minor": "npm version minor && git push && git push --tags",
+    "release:major": "npm version major && git push && git push --tags",
+    "release:beta": "npm version prerelease --preid=beta && git push && git push --tags"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1"
+  }
+}
