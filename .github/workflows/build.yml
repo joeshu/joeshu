@@ -1,0 +1,113 @@
+# .github/workflows/build.yml
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify dist contents
+        run: |
+          echo "=== Dist 目录内容 ==="
+          ls -la dist/ || echo "dist 目录不存在！"
+          echo ""
+          echo "=== 主脚本前 500 字符 ==="
+          head -c 500 dist/Unified_VIP_Unlock_Manager_v22.js || echo "主脚本不存在！"
+          echo ""
+          echo "=== rewrite.conf 前 20 行 ==="
+          head -20 dist/rewrite.conf || echo "rewrite.conf 不存在！"
+          echo ""
+          echo "=== configs 文件数量 ==="
+          ls dist/configs/*.json 2>/dev/null | wc -l
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist-files
+          path: dist/
+          retention-days: 1
+          if-no-files-found: error
+
+  deploy-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-files
+          path: ./dist
+
+      - name: Verify downloaded files
+        run: |
+          ls -la ./dist/
+          ls -la ./dist/configs/ || echo "configs 目录不存在"
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload to GitHub Pages
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./dist
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+  deploy-gh-pages:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist-files
+          path: ./dist
+
+      - name: Verify before deploy
+        run: |
+          echo "准备部署到 gh-pages 分支："
+          ls -la ./dist/
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/main'
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: "deploy: update from main ${{ github.sha }}"
+          user_name: 'github-actions[bot]'
+          user_email: 'github-actions[bot]@users.noreply.github.com'
