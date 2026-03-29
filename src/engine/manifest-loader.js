@@ -1,5 +1,5 @@
 // src/engine/manifest-loader.js
-// Manifest加载器 - 极速版 (修复版)
+// Manifest加载器 - 极速版
 
 class SimpleManifestLoader {
   constructor(requestId) {

@@ -243,7 +243,7 @@ main();
 
   console.log('\n🚀 发布:');
   console.log('   git add . && git commit -m "build: update v22" && git push');
-  console.log('\n📎 订阅: https://joeshu.github.io/joeshu/rewrite.conf');
+  console.log('\n📎 订阅: https://your-domain.com/UnifiedVIP/rewrite.conf');
 }
 
 // 运行构建

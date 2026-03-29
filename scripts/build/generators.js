@@ -11,7 +11,7 @@ function generateHeaderMinified({ BUILD_CONFIG, APP_REGISTRY }) {
  * 构建时间: ${new Date().toISOString()}
  * APP数量: ${Object.keys(APP_REGISTRY).length}
  * ==========================================
- * 订阅规则: https://joeshu.github.io/joeshu/rewrite.conf
+ * 订阅规则: https://joeshu.github.io/UnifiedVIP/rewrite.conf
  */
 
 'use strict';
@@ -19,7 +19,7 @@ function generateHeaderMinified({ BUILD_CONFIG, APP_REGISTRY }) {
 if (typeof console === 'undefined') { globalThis.console = { log: () => {} }; }
 
 const CONFIG = {
-  REMOTE_BASE: 'https://joeshu.github.io/joeshu',
+  REMOTE_BASE: 'https://joeshu.github.io/UnifiedVIP',
   CONFIG_CACHE_TTL: 86400000,
   MAX_BODY_SIZE: 5242880,
   MAX_PROCESSORS_PER_REQUEST: 30,
@@ -35,7 +35,7 @@ const CONFIG = {
   URL_CACHE_LIMIT: 50
 };
 
-const META = { name: 'joeshu', version: '${BUILD_CONFIG.VERSION}' };`;
+const META = { name: 'UnifiedVIP', version: '${BUILD_CONFIG.VERSION}' };`;
 }
 
 function generateManifestOneLine({ APP_REGISTRY, CONFIGS_DIR, BUILD_CONFIG }) {
@@ -139,7 +139,7 @@ function generateRewriteConf({ BUILD_CONFIG, APP_REGISTRY, getAllConfigs, RULES_
 
   for (const [id, cfg] of Object.entries(APP_REGISTRY)) {
     const name = allConfigs[id]?.name || id;
-    conf += `# ${name}\n${cfg.urlPattern} url script-response-body https://joeshu.github.io/joeshu/Unified_VIP_Unlock_Manager_v22.js\n\n`;
+    conf += `# ${name}\n${cfg.urlPattern} url script-response-body https://joeshu.github.io/UnifiedVIP/Unified_VIP_Unlock_Manager_v22.js\n\n`;
   }
 
   const customRejectPath = path.join(RULES_DIR, 'custom-reject.txt');
