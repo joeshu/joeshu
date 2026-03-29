@@ -10,7 +10,7 @@
   "flags": "i"
 },
 {
-      "pattern": "<div[^>]*class=\"[^\"]*ads[^\"]*\"[^>]*>[\\s\\S]*?<\\/div>",
+      "pattern": "<div[^>]*class=\"[^\"]*wwads[^\"]*\"[^>]*>[\\s\\S]*?<\\/div>",
       "replacement": "",
       "flags": "gi"
 }
