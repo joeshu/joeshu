@@ -1,6 +1,6 @@
 {
   "name": "UnifiedVIP",
-  "version": "22.0.0",
+  "version": "23.0.0",
   "description": "Unified VIP Unlock Manager - QX/Surge/Loon/Stash",
   "scripts": {
     "build": "node scripts/build.js",
