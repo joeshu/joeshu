@@ -9,20 +9,24 @@ struct PaperTodoEntry: TimelineEntry {
 }
 
 struct Provider: TimelineProvider {
+    @MainActor
     func placeholder(in context: Context) -> PaperTodoEntry {
         PaperTodoEntry(date: Date(), pendingCount: 3, doneCount: 1)
     }
 
+    @MainActor
     func getSnapshot(in context: Context, completion: @escaping (PaperTodoEntry) -> Void) {
         completion(loadEntry())
     }
 
+    @MainActor
     func getTimeline(in context: Context, completion: @escaping (Timeline<PaperTodoEntry>) -> Void) {
         let entry = loadEntry()
         let next = Calendar.current.date(byAdding: .minute, value: 30, to: Date()) ?? Date()
         completion(Timeline(entries: [entry], policy: .after(next)))
     }
 
+    @MainActor
     private func loadEntry() -> PaperTodoEntry {
         guard let container = try? SharedContainer.makeModelContainer() else {
             return PaperTodoEntry(date: Date(), pendingCount: 0, doneCount: 0)
