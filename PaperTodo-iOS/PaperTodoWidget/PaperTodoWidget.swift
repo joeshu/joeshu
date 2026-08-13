@@ -41,55 +41,107 @@ struct Provider: TimelineProvider {
 
 struct PaperTodoWidgetView: View {
     @Environment(\.widgetFamily) private var family
+    @Environment(\.colorScheme) private var colorScheme
     let entry: PaperTodoEntry
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "checklist")
-                    .font(.headline)
-                Text("PaperTodo")
-                    .font(.headline)
-            }
-            .foregroundStyle(.orange)
-
-            switch family {
-            case .systemSmall:
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("\(entry.pendingCount)")
-                        .font(.system(size: 40, weight: .bold, design: .rounded))
-                    Text(entry.pendingCount == 0 ? "全部完成" : "件待办")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-            default:
-                HStack(alignment: .firstTextBaseline, spacing: 24) {
-                    statView(count: entry.pendingCount, label: "待办", color: .orange)
-                    statView(count: entry.doneCount, label: "完成", color: .green)
-                }
-                ProgressView(value: progress)
-                    .tint(.orange)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .containerBackground(for: .widget) {
-            Color(.systemBackground)
-        }
-    }
 
     private var progress: Double {
         let total = entry.pendingCount + entry.doneCount
         return total == 0 ? 0 : Double(entry.doneCount) / Double(total)
     }
 
-    private func statView(count: Int, label: String, color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text("\(count)")
-                .font(.title2.bold())
-            Text(label)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    private var tint: Color {
+        colorScheme == .dark
+            ? Color(red: 230/255, green: 223/255, blue: 211/255)
+            : Color(red: 120/255, green: 92/255, blue: 48/255)
+    }
+
+    private var paperColor: Color {
+        colorScheme == .dark
+            ? Color(red: 33/255, green: 31/255, blue: 28/255)
+            : Color(red: 255/255, green: 249/255, blue: 234/255)
+    }
+
+    private var textColor: Color {
+        colorScheme == .dark
+            ? Color(red: 231/255, green: 224/255, blue: 212/255)
+            : Color(red: 51/255, green: 41/255, blue: 30/255)
+    }
+
+    private var weakColor: Color {
+        colorScheme == .dark
+            ? Color(red: 146/255, green: 137/255, blue: 123/255)
+            : Color(red: 138/255, green: 122/255, blue: 99/255)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "checklist")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(tint)
+                Text("PaperTodo")
+                    .font(.system(.caption, design: .rounded).weight(.bold))
+                    .foregroundStyle(textColor)
+            }
+
+            switch family {
+            case .systemSmall:
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 12) {
+                        ZStack {
+                            Circle()
+                                .stroke(tint.opacity(0.2), lineWidth: 6)
+                            Circle()
+                                .trim(from: 0, to: progress)
+                                .stroke(tint, style: StrokeStyle(lineWidth: 6, lineCap: .round))
+                                .rotationEffect(.degrees(-90))
+                                .animation(.easeOut(duration: 0.6), value: progress)
+                            Text("\(entry.pendingCount)")
+                                .font(.system(size: 22, weight: .bold, design: .rounded))
+                                .foregroundStyle(textColor)
+                        }
+                        .frame(width: 56, height: 56)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(entry.pendingCount == 0 ? "全部完成" : "件待办")
+                                .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                                .foregroundStyle(textColor)
+                            Text("\(entry.doneCount) 已完成")
+                                .font(.system(.caption2, design: .rounded))
+                                .foregroundStyle(weakColor)
+                        }
+                    }
+                }
+            default:
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 24) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(entry.pendingCount)")
+                                .font(.system(.title2, design: .rounded).weight(.bold))
+                                .foregroundStyle(textColor)
+                            Text("待办")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(weakColor)
+                        }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("\(entry.doneCount)")
+                                .font(.system(.title2, design: .rounded).weight(.bold))
+                                .foregroundStyle(textColor)
+                            Text("完成")
+                                .font(.system(.caption, design: .rounded))
+                                .foregroundStyle(weakColor)
+                        }
+                        Spacer()
+                    }
+                    ProgressView(value: progress)
+                        .tint(tint)
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        .containerBackground(for: .widget) {
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(paperColor)
         }
     }
 }

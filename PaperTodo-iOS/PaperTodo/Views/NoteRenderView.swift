@@ -4,6 +4,8 @@ struct NoteRenderView: View {
     let markdown: String
     var strength: RenderStrength = .full
     var font: Font = .body
+    var textColor: Color = .primary
+    var palette: PaperPalette? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -14,14 +16,20 @@ struct NoteRenderView: View {
                             .resizable()
                             .scaledToFit()
                             .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: 8))
+                            .clipShape(RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                            .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
                     } else {
                         Text(segment.raw)
                             .font(font)
                             .foregroundStyle(.secondary)
                     }
                 } else if !segment.raw.isEmpty {
-                    MarkdownTextView(markdown: segment.raw, strength: strength, font: font)
+                    MarkdownTextView(
+                        markdown: segment.raw,
+                        strength: strength,
+                        font: font,
+                        textColor: textColor
+                    )
                 }
             }
         }

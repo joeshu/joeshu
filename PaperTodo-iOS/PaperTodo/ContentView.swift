@@ -16,19 +16,43 @@ struct ContentView: View {
         NavigationStack {
             Group {
                 if papers.isEmpty {
-                    EmptyStateView()
+                    EmptyStateView(
+                        theme: theme,
+                        onAddTodo: { addPaper(kind: .todo, title: "待办") },
+                        onAddNote: { addPaper(kind: .note, title: "笔记") }
+                    )
                 } else {
-                    List {
-                        ForEach(papers) { paper in
-                            NavigationLink(value: paper) {
-                                PaperRow(paper: paper, theme: theme)
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(papers) { paper in
+                                NavigationLink(value: paper) {
+                                    PaperCard(paper: paper, theme: theme) {
+                                        togglePin(paper)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                                .transition(.scale.combined(with: .opacity))
                             }
                         }
-                        .onDelete(perform: deletePapers)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 12)
                     }
+                    .scrollIndicators(.hidden)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                theme.paper.opacity(0.25),
+                                theme.paper.opacity(0.05)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .ignoresSafeArea()
+                    )
                 }
             }
             .navigationTitle("PaperTodo")
+            .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(for: Paper.self) { paper in
                 switch paper.kind {
                 case .todo:
@@ -69,22 +93,26 @@ struct ContentView: View {
     }
 
     private func addPaper(kind: PaperKind, title: String) {
-        let paper = Paper(kind: kind, title: title)
-        modelContext.insert(paper)
-        try? modelContext.save()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            let paper = Paper(kind: kind, title: title)
+            modelContext.insert(paper)
+            try? modelContext.save()
+        }
     }
 
-    private func deletePapers(_ indexSet: IndexSet) {
-        for index in indexSet {
-            modelContext.delete(papers[index])
+    private func togglePin(_ paper: Paper) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            paper.isPinned.toggle()
+            paper.updatedAt = Date()
+            try? modelContext.save()
         }
-        try? modelContext.save()
     }
 }
 
-struct PaperRow: View {
+struct PaperCard: View {
     let paper: Paper
     let theme: PaperPalette
+    let onTogglePin: () -> Void
 
     private var summary: String {
         switch paper.kind {
@@ -98,37 +126,119 @@ struct PaperRow: View {
         }
     }
 
+    private var icon: String {
+        paper.kind == .todo ? "checklist" : "note.text"
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: paper.kind == .todo ? "checklist" : "note.text")
-                .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
-            VStack(alignment: .leading, spacing: 4) {
+        HStack(spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(paper.kind == .todo ? theme.tint.opacity(0.16) : theme.active.opacity(0.16))
+                    .frame(width: 44, height: 44)
+                Image(systemName: icon)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
+            }
+
+            VStack(alignment: .leading, spacing: 5) {
                 Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
-                    .font(.headline)
+                    .font(.system(.headline, design: .rounded))
                     .foregroundStyle(theme.text)
                 Text(summary)
                     .font(.subheadline)
                     .foregroundStyle(theme.weakText)
                     .lineLimit(2)
             }
+
             Spacer()
-            if paper.isPinned {
-                Image(systemName: "pin.fill")
-                    .font(.caption)
-                    .foregroundStyle(theme.tint)
+
+            VStack(spacing: 8) {
+                if paper.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.caption)
+                        .foregroundStyle(theme.tint)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.weakText.opacity(0.5))
             }
         }
-        .padding(.vertical, 4)
-        .listRowBackground(theme.paper)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                .fill(theme.paper)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.10), radius: 12, y: 2)
+        .contextMenu {
+            Button(action: onTogglePin) {
+                Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
+            }
+        }
     }
 }
 
 struct EmptyStateView: View {
+    let theme: PaperPalette
+    var onAddTodo: () -> Void = {}
+    var onAddNote: () -> Void = {}
+
     var body: some View {
-        ContentUnavailableView {
-            Label("还没有纸片", systemImage: "rectangle.on.rectangle")
-        } description: {
-            Text("点击右上角 + 新建一张待办纸或笔记纸")
+        VStack(spacing: 20) {
+            ZStack {
+                Circle()
+                    .fill(theme.tint.opacity(0.12))
+                    .frame(width: 96, height: 96)
+                Image(systemName: "rectangle.on.rectangle.angled")
+                    .font(.system(size: 40, weight: .light))
+                    .foregroundStyle(theme.tint)
+            }
+            VStack(spacing: 8) {
+                Text("还没有纸片")
+                    .font(.system(.title2, design: .rounded).weight(.semibold))
+                    .foregroundStyle(theme.text)
+                Text("让桌面上有几张安静、可用、不打扰人的纸")
+                    .font(.subheadline)
+                    .foregroundStyle(theme.weakText)
+                    .multilineTextAlignment(.center)
+            }
+            HStack(spacing: 12) {
+                Button(action: onAddTodo) {
+                    Label("待办纸", systemImage: "checklist")
+                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Capsule().fill(theme.tint))
+                }
+                .buttonStyle(.plain)
+                Button(action: onAddNote) {
+                    Label("笔记纸", systemImage: "note.text")
+                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .foregroundStyle(theme.active)
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 10)
+                        .background(Capsule().stroke(theme.active.opacity(0.4), lineWidth: 1))
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(
+            LinearGradient(
+                colors: [
+                    theme.paper.opacity(0.35),
+                    theme.paper.opacity(0.05)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+        )
     }
 }

@@ -4,10 +4,13 @@ struct MarkdownTextView: View {
     let markdown: String
     var strength: RenderStrength = .full
     var font: Font = .body
+    var textColor: Color = .primary
 
     var body: some View {
         Text(rendered)
             .font(font)
+            .foregroundStyle(textColor)
+            .lineSpacing(4)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 

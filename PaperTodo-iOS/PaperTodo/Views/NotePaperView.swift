@@ -23,20 +23,34 @@ struct NotePaperView: View {
                     NoteRenderView(
                         markdown: paper.body,
                         strength: settings.renderStrength,
-                        font: .body
+                        font: .system(.body, design: .rounded),
+                        textColor: theme.text
                     )
-                    .padding()
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
+                            .fill(theme.paper)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
+                            .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.10), radius: 14, y: 2)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .background(theme.paper)
+                .background(theme.paper.opacity(0.15))
+                .scrollIndicators(.hidden)
             } else {
                 MarkdownEditorTextView(
                     text: $paper.body,
-                    textColor: UIColor(settings.palette(dark: colorScheme == .dark).text),
+                    textColor: UIColor(theme.text),
                     baseFont: .systemFont(ofSize: 17)
                 )
                 .padding(.horizontal, 8)
-                .background(theme.paper)
+                .background(theme.paper.opacity(0.15))
                 .onChange(of: paper.body) { _, _ in
                     paper.updatedAt = Date()
                     try? modelContext.save()
