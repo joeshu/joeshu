@@ -4,6 +4,7 @@ import SwiftData
 @main
 struct PaperTodoApp: App {
     let container: ModelContainer
+    @State private var settings = AppSettings()
 
     init() {
         do {
@@ -16,6 +17,7 @@ struct PaperTodoApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(settings)
         }
         .modelContainer(container)
     }

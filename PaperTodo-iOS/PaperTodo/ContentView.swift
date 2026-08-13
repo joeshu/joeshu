@@ -3,9 +3,16 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.settings) private var settings
+    @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \Paper.updatedAt, order: .reverse) private var papers: [Paper]
 
+    private var theme: PaperPalette {
+        settings.palette(dark: colorScheme == .dark)
+    }
+
     var body: some View {
+        @Bindable var settings = settings
         NavigationStack {
             Group {
                 if papers.isEmpty {
@@ -14,7 +21,7 @@ struct ContentView: View {
                     List {
                         ForEach(papers) { paper in
                             NavigationLink(value: paper) {
-                                PaperRow(paper: paper)
+                                PaperRow(paper: paper, theme: theme)
                             }
                         }
                         .onDelete(perform: deletePapers)
@@ -32,6 +39,16 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Menu {
+                        Picker("配色", selection: $settings.colorScheme) {
+                            ForEach(PaperColorScheme.allCases) { scheme in
+                                Text(scheme.rawValue).tag(scheme)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "paintpalette")
+                    }
+
                     Menu {
                         Button {
                             addPaper(kind: .todo, title: "待办")
@@ -67,6 +84,7 @@ struct ContentView: View {
 
 struct PaperRow: View {
     let paper: Paper
+    let theme: PaperPalette
 
     private var summary: String {
         switch paper.kind {
@@ -83,23 +101,25 @@ struct PaperRow: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: paper.kind == .todo ? "checklist" : "note.text")
-                .foregroundStyle(paper.kind == .todo ? .orange : .blue)
+                .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
             VStack(alignment: .leading, spacing: 4) {
                 Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
                     .font(.headline)
+                    .foregroundStyle(theme.text)
                 Text(summary)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(theme.weakText)
                     .lineLimit(2)
             }
             Spacer()
             if paper.isPinned {
                 Image(systemName: "pin.fill")
                     .font(.caption)
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(theme.tint)
             }
         }
         .padding(.vertical, 4)
+        .listRowBackground(theme.paper)
     }
 }
 

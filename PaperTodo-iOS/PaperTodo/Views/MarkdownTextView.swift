@@ -2,17 +2,34 @@ import SwiftUI
 
 struct MarkdownTextView: View {
     let markdown: String
+    var strength: RenderStrength = .full
+    var font: Font = .body
 
     var body: some View {
         Text(rendered)
+            .font(font)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var rendered: AttributedString {
         guard !markdown.isEmpty else { return AttributedString("") }
-        if let attr = try? AttributedString(markdown: markdown) {
-            return attr
+
+        switch strength {
+        case .plain:
+            return AttributedString(markdown)
+        case .light:
+            let options = AttributedString.MarkdownParsingOptions(
+                interpretedSyntax: .inlineOnlyPreservingWhitespace
+            )
+            if let attr = try? AttributedString(markdown: markdown, options: options) {
+                return attr
+            }
+            return AttributedString(markdown)
+        case .full:
+            if let attr = try? AttributedString(markdown: markdown) {
+                return attr
+            }
+            return AttributedString(markdown)
         }
-        return AttributedString(markdown)
     }
 }
