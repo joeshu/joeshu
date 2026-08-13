@@ -14,6 +14,7 @@ struct TodoPaperView: View {
     @State private var undoStack: [[TodoSnapshot]] = []
     @State private var redoStack: [[TodoSnapshot]] = []
     @State private var isDropTargeted = false
+    @State private var editingItemID: UUID?
 
     private var sortedTodos: [TodoItem] {
         paper.todoItems.sorted { $0.sortIndex < $1.sortIndex }
@@ -157,11 +158,23 @@ struct TodoPaperView: View {
             }
             .buttonStyle(.borderless)
 
-            Text(item.text)
-                .font(.system(size: settings.todoVisualSize.fontSize, design: .rounded))
-                .strikethrough(item.isDone)
-                .foregroundStyle(item.isDone ? theme.weakText : theme.text)
-                .animation(.easeOut(duration: 0.2), value: item.isDone)
+             if editingItemID == item.id {
+                 TextField("待办事项", text: binding(for: item), onCommit: finishEditing)
+                     .font(.system(size: settings.todoVisualSize.fontSize, design: .rounded))
+                     .foregroundStyle(theme.text)
+                     .textFieldStyle(.plain)
+                     .submitLabel(.done)
+             } else {
+                 Text(item.text)
+                     .font(.system(size: settings.todoVisualSize.fontSize, design: .rounded))
+                     .strikethrough(item.isDone)
+                     .foregroundStyle(item.isDone ? theme.weakText : theme.text)
+                     .animation(.easeOut(duration: 0.2), value: item.isDone)
+                     .onTapGesture {
+                         pushUndo()
+                         editingItemID = item.id
+                     }
+             }
 
             Spacer()
 
@@ -179,13 +192,20 @@ struct TodoPaperView: View {
             }
         }
         .contextMenu {
-            Button {
-                deleteItem(item)
+             Button {
+                 deleteItem(item)
             } label: {
                 Label("删除", systemImage: "trash")
-            }
-            Button {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+             }
+             Button {
+                  pushUndo()
+                  editingItemID = item.id
+             } label: {
+                 Label("编辑", systemImage: "pencil")
+             }
+             Button {
+                 pushUndo()
+                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     item.isDone.toggle()
                     paper.updatedAt = Date()
                     try? modelContext.save()
@@ -226,6 +246,21 @@ struct TodoPaperView: View {
             undoStack.removeFirst()
         }
         redoStack.removeAll()
+    }
+
+    private func binding(for item: TodoItem) -> Binding<String> {
+        Binding(
+            get: { item.text },
+            set: {
+                item.text = $0
+                paper.updatedAt = Date()
+                try? modelContext.save()
+            }
+        )
+    }
+
+    private func finishEditing() {
+        editingItemID = nil
     }
 
     private func snapshot() -> [TodoSnapshot] {

@@ -6,6 +6,17 @@ struct ContentView: View {
     @Environment(\.settings) private var settings
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \Paper.updatedAt, order: .reverse) private var papers: [Paper]
+    @State private var paperPendingDeletion: Paper?
+    @State private var saveErrorMessage: String?
+
+    private var sortedPapers: [Paper] {
+        papers.sorted {
+            if $0.isPinned != $1.isPinned {
+                return $0.isPinned
+            }
+            return $0.updatedAt > $1.updatedAt
+        }
+    }
 
     private var theme: PaperPalette {
         settings.palette(dark: colorScheme == .dark)
@@ -24,7 +35,7 @@ struct ContentView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 12) {
-                            ForEach(papers) { paper in
+                            ForEach(sortedPapers) { paper in
                                 NavigationLink(value: paper) {
                                     PaperCard(paper: paper, theme: theme) {
                                         togglePin(paper)
@@ -32,6 +43,25 @@ struct ContentView: View {
                                 }
                                 .buttonStyle(.plain)
                                 .transition(.scale.combined(with: .opacity))
+                                .contextMenu {
+                                    Button {
+                                        togglePin(paper)
+                                    } label: {
+                                        Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
+                                    }
+                                    Button(role: .destructive) {
+                                        paperPendingDeletion = paper
+                                    } label: {
+                                        Label("删除纸片", systemImage: "trash")
+                                    }
+                                }
+                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                    Button(role: .destructive) {
+                                        paperPendingDeletion = paper
+                                    } label: {
+                                        Label("删除", systemImage: "trash")
+                                    }
+                                }
                             }
                         }
                         .padding(.horizontal, 16)
@@ -60,6 +90,29 @@ struct ContentView: View {
                 case .note:
                     NotePaperView(paper: paper)
                 }
+            }
+            .confirmationDialog(
+                "删除这张纸片？",
+                isPresented: Binding(
+                    get: { paperPendingDeletion != nil },
+                    set: { if !$0 { paperPendingDeletion = nil } }
+                ),
+                presenting: paperPendingDeletion
+            ) { paper in
+                Button("删除", role: .destructive) {
+                    deletePaper(paper)
+                }
+                Button("取消", role: .cancel) { }
+            } message: { paper in
+                Text("将删除“\(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)”及其内容。")
+            }
+            .alert("保存失败", isPresented: Binding(
+                get: { saveErrorMessage != nil },
+                set: { if !$0 { saveErrorMessage = nil } }
+            )) {
+                Button("好", role: .cancel) { }
+            } message: {
+                Text(saveErrorMessage ?? "无法保存当前修改。")
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
@@ -96,7 +149,7 @@ struct ContentView: View {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             let paper = Paper(kind: kind, title: title)
             modelContext.insert(paper)
-            try? modelContext.save()
+            saveContext()
         }
     }
 
@@ -104,7 +157,23 @@ struct ContentView: View {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
             paper.isPinned.toggle()
             paper.updatedAt = Date()
-            try? modelContext.save()
+            saveContext()
+        }
+    }
+
+    private func deletePaper(_ paper: Paper) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            modelContext.delete(paper)
+        }
+        saveContext()
+        paperPendingDeletion = nil
+    }
+
+    private func saveContext() {
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = error.localizedDescription
         }
     }
 }
