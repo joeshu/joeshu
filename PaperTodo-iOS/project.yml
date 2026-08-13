@@ -1,0 +1,73 @@
+name: PaperTodo
+options:
+  bundleIdPrefix: com.papertodo
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_TEAM: ""
+
+targets:
+  PaperTodo:
+    type: application
+    platform: iOS
+    sources:
+      - path: PaperTodo
+    info:
+      path: PaperTodo/Info.plist
+      properties:
+        CFBundleDisplayName: PaperTodo
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+    entitlements:
+      path: PaperTodo/PaperTodo.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.papertodo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.papertodo.app
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_ALLOWED: NO
+    dependencies:
+      - target: PaperTodoWidget
+
+  PaperTodoWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: PaperTodoWidget
+      - path: PaperTodo/Models
+      - path: PaperTodo/Support
+    info:
+      path: PaperTodoWidget/Info.plist
+      properties:
+        CFBundleDisplayName: PaperTodoWidget
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: PaperTodoWidget/PaperTodoWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.papertodo
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.papertodo.app.widget
+        CODE_SIGNING_ALLOWED: NO
+
+schemes:
+  PaperTodo:
+    build:
+      targets:
+        PaperTodo: all
+        PaperTodoWidget: all
+    run:
+      config: Debug
+    archive:
+      config: Release

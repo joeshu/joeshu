@@ -1,0 +1,58 @@
+# .github/workflows/papertodo-ios.yml
+# PaperTodo iOS 无签名 IPA 构建
+name: PaperTodo iOS Build
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'PaperTodo-iOS/**'
+      - '.github/workflows/papertodo-ios.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        working-directory: PaperTodo-iOS
+        run: xcodegen generate
+
+      - name: Build unsigned app
+        working-directory: PaperTodo-iOS
+        run: |
+          xcodebuild \
+            -project PaperTodo.xcodeproj \
+            -scheme PaperTodo \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+      - name: Package IPA
+        working-directory: PaperTodo-iOS
+        run: |
+          APP_PATH="build/Build/Products/Release-iphoneos/PaperTodo.app"
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r PaperTodo-unsigned.ipa Payload
+          ls -lh PaperTodo-unsigned.ipa
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaperTodo-unsigned-ipa
+          path: PaperTodo-iOS/PaperTodo-unsigned.ipa
+          if-no-files-found: error
