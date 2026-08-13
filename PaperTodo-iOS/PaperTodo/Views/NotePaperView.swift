@@ -141,36 +141,54 @@ struct NotePaperView: View {
 
     private func loadImage(from item: PhotosPickerItem) {
         Task {
-            if let data = try? await item.loadTransferable(type: Data.self),
-               let image = UIImage(data: data),
-               let name = NoteImageStore.save(image: image) {
-                await MainActor.run {
-                    insertImageReference(name)
+            guard let data = try? await item.loadTransferable(type: Data.self) else {
+                await MainActor.run { pickerItem = nil }
+                return
+            }
+            DispatchQueue.global(qos: .userInitiated).async {
+                let name = NoteImageStore.save(data: data)
+                DispatchQueue.main.async {
+                    if let name { insertImageReference(name) }
+                    pickerItem = nil
                 }
             }
-            pickerItem = nil
         }
     }
 
     private func pasteImage() {
-        guard let image = UIPasteboard.general.image,
-              let name = NoteImageStore.save(image: image) else { return }
-        insertImageReference(name)
+        let pasteboard = UIPasteboard.general
+        let imageTypes = [UTType.png.identifier, UTType.jpeg.identifier, UTType.image.identifier]
+        guard let data = imageTypes.lazy.compactMap({ pasteboard.data(forPasteboardType: $0) }).first else { return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let name = NoteImageStore.save(data: data)
+            DispatchQueue.main.async {
+                if let name { insertImageReference(name) }
+            }
+        }
     }
 
     private func loadDroppedImages(_ providers: [NSItemProvider]) {
         for provider in providers {
             if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                 provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                    guard let data, let image = UIImage(data: data), let name = NoteImageStore.save(image: image) else { return }
-                    Task { @MainActor in insertImageReference(name) }
+                    guard let data else { return }
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        let name = NoteImageStore.save(data: data)
+                        DispatchQueue.main.async {
+                            if let name { insertImageReference(name) }
+                        }
+                    }
                 }
             } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                    guard let url = item as? URL,
-                          let image = UIImage(contentsOfFile: url.path),
-                          let name = NoteImageStore.save(image: image) else { return }
-                    Task { @MainActor in insertImageReference(name) }
+                    guard let url = item as? URL else { return }
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        guard let data = try? Data(contentsOf: url) else { return }
+                        let name = NoteImageStore.save(data: data)
+                        DispatchQueue.main.async {
+                            if let name { insertImageReference(name) }
+                        }
+                    }
                 }
             }
         }

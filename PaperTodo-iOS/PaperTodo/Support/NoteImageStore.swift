@@ -9,8 +9,14 @@ enum NoteImageStore {
     }
 
     static func save(image: UIImage) -> String? {
+        guard let data = image.jpegData(compressionQuality: 1) else { return nil }
+        return save(data: data)
+    }
+
+    static func save(data: Data) -> String? {
         let name = "\(UUID().uuidString).jpg"
         let url = assetsDir.appendingPathComponent(name)
+        guard let image = UIImage(data: data) else { return nil }
         let prepared = resized(image, maxDimension: 2048)
         guard let data = prepared.jpegData(compressionQuality: 0.78) else { return nil }
         do {
