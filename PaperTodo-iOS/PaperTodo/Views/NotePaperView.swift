@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import PhotosUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct NotePaperView: View {
     @Bindable var paper: Paper
@@ -10,9 +11,10 @@ struct NotePaperView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var previewing = false
     @State private var pickerItem: PhotosPickerItem?
+    @State private var insertionRequest: String?
 
     private var theme: PaperPalette {
-        settings.palette(dark: colorScheme == .dark)
+        settings.palette(systemDark: colorScheme == .dark)
     }
 
     var body: some View {
@@ -47,11 +49,16 @@ struct NotePaperView: View {
             } else {
                 MarkdownEditorTextView(
                     text: $paper.body,
+                    insertionRequest: $insertionRequest,
                     textColor: UIColor(theme.text),
                     baseFont: .systemFont(ofSize: 17)
                 )
                 .padding(.horizontal, 8)
                 .background(theme.paper.opacity(0.15))
+                .dropDestination(for: Data.self) { items, _ in
+                    insertDroppedImages(items)
+                    return true
+                }
                 .onChange(of: paper.body) { _, _ in
                     paper.updatedAt = Date()
                     try? modelContext.save()
@@ -112,14 +119,7 @@ struct NotePaperView: View {
                let image = UIImage(data: data),
                let name = NoteImageStore.save(image: image) {
                 await MainActor.run {
-                    let reference = "\n![图片](\(name))\n"
-                    if paper.body.isEmpty {
-                        paper.body = reference
-                    } else {
-                        paper.body += reference
-                    }
-                    paper.updatedAt = Date()
-                    try? modelContext.save()
+                    insertImageReference(name)
                 }
             }
             pickerItem = nil
@@ -129,7 +129,18 @@ struct NotePaperView: View {
     private func pasteImage() {
         guard let image = UIPasteboard.general.image,
               let name = NoteImageStore.save(image: image) else { return }
-        paper.body += "\n![图片](\(name))\n"
+        insertImageReference(name)
+    }
+
+    private func insertDroppedImages(_ items: [Data]) {
+        for data in items {
+            guard let image = UIImage(data: data), let name = NoteImageStore.save(image: image) else { continue }
+            insertImageReference(name)
+        }
+    }
+
+    private func insertImageReference(_ name: String) {
+        insertionRequest = (insertionRequest ?? "") + "\n![图片](\(name))\n"
         paper.updatedAt = Date()
         try? modelContext.save()
     }

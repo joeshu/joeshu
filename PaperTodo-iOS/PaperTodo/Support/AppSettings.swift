@@ -16,6 +16,13 @@ enum TodoVisualSize: String, CaseIterable, Identifiable {
     }
 }
 
+enum AppearanceMode: String, CaseIterable, Identifiable {
+    case system = "跟随系统"
+    case light = "浅色"
+    case dark = "深色"
+    var id: String { rawValue }
+}
+
 enum RenderStrength: Int, CaseIterable, Identifiable {
     case plain = 0
     case light = 1
@@ -33,6 +40,9 @@ enum RenderStrength: Int, CaseIterable, Identifiable {
 
 @Observable
 final class AppSettings {
+    var appearance: AppearanceMode {
+        didSet { UserDefaults.standard.set(appearance.rawValue, forKey: "appearance") }
+    }
     var colorScheme: PaperColorScheme {
         didSet { UserDefaults.standard.set(colorScheme.rawValue, forKey: "colorScheme") }
     }
@@ -48,14 +58,21 @@ final class AppSettings {
 
     init() {
         let defaults = UserDefaults.standard
+        appearance = AppearanceMode(rawValue: defaults.string(forKey: "appearance") ?? "") ?? .system
         colorScheme = PaperColorScheme(rawValue: defaults.string(forKey: "colorScheme") ?? "") ?? .warm
         todoVisualSize = TodoVisualSize(rawValue: defaults.string(forKey: "todoVisualSize") ?? "") ?? .medium
         autoClearDone = defaults.object(forKey: "autoClearDone") as? Bool ?? false
         renderStrength = RenderStrength(rawValue: defaults.integer(forKey: "renderStrength")) ?? .full
     }
 
-    func palette(dark: Bool) -> PaperPalette {
-        PaperPalette.scheme(colorScheme, dark: dark)
+    func palette(systemDark: Bool) -> PaperPalette {
+        let dark: Bool
+        switch appearance {
+        case .system: dark = systemDark
+        case .light: dark = false
+        case .dark: dark = true
+        }
+        return PaperPalette.scheme(colorScheme, dark: dark)
     }
 }
 

@@ -18,7 +18,18 @@ struct PaperTodoApp: App {
         WindowGroup {
             ContentView()
                 .environment(settings)
+                .preferredColorScheme(settings.appearance.colorScheme)
         }
         .modelContainer(container)
+    }
+}
+
+private extension AppearanceMode {
+    var colorScheme: ColorScheme? {
+        switch self {
+        case .system: return nil
+        case .light: return .light
+        case .dark: return .dark
+        }
     }
 }

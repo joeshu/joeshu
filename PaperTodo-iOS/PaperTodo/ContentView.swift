@@ -19,7 +19,7 @@ struct ContentView: View {
     }
 
     private var theme: PaperPalette {
-        settings.palette(dark: colorScheme == .dark)
+        settings.palette(systemDark: colorScheme == .dark)
     }
 
     var body: some View {
@@ -124,6 +124,12 @@ struct ContentView: View {
                         }
                     } label: {
                         Image(systemName: "paintpalette")
+                    }
+
+                    NavigationLink {
+                        SettingsView()
+                    } label: {
+                        Image(systemName: "gearshape")
                     }
 
                     Menu {

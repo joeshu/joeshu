@@ -21,7 +21,7 @@ struct TodoPaperView: View {
     }
 
     private var theme: PaperPalette {
-        settings.palette(dark: colorScheme == .dark)
+        settings.palette(systemDark: colorScheme == .dark)
     }
 
     var body: some View {
