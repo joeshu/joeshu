@@ -109,15 +109,24 @@ struct MarkdownTextView: View {
             let options = AttributedString.MarkdownParsingOptions(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace
             )
-            if let attr = try? AttributedString(markdown: value, options: options) {
+            if var attr = try? AttributedString(markdown: value, options: options) {
+                colorLinks(in: &attr)
                 return attr
             }
             return AttributedString(value)
         case .full:
-            if let attr = try? AttributedString(markdown: value) {
+            if var attr = try? AttributedString(markdown: value) {
+                colorLinks(in: &attr)
                 return attr
             }
             return AttributedString(value)
+        }
+    }
+
+    private func colorLinks(in value: inout AttributedString) {
+        guard let linkColor = palette?.link else { return }
+        for run in value.runs where run.link != nil {
+            value[run.range].foregroundColor = linkColor
         }
     }
 }

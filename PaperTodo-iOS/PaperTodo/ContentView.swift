@@ -133,6 +133,19 @@ struct ContentView: View {
                     }
 
                     Menu {
+                        ForEach(sortedPapers) { paper in
+                            NavigationLink(value: paper) {
+                                Label(
+                                    paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title,
+                                    systemImage: paper.kind == .todo ? "checklist" : "note.text"
+                                )
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "rectangle.stack")
+                    }
+
+                    Menu {
                         Button {
                             addPaper(kind: .todo, title: "待办")
                         } label: {

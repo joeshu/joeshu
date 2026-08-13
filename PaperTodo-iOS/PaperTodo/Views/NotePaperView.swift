@@ -55,8 +55,8 @@ struct NotePaperView: View {
                 )
                 .padding(.horizontal, 8)
                 .background(theme.paper.opacity(0.15))
-                .dropDestination(for: Data.self) { items, _ in
-                    insertDroppedImages(items)
+                .onDrop(of: [UTType.image.identifier, UTType.fileURL.identifier], isTargeted: nil) { providers in
+                    loadDroppedImages(providers)
                     return true
                 }
                 .onChange(of: paper.body) { _, _ in
@@ -132,10 +132,21 @@ struct NotePaperView: View {
         insertImageReference(name)
     }
 
-    private func insertDroppedImages(_ items: [Data]) {
-        for data in items {
-            guard let image = UIImage(data: data), let name = NoteImageStore.save(image: image) else { continue }
-            insertImageReference(name)
+    private func loadDroppedImages(_ providers: [NSItemProvider]) {
+        for provider in providers {
+            if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
+                provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
+                    guard let data, let image = UIImage(data: data), let name = NoteImageStore.save(image: image) else { return }
+                    Task { @MainActor in insertImageReference(name) }
+                }
+            } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
+                provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+                    guard let url = item as? URL,
+                          let image = UIImage(contentsOfFile: url.path),
+                          let name = NoteImageStore.save(image: image) else { return }
+                    Task { @MainActor in insertImageReference(name) }
+                }
+            }
         }
     }
 

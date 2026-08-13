@@ -77,6 +77,7 @@ struct MarkdownEditorTextView: UIViewRepresentable {
                 UIBarButtonItem(title: "H", style: .plain, target: self, action: #selector(heading)),
                 UIBarButtonItem(title: ">", style: .plain, target: self, action: #selector(quote)),
                 UIBarButtonItem(title: "`", style: .plain, target: self, action: #selector(code)),
+                UIBarButtonItem(title: "K", style: .plain, target: self, action: #selector(link)),
                 UIBarButtonItem(systemItem: .flexibleSpace)
             ]
             return toolbar
@@ -106,6 +107,7 @@ struct MarkdownEditorTextView: UIViewRepresentable {
         @objc private func heading() { wrap("# ") }
         @objc private func quote() { wrap("> ") }
         @objc private func code() { wrap("`", suffix: "`") }
+        @objc private func link() { wrap("[", suffix: "](https://)") }
     }
 }
 
