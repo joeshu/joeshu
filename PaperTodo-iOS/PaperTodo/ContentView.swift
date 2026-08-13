@@ -8,6 +8,8 @@ struct ContentView: View {
     @Query(sort: \Paper.updatedAt, order: .reverse) private var papers: [Paper]
     @State private var paperPendingDeletion: Paper?
     @State private var saveErrorMessage: String?
+    @State private var activeFilter: PaperFilter = .all
+    @State private var paperPreview: Paper?
 
     private var sortedPapers: [Paper] {
         papers.sorted {
@@ -26,6 +28,21 @@ struct ContentView: View {
         sortedPapers.filter(\.isCollapsed)
     }
 
+    private var visiblePapers: [Paper] {
+        switch activeFilter {
+        case .all:
+            return sortedPapers
+        case .todo:
+            return sortedPapers.filter { $0.kind == .todo }
+        case .note:
+            return sortedPapers.filter { $0.kind == .note }
+        case .pending:
+            return sortedPapers.filter { paper in
+                paper.kind == .todo && paper.todoItems.contains { !$0.isDone }
+            }
+        }
+    }
+
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
@@ -42,7 +59,14 @@ struct ContentView: View {
                             HomeOverview(papers: sortedPapers, theme: theme)
                                 .padding(.bottom, 2)
 
-                            ForEach(sortedPapers) { paper in
+                            PaperFilterBar(filter: $activeFilter, theme: theme)
+
+                            if visiblePapers.isEmpty {
+                                FilterEmptyState(filter: activeFilter, theme: theme)
+                                    .padding(.vertical, 30)
+                            }
+
+                            ForEach(visiblePapers) { paper in
                                 NavigationLink(value: paper) {
                                     PaperCard(paper: paper, theme: theme) {
                                         togglePin(paper)
@@ -55,6 +79,16 @@ struct ContentView: View {
                                         togglePin(paper)
                                     } label: {
                                         Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
+                                    }
+                                    Button {
+                                        toggleCollapse(paper)
+                                    } label: {
+                                        Label(paper.isCollapsed ? "展开纸片" : "折叠纸片", systemImage: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                                    }
+                                    Button {
+                                        paperPreview = paper
+                                    } label: {
+                                        Label("快速预览", systemImage: "eye")
                                     }
                                     Button(role: .destructive) {
                                         paperPendingDeletion = paper
@@ -120,6 +154,16 @@ struct ContentView: View {
                 Button("好", role: .cancel) { }
             } message: {
                 Text(saveErrorMessage ?? "无法保存当前修改。")
+            }
+            .sheet(
+                isPresented: Binding(
+                    get: { paperPreview != nil },
+                    set: { if !$0 { paperPreview = nil } }
+                )
+            ) {
+                if let paperPreview {
+                    PaperPreviewSheet(paper: paperPreview, theme: theme)
+                }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !capsulePapers.isEmpty {
@@ -192,6 +236,14 @@ struct ContentView: View {
         }
     }
 
+    private func toggleCollapse(_ paper: Paper) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            paper.isCollapsed.toggle()
+            paper.updatedAt = Date()
+            saveContext()
+        }
+    }
+
     private func deletePaper(_ paper: Paper) {
         if paper.kind == .note {
             NoteImageStore.deleteReferenced(in: paper.body)
@@ -209,6 +261,144 @@ struct ContentView: View {
         } catch {
             saveErrorMessage = error.localizedDescription
         }
+    }
+}
+
+private enum PaperFilter: String, CaseIterable, Identifiable {
+    case all = "全部"
+    case todo = "待办"
+    case note = "笔记"
+    case pending = "未完成"
+
+    var id: String { rawValue }
+}
+
+private struct PaperFilterBar: View {
+    @Binding var filter: PaperFilter
+    let theme: PaperPalette
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(PaperFilter.allCases) { item in
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            filter = item
+                        }
+                    } label: {
+                        Text(item.rawValue)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(filter == item ? theme.paper : theme.weakText)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(filter == item ? theme.active : theme.paper.opacity(0.55))
+                            )
+                            .overlay {
+                                Capsule()
+                                    .stroke(theme.paperBorder.opacity(filter == item ? 0 : 0.5), lineWidth: 1)
+                            }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 4)
+        }
+        .scrollIndicators(.hidden)
+    }
+}
+
+private struct FilterEmptyState: View {
+    let filter: PaperFilter
+    let theme: PaperPalette
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Image(systemName: filter == .pending ? "checkmark.circle" : "rectangle.stack")
+                .font(.title2)
+                .foregroundStyle(theme.weakText)
+            Text(filter == .pending ? "没有未完成的待办" : "这个分类暂时为空")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(theme.text)
+            Text("切换分类查看其它纸片")
+                .font(.caption)
+                .foregroundStyle(theme.weakText)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+private struct PaperPreviewSheet: View {
+    let paper: Paper
+    let theme: PaperPalette
+    @Environment(\.dismiss) private var dismiss
+
+    private var displayTitle: String {
+        paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title
+    }
+
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    HStack(spacing: 8) {
+                        Image(systemName: paper.kind == .todo ? "checklist" : "note.text")
+                            .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
+                        Text(paper.kind == .todo ? "待办清单" : "Markdown 笔记")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(theme.weakText)
+                    }
+
+                    if paper.kind == .todo {
+                        if paper.todoItems.isEmpty {
+                            Text("这张待办纸还是空的")
+                                .font(.body)
+                                .foregroundStyle(theme.weakText)
+                        } else {
+                            VStack(alignment: .leading, spacing: 10) {
+                                ForEach(paper.todoItems.sorted { $0.sortIndex < $1.sortIndex }) { item in
+                                    HStack(spacing: 10) {
+                                        Image(systemName: item.isDone ? "checkmark.circle.fill" : "circle")
+                                            .foregroundStyle(item.isDone ? theme.active : theme.weakText)
+                                        Text(item.text)
+                                            .font(.body)
+                                            .foregroundStyle(item.isDone ? theme.weakText : theme.text)
+                                            .strikethrough(item.isDone)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        NoteRenderView(
+                            markdown: paper.body,
+                            strength: .full,
+                            font: .body,
+                            textColor: theme.text,
+                            palette: theme
+                        )
+                    }
+                }
+                .padding(20)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(theme.paper, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+                .overlay {
+                    RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                        .stroke(theme.paperBorder.opacity(0.65), lineWidth: 1)
+                }
+                .padding(16)
+            }
+            .background(theme.paper.opacity(0.2).ignoresSafeArea())
+            .navigationTitle(displayTitle)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 
