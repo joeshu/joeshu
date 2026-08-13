@@ -252,9 +252,20 @@ struct PaperCard: View {
             let total = paper.todoItems.count
             return total == 0 ? "空待办纸" : "\(done)/\(total) 已完成"
         case .note:
-            let text = paper.body.trimmingCharacters(in: .whitespacesAndNewlines)
+            let text = paper.body
+                .replacingOccurrences(of: #"[`*_>#\[\]]"#, with: "", options: .regularExpression)
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             return text.isEmpty ? "空笔记" : text
         }
+    }
+
+    private var completedCount: Int {
+        paper.todoItems.filter(\.isDone).count
+    }
+
+    private var progress: Double {
+        guard !paper.todoItems.isEmpty else { return 0 }
+        return Double(completedCount) / Double(paper.todoItems.count)
     }
 
     private var icon: String {
@@ -262,29 +273,38 @@ struct PaperCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
-                    .fill(paper.kind == .todo ? theme.tint.opacity(0.16) : theme.active.opacity(0.16))
-                    .frame(width: 44, height: 44)
-                Image(systemName: icon)
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
-            }
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous)
+                .fill(paper.kind == .todo ? theme.tint : theme.active)
+                .frame(width: 4)
 
             VStack(alignment: .leading, spacing: 5) {
-                Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
-                    .font(.system(.headline, design: .rounded))
-                    .foregroundStyle(theme.text)
+                HStack(spacing: 6) {
+                    Image(systemName: icon)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
+                    Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
+                        .font(.system(.headline, design: .rounded))
+                        .foregroundStyle(theme.text)
+                        .lineLimit(1)
+                }
+                Text(paper.kind == .todo ? "待办清单" : "Markdown 笔记")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(theme.weakText)
                 Text(summary)
                     .font(.subheadline)
                     .foregroundStyle(theme.weakText)
-                    .lineLimit(2)
+                    .lineLimit(1)
+                if paper.kind == .todo && !paper.todoItems.isEmpty {
+                    ProgressView(value: progress)
+                        .tint(theme.active)
+                        .scaleEffect(x: 1, y: 0.65, anchor: .center)
+                }
             }
 
             Spacer()
 
-            VStack(spacing: 8) {
+            VStack(alignment: .trailing, spacing: 8) {
                 if paper.isPinned {
                     Image(systemName: "pin.fill")
                         .font(.caption)
@@ -295,8 +315,8 @@ struct PaperCard: View {
                     .foregroundStyle(theme.weakText.opacity(0.5))
             }
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 14)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 13)
         .background(
             RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                 .fill(theme.paper)
