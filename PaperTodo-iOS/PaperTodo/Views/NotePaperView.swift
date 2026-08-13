@@ -24,7 +24,8 @@ struct NotePaperView: View {
                         markdown: paper.body,
                         strength: settings.renderStrength,
                         font: .system(.body, design: .rounded),
-                        textColor: theme.text
+                        textColor: theme.text,
+                        palette: theme
                     )
                     .padding(.horizontal, 20)
                     .padding(.vertical, 16)
@@ -66,6 +67,12 @@ struct NotePaperView: View {
                     if let newItem {
                         loadImage(from: newItem)
                     }
+                }
+
+                Button {
+                    pasteImage()
+                } label: {
+                    Image(systemName: "doc.on.clipboard")
                 }
 
                 Button {
@@ -117,5 +124,13 @@ struct NotePaperView: View {
             }
             pickerItem = nil
         }
+    }
+
+    private func pasteImage() {
+        guard let image = UIPasteboard.general.image,
+              let name = NoteImageStore.save(image: image) else { return }
+        paper.body += "\n![图片](\(name))\n"
+        paper.updatedAt = Date()
+        try? modelContext.save()
     }
 }

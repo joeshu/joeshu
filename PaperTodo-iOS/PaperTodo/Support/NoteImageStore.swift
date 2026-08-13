@@ -11,7 +11,8 @@ enum NoteImageStore {
     static func save(image: UIImage) -> String? {
         let name = "\(UUID().uuidString).jpg"
         let url = assetsDir.appendingPathComponent(name)
-        guard let data = image.jpegData(compressionQuality: 0.8) else { return nil }
+        let prepared = resized(image, maxDimension: 2048)
+        guard let data = prepared.jpegData(compressionQuality: 0.78) else { return nil }
         do {
             try data.write(to: url)
             return name
@@ -28,5 +29,14 @@ enum NoteImageStore {
     static func delete(named: String) {
         let url = assetsDir.appendingPathComponent(named)
         try? FileManager.default.removeItem(at: url)
+    }
+
+    private static func resized(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
+        let longestSide = max(image.size.width, image.size.height)
+        guard longestSide > maxDimension else { return image }
+        let scale = maxDimension / longestSide
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let renderer = UIGraphicsImageRenderer(size: size)
+        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
     }
 }

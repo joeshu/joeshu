@@ -28,7 +28,8 @@ struct NoteRenderView: View {
                         markdown: segment.raw,
                         strength: strength,
                         font: font,
-                        textColor: textColor
+                        textColor: textColor,
+                        palette: palette
                     )
                 }
             }
