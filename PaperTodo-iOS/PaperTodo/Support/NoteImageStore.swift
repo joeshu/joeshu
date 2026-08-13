@@ -40,10 +40,21 @@ enum NoteImageStore {
     static func referencedNames(in markdown: String) -> Set<String> {
         let pattern = #"!\[[^\]]*\]\(([^)]+)\)"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
-        let range = NSRange(location: 0, length: (markdown as NSString).length)
-        return Set(regex.matches(in: markdown, range: range).map {
-            (markdown as NSString).substring(with: $0.range(at: 1))
-        })
+        var names = Set<String>()
+        var inFence = false
+        for line in markdown.components(separatedBy: .newlines) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.hasPrefix("```") {
+                inFence.toggle()
+                continue
+            }
+            guard !inFence else { continue }
+            let range = NSRange(location: 0, length: (line as NSString).length)
+            for match in regex.matches(in: line, range: range) {
+                names.insert((line as NSString).substring(with: match.range(at: 1)))
+            }
+        }
+        return names
     }
 
     static func deleteReferenced(in markdown: String) {

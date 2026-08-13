@@ -106,6 +106,17 @@ struct TodoPaperView: View {
         }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        clearDoneItems()
+                    } label: {
+                        Label("清除已完成", systemImage: "checkmark.circle.badge.xmark")
+                    }
+                    .disabled(!sortedTodos.contains(where: \.isDone))
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+
                 Button {
                     undo()
                 } label: {
@@ -388,6 +399,18 @@ struct TodoPaperView: View {
             for item in paper.todoItems where set.contains(item.id.uuidString) {
                 modelContext.delete(item)
             }
+        }
+        paper.updatedAt = Date()
+        try? modelContext.save()
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    private func clearDoneItems() {
+        let completed = paper.todoItems.filter(\.isDone)
+        guard !completed.isEmpty else { return }
+        pushUndo()
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            completed.forEach(modelContext.delete)
         }
         paper.updatedAt = Date()
         try? modelContext.save()
