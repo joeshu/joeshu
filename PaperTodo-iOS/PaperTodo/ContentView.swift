@@ -39,6 +39,9 @@ struct ContentView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 12) {
+                            HomeOverview(papers: sortedPapers, theme: theme)
+                                .padding(.bottom, 2)
+
                             ForEach(sortedPapers) { paper in
                                 NavigationLink(value: paper) {
                                     PaperCard(paper: paper, theme: theme) {
@@ -337,12 +340,104 @@ struct PaperCard: View {
             RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                 .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
         )
-        .shadow(color: .black.opacity(0.10), radius: 12, y: 2)
+        .overlay(alignment: .top) {
+            RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                .stroke(
+                    LinearGradient(
+                        colors: [theme.text.opacity(0.16), .clear],
+                        startPoint: .top,
+                        endPoint: .center
+                    ),
+                    lineWidth: 1
+                )
+                .allowsHitTesting(false)
+        }
+        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
+        .shadow(color: .black.opacity(0.07), radius: 14, y: 5)
         .contextMenu {
             Button(action: onTogglePin) {
                 Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
             }
         }
+    }
+}
+
+private struct HomeOverview: View {
+    let papers: [Paper]
+    let theme: PaperPalette
+
+    private var todoPapers: [Paper] {
+        papers.filter { $0.kind == .todo }
+    }
+
+    private var noteCount: Int {
+        papers.filter { $0.kind == .note }.count
+    }
+
+    private var pendingCount: Int {
+        todoPapers.reduce(0) { total, paper in
+            total + paper.todoItems.filter { !$0.isDone }.count
+        }
+    }
+
+    private var pinnedCount: Int {
+        papers.filter(\.isPinned).count
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("今日工作台")
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .foregroundStyle(theme.text)
+                    Text(pendingCount == 0 ? "所有待办都已处理" : "还有 \(pendingCount) 项待办等待处理")
+                        .font(.caption)
+                        .foregroundStyle(theme.weakText)
+                }
+                Spacer()
+                Image(systemName: pendingCount == 0 ? "checkmark.seal.fill" : "sparkles")
+                    .font(.title2)
+                    .foregroundStyle(pendingCount == 0 ? theme.active : theme.tint)
+            }
+
+            HStack(spacing: 0) {
+                overviewMetric(value: papers.count, label: "纸片")
+                Divider()
+                    .frame(height: 24)
+                    .opacity(0.45)
+                overviewMetric(value: pendingCount, label: "待办")
+                Divider()
+                    .frame(height: 24)
+                    .opacity(0.45)
+                overviewMetric(value: noteCount, label: "笔记")
+                Divider()
+                    .frame(height: 24)
+                    .opacity(0.45)
+                overviewMetric(value: pinnedCount, label: "置顶")
+            }
+            .padding(.vertical, 10)
+            .background(theme.paper.opacity(0.48), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+            .overlay {
+                RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous)
+                    .stroke(theme.paperBorder.opacity(0.35), lineWidth: 1)
+            }
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 4)
+    }
+
+    private func overviewMetric(value: Int, label: String) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(.system(.headline, design: .rounded).weight(.bold))
+                .foregroundStyle(theme.text)
+                .monospacedDigit()
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(theme.weakText)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
