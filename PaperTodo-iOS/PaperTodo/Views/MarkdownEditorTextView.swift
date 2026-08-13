@@ -71,16 +71,23 @@ struct MarkdownEditorTextView: UIViewRepresentable {
             let toolbar = UIToolbar()
             toolbar.sizeToFit()
             toolbar.items = [
-                UIBarButtonItem(title: "B", style: .plain, target: self, action: #selector(bold)),
-                UIBarButtonItem(title: "I", style: .plain, target: self, action: #selector(italic)),
-                UIBarButtonItem(title: "S", style: .plain, target: self, action: #selector(strike)),
-                UIBarButtonItem(title: "H", style: .plain, target: self, action: #selector(heading)),
-                UIBarButtonItem(title: ">", style: .plain, target: self, action: #selector(quote)),
-                UIBarButtonItem(title: "`", style: .plain, target: self, action: #selector(code)),
-                UIBarButtonItem(title: "K", style: .plain, target: self, action: #selector(link)),
+                iconItem("加粗", image: UIImage(systemName: "bold"), action: #selector(bold)),
+                iconItem("斜体", image: UIImage(systemName: "italic"), action: #selector(italic)),
+                iconItem("删除线", image: UIImage(systemName: "strikethrough"), action: #selector(strike)),
+                iconItem("标题", image: UIImage(systemName: "textformat.size"), action: #selector(heading)),
+                iconItem("引用", image: UIImage(systemName: "text.quote"), action: #selector(quote)),
+                iconItem("代码", image: UIImage(systemName: "chevron.left.forwardslash.chevron.right"), action: #selector(code)),
+                iconItem("链接", image: UIImage(systemName: "link"), action: #selector(link)),
                 UIBarButtonItem(systemItem: .flexibleSpace)
             ]
             return toolbar
+        }
+
+        private func iconItem(_ title: String, image: UIImage?, action: Selector) -> UIBarButtonItem {
+            let item = UIBarButtonItem(image: image, style: .plain, target: self, action: action)
+            item.accessibilityLabel = title
+            item.accessibilityHint = "将格式应用到当前选中文本"
+            return item
         }
 
         func insert(_ value: String, into textView: UITextView) {

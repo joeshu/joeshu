@@ -220,6 +220,7 @@ private struct CapsuleBar: View {
                     NavigationLink(value: paper) {
                         HStack(spacing: 6) {
                             Image(systemName: paper.kind == .todo ? "checklist" : "note.text")
+                                .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
                             Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
                                 .lineLimit(1)
                         }
@@ -227,8 +228,19 @@ private struct CapsuleBar: View {
                         .foregroundStyle(theme.text)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
-                        .background(Capsule().fill(theme.paper))
-                        .overlay(Capsule().stroke(theme.paperBorder.opacity(0.7), lineWidth: 1))
+                        .background(
+                            Capsule()
+                                .fill(theme.paper)
+                                .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(
+                                    paper.isPinned ? theme.tint.opacity(0.9) : theme.paperBorder.opacity(0.7),
+                                    lineWidth: paper.isPinned ? 1.5 : 1
+                                )
+                        )
+                        .contentShape(Capsule())
                     }
                     .buttonStyle(.plain)
                 }

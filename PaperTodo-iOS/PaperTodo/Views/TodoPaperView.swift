@@ -24,6 +24,15 @@ struct TodoPaperView: View {
         settings.palette(systemDark: colorScheme == .dark)
     }
 
+    private var completedCount: Int {
+        sortedTodos.filter(\.isDone).count
+    }
+
+    private var completionRatio: Double {
+        guard !sortedTodos.isEmpty else { return 0 }
+        return Double(completedCount) / Double(sortedTodos.count)
+    }
+
     var body: some View {
         List {
             Section {
@@ -37,6 +46,16 @@ struct TodoPaperView: View {
                             Label("自动清除", systemImage: "wand.and.stars")
                                 .font(.caption2)
                                 .foregroundStyle(theme.tint)
+                        }
+                    }
+                    if !sortedTodos.isEmpty {
+                        HStack(spacing: 8) {
+                            ProgressView(value: completionRatio)
+                                .tint(theme.active)
+                            Text("完成 \(completedCount)/\(sortedTodos.count)")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(theme.weakText)
+                                .monospacedDigit()
                         }
                     }
                     TextField("纸片标题", text: $paper.title)
