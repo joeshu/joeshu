@@ -13,6 +13,8 @@ struct NotePaperView: View {
     @State private var pickerItem: PhotosPickerItem?
     @State private var insertionRequest: String?
     @State private var exportURL: URL?
+    @State private var pendingImports = 0
+    @State private var importError: String?
 
     private var theme: PaperPalette {
         settings.palette(systemDark: colorScheme == .dark)
@@ -66,6 +68,17 @@ struct NotePaperView: View {
                 }
             }
         }
+        .overlay(alignment: .bottom) {
+            if pendingImports > 0 {
+                Label("正在导入图片", systemImage: "arrow.down.circle")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.text)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(.ultraThinMaterial, in: Capsule())
+                    .padding(.bottom, 12)
+            }
+        }
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 PhotosPicker(selection: $pickerItem, matching: .images) {
@@ -84,7 +97,7 @@ struct NotePaperView: View {
                 }
 
                 Button {
-                    exportURL = NoteExportStore.writeMarkdown(title: paper.title, body: paper.body)
+                    exportURL = NoteExportStore.writeMarkdownPackage(title: paper.title, body: paper.body)
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -137,20 +150,30 @@ struct NotePaperView: View {
                 ActivityView(activityItems: [exportURL])
             }
         }
+        .alert("图片导入失败", isPresented: Binding(
+            get: { importError != nil },
+            set: { if !$0 { importError = nil } }
+        )) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(importError ?? "无法处理这张图片。")
+        }
     }
 
     private func loadImage(from item: PhotosPickerItem) {
         Task {
+            await MainActor.run { startImport() }
             guard let data = try? await item.loadTransferable(type: Data.self) else {
-                await MainActor.run { pickerItem = nil }
-                return
-            }
-            DispatchQueue.global(qos: .userInitiated).async {
-                let name = NoteImageStore.save(data: data)
-                DispatchQueue.main.async {
-                    if let name { insertImageReference(name) }
+                await MainActor.run {
+                    finishImport(name: nil)
                     pickerItem = nil
                 }
+                return
+            }
+            let name = await NoteImageImportQueue.shared.save(data: data)
+            await MainActor.run {
+                finishImport(name: name)
+                pickerItem = nil
             }
         }
     }
@@ -159,10 +182,11 @@ struct NotePaperView: View {
         let pasteboard = UIPasteboard.general
         let imageTypes = [UTType.png.identifier, UTType.jpeg.identifier, UTType.image.identifier]
         guard let data = imageTypes.lazy.compactMap({ pasteboard.data(forPasteboardType: $0) }).first else { return }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let name = NoteImageStore.save(data: data)
-            DispatchQueue.main.async {
-                if let name { insertImageReference(name) }
+        startImport()
+        Task {
+            let name = await NoteImageImportQueue.shared.save(data: data)
+            await MainActor.run {
+                finishImport(name: name)
             }
         }
     }
@@ -172,21 +196,26 @@ struct NotePaperView: View {
             if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                 provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
                     guard let data else { return }
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        let name = NoteImageStore.save(data: data)
-                        DispatchQueue.main.async {
-                            if let name { insertImageReference(name) }
+                    Task {
+                        await MainActor.run { startImport() }
+                        let name = await NoteImageImportQueue.shared.save(data: data)
+                        await MainActor.run {
+                            finishImport(name: name)
                         }
                     }
                 }
             } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
-                    guard let url = item as? URL else { return }
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        guard let data = try? Data(contentsOf: url) else { return }
-                        let name = NoteImageStore.save(data: data)
-                        DispatchQueue.main.async {
-                            if let name { insertImageReference(name) }
+                    Task {
+                        await MainActor.run { startImport() }
+                        guard let url = item as? URL,
+                              let data = try? Data(contentsOf: url) else {
+                            await MainActor.run { finishImport(name: nil) }
+                            return
+                        }
+                        let name = await NoteImageImportQueue.shared.save(data: data)
+                        await MainActor.run {
+                            finishImport(name: name)
                         }
                     }
                 }
@@ -198,6 +227,19 @@ struct NotePaperView: View {
         insertionRequest = (insertionRequest ?? "") + "\n![图片](\(name))\n"
         paper.updatedAt = Date()
         try? modelContext.save()
+    }
+
+    private func startImport() {
+        pendingImports += 1
+    }
+
+    private func finishImport(name: String?) {
+        pendingImports = max(0, pendingImports - 1)
+        if let name {
+            insertImageReference(name)
+        } else {
+            importError = "图片读取或压缩失败，请换一张图片重试。"
+        }
     }
 }
 

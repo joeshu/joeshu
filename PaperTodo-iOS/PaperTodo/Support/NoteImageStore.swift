@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import ImageIO
 
 enum NoteImageStore {
     private static var assetsDir: URL {
@@ -16,8 +17,7 @@ enum NoteImageStore {
     static func save(data: Data) -> String? {
         let name = "\(UUID().uuidString).jpg"
         let url = assetsDir.appendingPathComponent(name)
-        guard let image = UIImage(data: data) else { return nil }
-        let prepared = resized(image, maxDimension: 2048)
+        guard let prepared = thumbnail(data: data, maxDimension: 2048) else { return nil }
         guard let data = prepared.jpegData(compressionQuality: 0.78) else { return nil }
         do {
             try data.write(to: url)
@@ -50,12 +50,41 @@ enum NoteImageStore {
         referencedNames(in: markdown).forEach(delete(named:))
     }
 
-    private static func resized(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
-        let longestSide = max(image.size.width, image.size.height)
-        guard longestSide > maxDimension else { return image }
-        let scale = maxDimension / longestSide
-        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { _ in image.draw(in: CGRect(origin: .zero, size: size)) }
+    static func cleanupOrphans(referencedNames: Set<String>) {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: assetsDir, includingPropertiesForKeys: nil) else { return }
+        for file in files where file.pathExtension.lowercased() == "jpg" && !referencedNames.contains(file.lastPathComponent) {
+            try? FileManager.default.removeItem(at: file)
+        }
+    }
+
+    static func copy(named: String, to directory: URL) -> Bool {
+        let source = assetsDir.appendingPathComponent(named)
+        let destination = directory.appendingPathComponent(named)
+        do {
+            try FileManager.default.copyItem(at: source, to: destination)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private static func thumbnail(data: Data, maxDimension: CGFloat) -> UIImage? {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxDimension
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+        return UIImage(cgImage: image)
+    }
+
+}
+
+actor NoteImageImportQueue {
+    static let shared = NoteImageImportQueue()
+
+    func save(data: Data) -> String? {
+        NoteImageStore.save(data: data)
     }
 }

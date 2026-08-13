@@ -19,8 +19,21 @@ struct PaperTodoApp: App {
             ContentView()
                 .environment(settings)
                 .preferredColorScheme(settings.appearance.colorScheme)
+                .task {
+                    cleanupOrphanedImages()
+                }
         }
         .modelContainer(container)
+    }
+
+    private func cleanupOrphanedImages() {
+        let papers = (try? container.mainContext.fetch(FetchDescriptor<Paper>())) ?? []
+        let referenced = papers.reduce(into: Set<String>()) { result, paper in
+            if paper.kind == .note {
+                result.formUnion(NoteImageStore.referencedNames(in: paper.body))
+            }
+        }
+        NoteImageStore.cleanupOrphans(referencedNames: referenced)
     }
 }
 
