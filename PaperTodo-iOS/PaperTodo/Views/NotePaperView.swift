@@ -127,8 +127,15 @@ struct NotePaperView: View {
             }
         }
         .navigationTitle(paper.title.isEmpty ? "笔记" : paper.title)
-        .sheet(item: $exportURL) { url in
-            ActivityView(activityItems: [url])
+        .sheet(
+            isPresented: Binding(
+                get: { exportURL != nil },
+                set: { if !$0 { exportURL = nil } }
+            )
+        ) {
+            if let exportURL {
+                ActivityView(activityItems: [exportURL])
+            }
         }
     }
 
