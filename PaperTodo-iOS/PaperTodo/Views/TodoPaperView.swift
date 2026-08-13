@@ -129,6 +129,16 @@ struct TodoPaperView: View {
                     Image(systemName: paper.isPinned ? "pin.fill" : "pin")
                 }
 
+                Button {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                        paper.isCollapsed.toggle()
+                        paper.updatedAt = Date()
+                        try? modelContext.save()
+                    }
+                } label: {
+                    Image(systemName: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                }
+
                 EditButton()
             }
         }

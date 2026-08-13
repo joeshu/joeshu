@@ -12,6 +12,7 @@ struct NotePaperView: View {
     @State private var previewing = false
     @State private var pickerItem: PhotosPickerItem?
     @State private var insertionRequest: String?
+    @State private var exportURL: URL?
 
     private var theme: PaperPalette {
         settings.palette(systemDark: colorScheme == .dark)
@@ -83,12 +84,27 @@ struct NotePaperView: View {
                 }
 
                 Button {
+                    exportURL = NoteExportStore.writeMarkdown(title: paper.title, body: paper.body)
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+
+                Button {
                     withAnimation {
                         paper.isPinned.toggle()
                         paper.updatedAt = Date()
                     }
                 } label: {
                     Image(systemName: paper.isPinned ? "pin.fill" : "pin")
+                }
+
+                Button {
+                    withAnimation {
+                        paper.isCollapsed.toggle()
+                        paper.updatedAt = Date()
+                    }
+                } label: {
+                    Image(systemName: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
                 }
 
                 Menu {
@@ -111,6 +127,9 @@ struct NotePaperView: View {
             }
         }
         .navigationTitle(paper.title.isEmpty ? "笔记" : paper.title)
+        .sheet(item: $exportURL) { url in
+            ActivityView(activityItems: [url])
+        }
     }
 
     private func loadImage(from item: PhotosPickerItem) {
@@ -155,4 +174,14 @@ struct NotePaperView: View {
         paper.updatedAt = Date()
         try? modelContext.save()
     }
+}
+
+private struct ActivityView: UIViewControllerRepresentable {
+    let activityItems: [Any]
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) { }
 }

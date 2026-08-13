@@ -31,6 +31,19 @@ enum NoteImageStore {
         try? FileManager.default.removeItem(at: url)
     }
 
+    static func referencedNames(in markdown: String) -> Set<String> {
+        let pattern = #"!\[[^\]]*\]\(([^)]+)\)"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let range = NSRange(location: 0, length: (markdown as NSString).length)
+        return Set(regex.matches(in: markdown, range: range).map {
+            (markdown as NSString).substring(with: $0.range(at: 1))
+        })
+    }
+
+    static func deleteReferenced(in markdown: String) {
+        referencedNames(in: markdown).forEach(delete(named:))
+    }
+
     private static func resized(_ image: UIImage, maxDimension: CGFloat) -> UIImage {
         let longestSide = max(image.size.width, image.size.height)
         guard longestSide > maxDimension else { return image }

@@ -24,7 +24,7 @@ targets:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIApplicationSceneManifest:
-          UIApplicationSupportsMultipleScenes: false
+          UIApplicationSupportsMultipleScenes: true
     entitlements:
       path: PaperTodo/PaperTodo.entitlements
       properties:

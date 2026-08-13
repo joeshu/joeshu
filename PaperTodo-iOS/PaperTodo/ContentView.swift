@@ -22,6 +22,10 @@ struct ContentView: View {
         settings.palette(systemDark: colorScheme == .dark)
     }
 
+    private var capsulePapers: [Paper] {
+        sortedPapers.filter(\.isCollapsed)
+    }
+
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
@@ -114,6 +118,11 @@ struct ContentView: View {
             } message: {
                 Text(saveErrorMessage ?? "无法保存当前修改。")
             }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if !capsulePapers.isEmpty {
+                    CapsuleBar(papers: capsulePapers, theme: theme)
+                }
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Menu {
@@ -181,6 +190,9 @@ struct ContentView: View {
     }
 
     private func deletePaper(_ paper: Paper) {
+        if paper.kind == .note {
+            NoteImageStore.deleteReferenced(in: paper.body)
+        }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             modelContext.delete(paper)
         }
@@ -194,6 +206,37 @@ struct ContentView: View {
         } catch {
             saveErrorMessage = error.localizedDescription
         }
+    }
+}
+
+private struct CapsuleBar: View {
+    let papers: [Paper]
+    let theme: PaperPalette
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(papers) { paper in
+                    NavigationLink(value: paper) {
+                        HStack(spacing: 6) {
+                            Image(systemName: paper.kind == .todo ? "checklist" : "note.text")
+                            Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
+                                .lineLimit(1)
+                        }
+                        .font(.system(.caption, design: .rounded).weight(.semibold))
+                        .foregroundStyle(theme.text)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Capsule().fill(theme.paper))
+                        .overlay(Capsule().stroke(theme.paperBorder.opacity(0.7), lineWidth: 1))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+        }
+        .background(.ultraThinMaterial)
     }
 }
 
