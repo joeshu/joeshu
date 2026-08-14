@@ -104,7 +104,7 @@ struct CalendarEventFormView: View {
 
     private func save() {
         let start = combined(date: date, time: startTime)
-        var end = combined(date: date, time: endTime, fallback: start.addingTimeInterval(3600))
+        let end = combined(date: date, time: endTime, fallback: start.addingTimeInterval(3600))
         guard end > start else {
             saveError = "结束时间需晚于开始时间。"
             return

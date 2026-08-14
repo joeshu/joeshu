@@ -41,7 +41,7 @@ struct MarkdownEditorTextView: UIViewRepresentable {
         var parent: MarkdownEditorTextView
         var isUpdating = false
         weak var parentTextView: UITextView?
-        private var pendingHighlight: (() -> Void)?
+        private var pendingHighlight: DispatchWorkItem?
         private var pendingID = UUID()
 
         init(parent: MarkdownEditorTextView) {
@@ -61,7 +61,7 @@ struct MarkdownEditorTextView: UIViewRepresentable {
             let id = UUID()
             pendingID = id
             let selected = textView.selectedRange
-            let text = textView.text
+            let text = textView.text ?? ""
             let textColor = parent.textColor
             let baseFont = parent.baseFont
             let work = DispatchWorkItem { [weak self] in

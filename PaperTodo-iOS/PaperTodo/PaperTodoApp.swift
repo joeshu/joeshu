@@ -28,14 +28,14 @@ struct PaperTodoApp: App {
                         .filter { $0.kind == .note }
                         .map(\.body) ?? []
                     Task.detached(priority: .utility) {
-                        cleanupOrphanedImages(noteBodies: noteBodies)
+                        Self.cleanupOrphanedImages(noteBodies: noteBodies)
                     }
                 }
         }
         .modelContainer(container)
     }
 
-    private func cleanupOrphanedImages(noteBodies: [String]) {
+    private nonisolated static func cleanupOrphanedImages(noteBodies: [String]) {
         let referenced = noteBodies.reduce(into: Set<String>()) { result, body in
             result.formUnion(NoteImageStore.referencedNames(in: body))
         }

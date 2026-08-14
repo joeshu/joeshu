@@ -396,7 +396,7 @@ struct TodoPaperView: View {
 
     private func restore(_ snap: [TodoSnapshot]) {
         let snapByID = Dictionary(uniqueKeysWithValues: snap.map { ($0.id, $0) })
-        let remainingIDs = Set(snapByID.keys)
+        var remainingIDs = Set(snapByID.keys)
         for item in paper.todoItems {
             if let match = snapByID[item.id] {
                 item.text = match.text
@@ -483,19 +483,19 @@ struct TodoPaperView: View {
             let itemID = item.id
             let paperID = paper.persistentModelID
             autoClearTask?.cancel()
-            autoClearTask = Task { @MainActor [weak self] in
+            autoClearTask = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled, let self else { return }
+                guard !Task.isCancelled else { return }
                 guard settings.autoClearDone,
-                      let current = self.paper.todoItems.first(where: { $0.id == itemID }),
+                      let current = paper.todoItems.first(where: { $0.id == itemID }),
                       current.isDone,
                       current.paper?.persistentModelID == paperID else { return }
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    self.modelContext.delete(current)
+                    modelContext.delete(current)
                 }
-                self.paper.updatedAt = Date()
-                self.saveContext()
-                self.refreshWidget()
+                paper.updatedAt = Date()
+                saveContext()
+                refreshWidget()
             }
         }
     }
