@@ -2,45 +2,45 @@
 
 目标：从全局出发，统一界面视觉与设计令牌、提升 Markdown 与首页渲染性能、修复已审查出的功能 Bug 并补齐缺失交互。
 
-- [ ] 1. 日历模式接入全局主题
-  - [ ] 1.1 日历背景与卡片接入主题令牌
+- [x] 1. 日历模式接入全局主题
+  - [x] 1.1 日历背景与卡片接入主题令牌
     - 将 `CalendarHomeView.swift` 整屏背景 `Color(hex: "E8EEF5")`、`CalendarBackdrop` 渐变与网格线改用 `theme.backgroundGradient`/`theme.canvas`/`theme.paperBorder`（行 87、135、147）
     - 将月卡 `Color.white.opacity`/`Color.white` 卡片底与时间线卡材质改为 `theme.surfaceGradient` + `theme.paperBorder`，统一深浅模式（行 275、366、437）
     - 圆角复用 `PaperRadius.shell`/`block`，消除 24/28/24 硬编码（行 274、366）
-  - [ ] 1.2 日历文字与选中高亮接入主题
+  - [x] 1.2 日历文字与选中高亮接入主题
     - 正文近黑色 `Color(hex: "1C1C1E")` 改用 `theme.text`（行 249、258、288、338、345、430）
     - 选中日/周条/底部 tab 的 `Color(hex: "4A7BF7")` 改用 `theme.accent`（行 290、291、384、491、495）
     - 浅灰 `Color(hex: "C7C7CC")` 改为 `theme.weakText` 或提升对比度（行 266、305、382、412）
-  - [ ] 1.3 统一日历底部导航与全局导航范式
+  - [x] 1.3 统一日历底部导航与全局导航范式
     - 重构 `CalendarTabBar`：将日历底部三个 tab（日历/应用/个人中心）改为与全局一致的分段/工具栏切换，消除图标语义与实际跳转不符问题（CalendarHomeView.swift:467-508、HomeModeContent.swift:44-49）
     - 删除"应用→list、个人中心→quadrant"的错误映射，统一模式切换入口
   - [ ]* 1.4 深色模式一致性校验
     - 校验日历、列表、四象限三模式在 warm/ink/forest/rose 各主题深浅色下的背景、卡片、文字对比度一致
 
-- [ ] 2. 全局颜色派生与无障碍适配
-  - [ ] 2.1 事件分类与象限颜色并入主题派生
+- [x] 2. 全局颜色派生与无障碍适配
+  - [x] 2.1 事件分类与象限颜色并入主题派生
     - `EventCategory.tagBackground/tagText/ringColor` 由主题派生并提供深色变体，消除 18 个硬编码 `Color(hex:)`（Paper.swift:27-62）
     - `Quadrant.color` 从 palette 派生或提供 dark 版本，替换 `4A7BF7/5B9BD5/FFB04A/4CD964` 硬编码（Paper.swift:133-140）
     - `Color(hex:)` 结果缓存到静态字典，避免每次 getter 重复解析（Paper.swift:151-159）
-  - [ ] 2.2 统一同语义颜色
+  - [x] 2.2 统一同语义颜色
     - `QuadrantHomeView` 未勾选复选框与操作菜单 `Color.secondary` 统一为 `theme.weakText`（行 96、132）
     - `AnimatedCheckCircle` 未选中描边与勾选图标接入主题（DesignSystem.swift:72-75）
     - 删除 dropZone `Color.red` 改用 `theme.danger`（TodoPaperView.swift:295）
     - 首页 segmented Picker 增加 `.tint(theme.active)` 与设置页一致（HomeModeContent.swift:17-23）
-  - [ ] 2.3 统一触控目标尺寸
+  - [x] 2.3 统一触控目标尺寸
     - 日历"更多选项"/"+"按钮、周条日按钮触控区扩至 ≥44pt（CalendarHomeView.swift:256-260、335-341、382-393）
     - `QuadrantHomeView` 复选框与 ellipsis 菜单、`PaperFilterBar` 筛选胶囊补足最小触控尺寸（QuadrantHomeView.swift:95-99、ContentView.swift:316-317）
-  - [ ] 2.4 动态字体适配
+  - [x] 2.4 动态字体适配
     - `MarkdownTextView` 标题固定 pt 改为可缩放样式（MarkdownTextView.swift:48）
     - `NotePaperView`/`MarkdownEditorTextView` 编辑器 17pt 固定字号改用 `UIFontMetrics.scaledFont`（MarkdownEditorTextView.swift:21）
     - `TodoPaperView` 新增待办输入框与日历事件行固定高度改为自适应（TodoPaperView.swift:105、MarkdownTextView.swift:294-304）
-  - [ ] 2.5 无障碍标签修复
+  - [x] 2.5 无障碍标签修复
     - `TimelineEventRow` accessibilityLabel 改为"打开 X 进行编辑"，与点击动作一致并加 `.isButton`（CalendarHomeView.swift:443）
     - `SettingsView` PickerRow 合并为单个可交互元素（SettingsView.swift:104-121）
   - [ ]* 2.6 辅助功能与深色模式测试
     - 校验各模式 VoiceOver 标签可读、触控目标 ≥44pt、深色模式无白底
 
-- [ ] 3. 检查点 - 界面优化完成，确保编译通过，如有疑问请询问用户
+- [x] 3. 检查点 - 界面优化完成，确保编译通过，如有疑问请询问用户
 
 - [x] 4. 提升 Markdown 渲染与首页计算性能
   - [x] 4.1 编辑器增量高亮与防抖
@@ -60,9 +60,9 @@
   - [ ]* 4.6 渲染与计算性能基准测试
     - 大笔记连续输入、长列表滚动、多事件日历下测量主线程阻塞与帧率
 
-- [ ] 5. 检查点 - 性能优化完成，确保编译通过，如有疑问请询问用户
+- [x] 5. 检查点 - 性能优化完成，确保编译通过，如有疑问请询问用户
 
-- [ ] 6. 修复功能 Bug
+- [x] 6. 修复功能 Bug
   - [x] 6.1 修复筛选计数单位错误
     - `filterCounts.pending` 改为统计含未完成项的纸片数，与筛选结果一致（ContentView.swift:52-63）
   - [x] 6.2 修复 autoClearDone 与 undo 竞态
@@ -76,7 +76,7 @@
   - [ ]* 6.6 单元测试
     - 为筛选计数、象限推导、undo/redo 对象身份编写单元测试
 
-- [ ] 7. 功能增强与缺失补齐
+- [x] 7. 功能增强与缺失补齐
   - [x] 7.1 笔记标题重命名
     - `NotePaperView` 增加标题编辑入口，与 `TodoPaperView` 对齐（NotePaperView.swift）
   - [x] 7.2 Widget 数据主动刷新
