@@ -2,8 +2,10 @@ import SwiftUI
 import SwiftData
 
 struct CalendarHomeView: View {
+    @Environment(\.modelContext) private var modelContext
     let papers: [Paper]
     let theme: PaperPalette
+    let onTabSelect: (CalendarTab) -> Void
     @Query(sort: \CalendarEvent.startTime) private var events: [CalendarEvent]
     @State private var month = Date()
     @State private var selectedDate = Date()
@@ -12,7 +14,6 @@ struct CalendarHomeView: View {
 
     private let calendar = Calendar.current
     private let weekdays = ["一", "二", "三", "四", "五", "六", "日"]
-    private let timelineHours = [7, 8, 9, 10, 11, 13, 15, 17, 19]
 
     private var monthTitle: String {
         month.formatted(.dateTime.year().month(.wide))
@@ -50,7 +51,7 @@ struct CalendarHomeView: View {
                     events: events,
                     selectedDate: selectedDate,
                     calendar: calendar,
-                    onSelect: { selectedDate = $0 },
+                    onSelect: selectDate,
                     onShift: shiftMonth
                 )
                 .padding(.leading, 12)
@@ -63,9 +64,9 @@ struct CalendarHomeView: View {
                     monthTitle: monthTitle,
                     selectedDate: selectedDate,
                     events: selectedEvents,
-                    hours: timelineHours,
                     calendar: calendar,
-                    onSelect: { selectedDate = $0 }
+                    onSelect: selectDate,
+                    onToggleCompletion: toggleCompletion
                 )
                 .padding(.top, 92)
                 .offset(x: 142, y: appeared ? 0 : 40)
@@ -74,7 +75,7 @@ struct CalendarHomeView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
 
-            CalendarTabBar(selection: $activeTab)
+            CalendarTabBar(selection: $activeTab, onSelect: onTabSelect)
         }
         .background(Color(hex: "E8EEF5").ignoresSafeArea())
         .onAppear {
@@ -84,11 +85,23 @@ struct CalendarHomeView: View {
 
     private func shiftMonth(_ offset: Int) {
         month = calendar.date(byAdding: .month, value: offset, to: month) ?? month
-        selectedDate = month
+        selectedDate = calendar.dateInterval(of: .month, for: month)?.start ?? month
+    }
+
+    private func selectDate(_ date: Date) {
+        selectedDate = date
+        if !calendar.isDate(date, equalTo: month, toGranularity: .month) {
+            month = date
+        }
+    }
+
+    private func toggleCompletion(_ event: CalendarEvent) {
+        event.isCompleted.toggle()
+        try? modelContext.save()
     }
 }
 
-private enum CalendarTab: String, CaseIterable, Identifiable {
+enum CalendarTab: String, CaseIterable, Identifiable {
     case calendar, apps, profile
     var id: String { rawValue }
 }
@@ -159,11 +172,16 @@ private struct MonthCard: View {
             HStack {
                 Text(title).font(.system(size: 18, weight: .bold)).foregroundStyle(Color(hex: "1C1C1E"))
                 Spacer()
-                Button { onShift(1) } label: {
-                    Image(systemName: "ellipsis").font(.caption.weight(.bold)).frame(width: 28, height: 28)
+                HStack(spacing: 4) {
+                    Button { onShift(-1) } label: {
+                        Image(systemName: "chevron.left").font(.caption.weight(.bold)).frame(width: 28, height: 28)
+                    }
+                    Button { onShift(1) } label: {
+                        Image(systemName: "chevron.right").font(.caption.weight(.bold)).frame(width: 28, height: 28)
+                    }
                 }
                 .foregroundStyle(Color(hex: "1C1C1E"))
-                .background(Color(hex: "F2F2F7"), in: Circle())
+                .background(Color(hex: "F2F2F7"), in: Capsule())
                 .accessibilityLabel("切换月份")
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
@@ -213,9 +231,9 @@ private struct DayTimelineCard: View {
     let monthTitle: String
     let selectedDate: Date
     let events: [CalendarEvent]
-    let hours: [Int]
     let calendar: Calendar
     let onSelect: (Date) -> Void
+    let onToggleCompletion: (CalendarEvent) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -273,28 +291,36 @@ private struct DayTimelineCard: View {
     }
 
     private func timelineEvent(_ event: CalendarEvent) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            VStack(spacing: 4) {
-                Text(event.startTime.formatted(.dateTime.hour().minute())).font(.system(size: 11)).foregroundStyle(Color(hex: "C7C7CC"))
-                Circle().stroke(event.category.ringColor, lineWidth: 2).frame(width: 10, height: 10)
+        Button { onToggleCompletion(event) } label: {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(spacing: 4) {
+                    Text(event.startTime.formatted(.dateTime.hour().minute())).font(.system(size: 11)).foregroundStyle(Color(hex: "C7C7CC"))
+                    Circle().stroke(event.category.ringColor, lineWidth: 2).frame(width: 10, height: 10)
+                }
+                Rectangle().fill(Color(hex: "E5E5EA")).frame(width: 1).padding(.top, 3)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))")
+                        .font(.system(size: 12, weight: .medium)).foregroundStyle(Color(hex: "5B9BD5"))
+                    Text(event.title)
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(event.isCompleted ? Color(hex: "8E8E93") : Color(hex: "1C1C1E"))
+                        .strikethrough(event.isCompleted)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
             }
-            Rectangle().fill(Color(hex: "E5E5EA")).frame(width: 1).padding(.top, 3)
-            VStack(alignment: .leading, spacing: 4) {
-                Text("\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))")
-                    .font(.system(size: 12, weight: .medium)).foregroundStyle(Color(hex: "5B9BD5"))
-                Text(event.title).font(.system(size: 14, weight: .semibold)).foregroundStyle(Color(hex: "1C1C1E"))
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("\(event.title)，\(event.isCompleted ? "已完成" : "未完成")")
     }
 }
 
 private struct CalendarTabBar: View {
     @Binding var selection: CalendarTab
+    let onSelect: (CalendarTab) -> Void
 
     var body: some View {
         HStack {
@@ -310,7 +336,10 @@ private struct CalendarTabBar: View {
     }
 
     private func tab(_ item: CalendarTab, icon: String) -> some View {
-        Button { selection = item } label: {
+        Button {
+            selection = item
+            onSelect(item)
+        } label: {
             Image(systemName: icon)
                 .font(.system(size: item == selection ? 22 : 24, weight: .semibold))
                 .foregroundStyle(item == selection ? .white : Color(hex: "C7C7CC"))

@@ -39,7 +39,16 @@ struct HomeModeContent: View {
                         onDelete: onDelete
                     )
                 case .calendar:
-                    CalendarHomeView(papers: papers, theme: theme)
+                    CalendarHomeView(papers: papers, theme: theme) { tab in
+                        switch tab {
+                        case .calendar:
+                            mode = .calendar
+                        case .apps:
+                            mode = .list
+                        case .profile:
+                            mode = .quadrant
+                        }
+                    }
                 case .quadrant:
                     QuadrantHomeView(papers: papers, theme: theme)
                 }

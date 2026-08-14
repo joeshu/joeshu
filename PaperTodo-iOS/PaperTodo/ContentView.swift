@@ -66,7 +66,7 @@ struct ContentView: View {
         @Bindable var settings = settings
         NavigationStack {
             Group {
-                if papers.isEmpty {
+                if papers.isEmpty && settings.homeMode != .calendar {
                     EmptyStateView(
                         theme: theme,
                         onAddTodo: { addPaper(kind: .todo, title: "待办") },
