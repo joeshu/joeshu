@@ -21,6 +21,9 @@ struct PaperPalette {
     let checkBox: Color
     let tint: Color
     let danger: Color
+    let canvas: Color
+    let accent: Color
+    let timeColor: Color
 
     static func scheme(_ name: PaperColorScheme, dark: Bool) -> PaperPalette {
         switch name {
@@ -37,7 +40,10 @@ struct PaperPalette {
                     link: Color(red: 214/255, green: 150/255, blue: 120/255),
                     checkBox: Color(red: 110/255, green: 100/255, blue: 85/255),
                     tint: Color(red: 230/255, green: 223/255, blue: 211/255),
-                    danger: Color(red: 230/255, green: 110/255, blue: 90/255)
+                    danger: Color(red: 230/255, green: 110/255, blue: 90/255),
+                    canvas: Color(red: 30/255, green: 28/255, blue: 25/255),
+                    accent: Color(red: 217/255, green: 176/255, blue: 122/255),
+                    timeColor: Color(red: 147/255, green: 169/255, blue: 201/255)
                 )
             } else {
                 return PaperPalette(
@@ -51,7 +57,10 @@ struct PaperPalette {
                     link: Color(red: 176/255, green: 98/255, blue: 66/255),
                     checkBox: Color(red: 180/255, green: 160/255, blue: 120/255),
                     tint: Color(red: 120/255, green: 92/255, blue: 48/255),
-                    danger: Color(red: 176/255, green: 90/255, blue: 70/255)
+                    danger: Color(red: 176/255, green: 90/255, blue: 70/255),
+                    canvas: Color(red: 250/255, green: 246/255, blue: 236/255),
+                    accent: Color(red: 217/255, green: 160/255, blue: 91/255),
+                    timeColor: Color(red: 124/255, green: 147/255, blue: 184/255)
                 )
             }
         case .ink:
@@ -67,7 +76,10 @@ struct PaperPalette {
                     link: Color(red: 132/255, green: 170/255, blue: 214/255),
                     checkBox: Color(red: 96/255, green: 106/255, blue: 120/255),
                     tint: Color(red: 180/255, green: 200/255, blue: 228/255),
-                    danger: Color(red: 224/255, green: 116/255, blue: 108/255)
+                    danger: Color(red: 224/255, green: 116/255, blue: 108/255),
+                    canvas: Color(red: 23/255, green: 26/255, blue: 30/255),
+                    accent: Color(red: 108/255, green: 147/255, blue: 232/255),
+                    timeColor: Color(red: 127/255, green: 176/255, blue: 232/255)
                 )
             } else {
                 return PaperPalette(
@@ -81,7 +93,10 @@ struct PaperPalette {
                     link: Color(red: 66/255, green: 104/255, blue: 156/255),
                     checkBox: Color(red: 170/255, green: 180/255, blue: 194/255),
                     tint: Color(red: 70/255, green: 90/255, blue: 120/255),
-                    danger: Color(red: 188/255, green: 84/255, blue: 80/255)
+                    danger: Color(red: 188/255, green: 84/255, blue: 80/255),
+                    canvas: Color(red: 232/255, green: 238/255, blue: 245/255),
+                    accent: Color(red: 74/255, green: 123/255, blue: 247/255),
+                    timeColor: Color(red: 91/255, green: 155/255, blue: 213/255)
                 )
             }
         case .forest:
@@ -97,7 +112,10 @@ struct PaperPalette {
                     link: Color(red: 128/255, green: 190/255, blue: 150/255),
                     checkBox: Color(red: 92/255, green: 110/255, blue: 94/255),
                     tint: Color(red: 180/255, green: 208/255, blue: 186/255),
-                    danger: Color(red: 222/255, green: 124/255, blue: 104/255)
+                    danger: Color(red: 222/255, green: 124/255, blue: 104/255),
+                    canvas: Color(red: 24/255, green: 31/255, blue: 26/255),
+                    accent: Color(red: 111/255, green: 190/255, blue: 133/255),
+                    timeColor: Color(red: 132/255, green: 192/255, blue: 160/255)
                 )
             } else {
                 return PaperPalette(
@@ -111,7 +129,10 @@ struct PaperPalette {
                     link: Color(red: 60/255, green: 130/255, blue: 96/255),
                     checkBox: Color(red: 168/255, green: 192/255, blue: 168/255),
                     tint: Color(red: 70/255, green: 110/255, blue: 80/255),
-                    danger: Color(red: 188/255, green: 96/255, blue: 76/255)
+                    danger: Color(red: 188/255, green: 96/255, blue: 76/255),
+                    canvas: Color(red: 238/255, green: 245/255, blue: 236/255),
+                    accent: Color(red: 74/255, green: 159/255, blue: 99/255),
+                    timeColor: Color(red: 91/255, green: 168/255, blue: 127/255)
                 )
             }
         case .rose:
@@ -127,7 +148,10 @@ struct PaperPalette {
                     link: Color(red: 224/255, green: 148/255, blue: 170/255),
                     checkBox: Color(red: 96/255, green: 78/255, blue: 82/255),
                     tint: Color(red: 224/255, green: 180/255, blue: 190/255),
-                    danger: Color(red: 222/255, green: 110/255, blue: 100/255)
+                    danger: Color(red: 222/255, green: 110/255, blue: 100/255),
+                    canvas: Color(red: 34/255, green: 27/255, blue: 30/255),
+                    accent: Color(red: 232/255, green: 138/255, blue: 162/255),
+                    timeColor: Color(red: 187/255, green: 159/255, blue: 201/255)
                 )
             } else {
                 return PaperPalette(
@@ -141,7 +165,10 @@ struct PaperPalette {
                     link: Color(red: 178/255, green: 84/255, blue: 110/255),
                     checkBox: Color(red: 216/255, green: 184/255, blue: 192/255),
                     tint: Color(red: 150/255, green: 80/255, blue: 96/255),
-                    danger: Color(red: 188/255, green: 82/255, blue: 78/255)
+                    danger: Color(red: 188/255, green: 82/255, blue: 78/255),
+                    canvas: Color(red: 250/255, green: 239/255, blue: 241/255),
+                    accent: Color(red: 217/255, green: 112/255, blue: 140/255),
+                    timeColor: Color(red: 168/255, green: 138/255, blue: 181/255)
                 )
             }
         }
@@ -166,5 +193,13 @@ extension PaperPalette {
 
     var activeGradient: LinearGradient {
         LinearGradient(colors: [active.opacity(0.96), active.opacity(0.78)], startPoint: .top, endPoint: .bottom)
+    }
+
+    var backgroundGradient: LinearGradient {
+        LinearGradient(
+            colors: [canvas.opacity(0.9), canvas.opacity(0.45)],
+            startPoint: .top,
+            endPoint: .bottom
+        )
     }
 }

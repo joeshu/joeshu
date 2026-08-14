@@ -420,7 +420,7 @@ private struct PaperPreviewSheet: View {
                 }
                 .padding(16)
             }
-            .background(theme.paper.opacity(0.2).ignoresSafeArea())
+            .background(theme.backgroundGradient.ignoresSafeArea())
             .navigationTitle(displayTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -795,16 +795,6 @@ struct EmptyStateView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            LinearGradient(
-                colors: [
-                    theme.paper.opacity(0.35),
-                    theme.paper.opacity(0.05)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
+        .background(theme.backgroundGradient.ignoresSafeArea())
     }
 }

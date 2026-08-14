@@ -6,12 +6,12 @@ struct QuadrantHomeView: View {
     let theme: PaperPalette
     @Environment(\.modelContext) private var modelContext
 
-    private let quadrants: [(String, String, Color)] = [
-        ("重要且紧急", "立即处理", .red),
-        ("重要不紧急", "安排计划", .orange),
-        ("不重要但紧急", "尽快委派", .blue),
-        ("不重要不紧急", "适度安排", .green)
-    ]
+    @State private var editorConfig: QuadrantEditorConfig?
+    @State private var saveErrorMessage: String?
+
+    private var allItems: [TodoItem] {
+        papers.flatMap(\.todoItems)
+    }
 
     var body: some View {
         ScrollView {
@@ -20,69 +20,237 @@ struct QuadrantHomeView: View {
                 Text("按重要性和紧急性整理待办")
                     .font(.caption)
                     .foregroundStyle(theme.weakText)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                    ForEach(Array(quadrants.enumerated()), id: \.offset) { index, quadrant in
-                        quadrantCard(index: index, title: quadrant.0, subtitle: quadrant.1, color: quadrant.2)
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160, maximum: 240), spacing: 12)], spacing: 12) {
+                    ForEach(Quadrant.allCases) { quadrant in
+                        quadrantCard(quadrant)
                     }
                 }
             }
             .padding(16)
         }
         .scrollIndicators(.hidden)
+        .sheet(item: $editorConfig) { config in
+            QuadrantTaskEditorSheet(title: config.title, initialText: config.initialText, onSubmit: config.handler)
+        }
+        .alert("保存失败", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(saveErrorMessage ?? "无法保存当前修改。")
+        }
     }
 
-    private func quadrantCard(index: Int, title: String, subtitle: String, color: Color) -> some View {
-        let tasks = papers.flatMap(\.todoItems).filter { item in
-            guard !item.isDone else { return false }
-            return quadrantIndex(for: item) == index
-        }
+    private func quadrantCard(_ quadrant: Quadrant) -> some View {
+        let tasks = allItems.filter { !$0.isDone && resolvedQuadrant(of: $0) == quadrant }
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 7) {
-                Circle().fill(color).frame(width: 12, height: 12)
+                Circle().fill(quadrant.color).frame(width: 12, height: 12)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(title).font(.subheadline.weight(.bold))
-                    Text(subtitle).font(.caption2)
+                    Text(quadrant.displayName).font(.subheadline.weight(.bold))
+                    Text(quadrant.subtitle).font(.caption2)
                 }
                 Spacer()
                 Text("\(tasks.count)").font(.caption.weight(.bold)).monospacedDigit()
             }
             .foregroundStyle(theme.text)
             if tasks.isEmpty {
-                Text("暂无任务").font(.caption).foregroundStyle(theme.weakText)
-            } else {
-                ForEach(tasks.prefix(5)) { item in
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("暂无任务").font(.caption).foregroundStyle(theme.weakText)
                     Button {
-                        item.isDone.toggle()
-                        item.paper?.updatedAt = Date()
-                        try? modelContext.save()
+                        presentAddTask(in: quadrant)
                     } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: "square").foregroundStyle(color)
-                            Text(item.text).lineLimit(2)
-                            Spacer(minLength: 0)
-                        }
-                        .font(.caption)
-                        .foregroundStyle(theme.text)
+                        Label("新增任务", systemImage: "plus.circle")
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(quadrant.color)
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("在\(quadrant.displayName)新增任务")
+                }
+            } else {
+                ForEach(tasks.prefix(5)) { item in
+                    taskRow(item, quadrant: quadrant)
+                }
+                if tasks.count > 5 {
+                    Text("+\(tasks.count - 5) 更多")
+                        .font(.caption2)
+                        .foregroundStyle(theme.weakText)
                 }
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
         .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous).stroke(color.opacity(0.35), lineWidth: 1))
+        .overlay(RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous).stroke(quadrant.color.opacity(0.35), lineWidth: 1))
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(quadrant.displayName)，\(tasks.count) 项任务")
     }
 
-    private func quadrantIndex(for item: TodoItem) -> Int {
-        let text = item.text.lowercased()
-        let urgent = text.contains("紧急") || text.contains("今天") || text.contains("马上")
-        let important = text.contains("重要") || text.contains("项目") || text.contains("截止")
+    private func taskRow(_ item: TodoItem, quadrant: Quadrant) -> some View {
+        HStack(spacing: 7) {
+            Button {
+                toggleDone(item)
+            } label: {
+                Image(systemName: item.isDone ? "checkmark.square.fill" : "square")
+                    .foregroundStyle(item.isDone ? quadrant.color : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(item.isDone ? "标记未完成" : "标记完成")
+
+            if let paper = item.paper {
+                NavigationLink(value: paper) {
+                    Text(item.text)
+                        .lineLimit(2)
+                        .font(.caption)
+                        .foregroundStyle(theme.text)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("打开\(item.text)")
+            } else {
+                Text(item.text)
+                    .lineLimit(2)
+                    .font(.caption)
+                    .foregroundStyle(theme.text)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+
+            Menu {
+                ForEach(Quadrant.allCases) { target in
+                    if target != quadrant {
+                        Button("移到\(target.displayName)") {
+                            move(item, to: target)
+                        }
+                    }
+                }
+                Button("编辑") {
+                    presentEdit(item)
+                }
+            } label: {
+                Image(systemName: "ellipsis.circle")
+                    .foregroundStyle(Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(item.text)的操作")
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(item.text)
+    }
+
+    private func resolvedQuadrant(of item: TodoItem) -> Quadrant {
+        if let quadrant = item.quadrant {
+            return quadrant
+        }
+        return Self.deriveQuadrant(from: item.text)
+    }
+
+    static func deriveQuadrant(from text: String) -> Quadrant {
+        let lower = text.lowercased()
+        let urgent = lower.contains("紧急") || lower.contains("今天") || lower.contains("马上")
+        let important = lower.contains("重要") || lower.contains("项目") || lower.contains("截止")
         switch (important, urgent) {
-        case (true, true): return 0
-        case (true, false): return 1
-        case (false, true): return 2
-        case (false, false): return 3
+        case (true, true): return .urgentImportant
+        case (true, false): return .importantNotUrgent
+        case (false, true): return .urgentNotImportant
+        case (false, false): return .notUrgentNotImportant
+        }
+    }
+
+    private func toggleDone(_ item: TodoItem) {
+        item.isDone.toggle()
+        item.paper?.updatedAt = Date()
+        saveContext()
+    }
+
+    private func move(_ item: TodoItem, to quadrant: Quadrant) {
+        item.quadrant = quadrant
+        item.paper?.updatedAt = Date()
+        saveContext()
+    }
+
+    private func presentAddTask(in quadrant: Quadrant) {
+        editorConfig = QuadrantEditorConfig(title: "在\(quadrant.displayName)新增任务", initialText: "") { text in
+            addTask(named: text, in: quadrant)
+        }
+    }
+
+    private func presentEdit(_ item: TodoItem) {
+        editorConfig = QuadrantEditorConfig(title: "编辑任务", initialText: item.text) { text in
+            item.text = text
+            item.paper?.updatedAt = Date()
+            saveContext()
+        }
+    }
+
+    private func addTask(named title: String, in quadrant: Quadrant) {
+        let target: Paper
+        if let existing = papers.first(where: { $0.kind == .todo }) {
+            target = existing
+        } else {
+            let paper = Paper(kind: .todo, title: "待办")
+            modelContext.insert(paper)
+            target = paper
+        }
+        let item = TodoItem(text: title, sortIndex: target.todoItems.count)
+        item.quadrant = quadrant
+        target.todoItems.append(item)
+        target.updatedAt = Date()
+        saveContext()
+    }
+
+    private func saveContext() {
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = error.localizedDescription
+        }
+    }
+}
+
+private struct QuadrantEditorConfig: Identifiable {
+    let id = UUID()
+    let title: String
+    let initialText: String
+    let handler: (String) -> Void
+}
+
+private struct QuadrantTaskEditorSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let title: String
+    let initialText: String
+    let onSubmit: (String) -> Void
+    @State private var text: String
+
+    init(title: String, initialText: String, onSubmit: @escaping (String) -> Void) {
+        self.title = title
+        self.initialText = initialText
+        self.onSubmit = onSubmit
+        _text = State(initialValue: initialText)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("任务内容", text: $text)
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("取消") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        onSubmit(text.trimmingCharacters(in: .whitespacesAndNewlines))
+                        dismiss()
+                    }
+                    .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                }
+            }
         }
     }
 }

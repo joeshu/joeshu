@@ -104,6 +104,42 @@ final class Paper {
     }
 }
 
+enum Quadrant: String, Codable, CaseIterable, Identifiable {
+    case urgentImportant
+    case importantNotUrgent
+    case urgentNotImportant
+    case notUrgentNotImportant
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .urgentImportant: return "重要且紧急"
+        case .importantNotUrgent: return "重要不紧急"
+        case .urgentNotImportant: return "不重要但紧急"
+        case .notUrgentNotImportant: return "不重要不紧急"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .urgentImportant: return "立即处理"
+        case .importantNotUrgent: return "安排计划"
+        case .urgentNotImportant: return "尽快委派"
+        case .notUrgentNotImportant: return "适度安排"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .urgentImportant: return Color(hex: "4A7BF7")
+        case .importantNotUrgent: return Color(hex: "5B9BD5")
+        case .urgentNotImportant: return Color(hex: "FFB04A")
+        case .notUrgentNotImportant: return Color(hex: "4CD964")
+        }
+    }
+}
+
 @Model
 final class TodoItem {
     @Attribute(.unique) var id: UUID
@@ -111,7 +147,13 @@ final class TodoItem {
     var isDone: Bool
     var sortIndex: Int
     var createdAt: Date
+    var quadrantRaw: String = ""
     var paper: Paper?
+
+    var quadrant: Quadrant? {
+        get { Quadrant(rawValue: quadrantRaw) }
+        set { quadrantRaw = newValue?.rawValue ?? "" }
+    }
 
     init(id: UUID = UUID(), text: String = "", isDone: Bool = false, sortIndex: Int = 0) {
         self.id = id

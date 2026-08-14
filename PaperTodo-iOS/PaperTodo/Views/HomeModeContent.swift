@@ -56,14 +56,7 @@ struct HomeModeContent: View {
             .frame(maxWidth: 800)
             .frame(maxWidth: .infinity)
         }
-        .background(
-            LinearGradient(
-                colors: [theme.paper.opacity(0.34), theme.paper.opacity(0.08)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
+        .background(theme.backgroundGradient.ignoresSafeArea())
     }
 }
 
