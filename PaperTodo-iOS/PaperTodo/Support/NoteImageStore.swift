@@ -1,8 +1,13 @@
 import SwiftUI
 import UIKit
 import ImageIO
+import UniformTypeIdentifiers
 
 enum NoteImageStore {
+    private static let maxInputBytes = 50 * 1024 * 1024
+    private static let maxDimension: CGFloat = 2048
+    private static let jpegQuality: CGFloat = 0.76
+
     private static var assetsDir: URL {
         let dir = URL.documentsDirectory.appendingPathComponent("note-assets", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -10,17 +15,32 @@ enum NoteImageStore {
     }
 
     static func save(image: UIImage) -> String? {
-        guard let data = image.jpegData(compressionQuality: 1) else { return nil }
-        return save(data: data)
+        guard let cgImage = image.cgImage else { return nil }
+        return save(cgImage: cgImage)
     }
 
     static func save(data: Data) -> String? {
+        guard data.count <= maxInputBytes else { return nil }
+        guard let image = thumbnail(data: data, maxDimension: maxDimension) else { return nil }
+        return save(cgImage: image)
+    }
+
+    private static func save(cgImage: CGImage) -> String? {
         let name = "\(UUID().uuidString).jpg"
         let url = assetsDir.appendingPathComponent(name)
-        guard let prepared = thumbnail(data: data, maxDimension: 2048) else { return nil }
-        guard let data = prepared.jpegData(compressionQuality: 0.78) else { return nil }
+        let output = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(
+            output,
+            UTType.jpeg.identifier as CFString,
+            1,
+            nil
+        ) else { return nil }
+        CGImageDestinationAddImage(destination, cgImage, [
+            kCGImageDestinationLossyCompressionQuality: jpegQuality
+        ] as CFDictionary)
+        guard CGImageDestinationFinalize(destination) else { return nil }
         do {
-            try data.write(to: url)
+            try (output as Data).write(to: url, options: .atomic)
             return name
         } catch {
             return nil
@@ -79,15 +99,19 @@ enum NoteImageStore {
         }
     }
 
-    private static func thumbnail(data: Data, maxDimension: CGFloat) -> UIImage? {
-        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else { return nil }
+    private static func thumbnail(data: Data, maxDimension: CGFloat) -> CGImage? {
+        let sourceOptions: [CFString: Any] = [
+            kCGImageSourceShouldCache: false
+        ]
+        guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
-            kCGImageSourceThumbnailMaxPixelSize: maxDimension
+            kCGImageSourceThumbnailMaxPixelSize: maxDimension,
+            kCGImageSourceShouldCacheImmediately: true
         ]
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
-        return UIImage(cgImage: image)
+        return image
     }
 
 }
