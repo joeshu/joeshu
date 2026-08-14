@@ -42,7 +42,8 @@ enum EventCategory: String, Codable, CaseIterable, Identifiable {
         switch self {
         case .personal: return Color(hex: "FF6B8A")
         case .work, .daily, .travel: return Color(hex: "5B9BD5")
-        case .errand, .shopping: return Color(hex: "4CD964")
+        case .errand: return Color(hex: "5B9BD5")
+        case .shopping: return Color(hex: "4CD964")
         case .important: return Color(hex: "FFCC00")
         case .leisure: return Color(hex: "AF52DE")
         }
