@@ -21,6 +21,7 @@ struct PaperTodoApp: App {
                 .preferredColorScheme(settings.appearance.colorScheme)
                 .task {
                     cleanupOrphanedImages()
+                    SharedContainer.seedCalendarEvents(in: container.mainContext)
                 }
         }
         .modelContainer(container)
