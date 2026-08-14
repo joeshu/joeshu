@@ -49,6 +49,19 @@ struct ContentView: View {
         }
     }
 
+    private var filterCounts: PaperFilterCounts {
+        activePapers.reduce(into: PaperFilterCounts()) { counts, paper in
+            counts.all += 1
+            switch paper.kind {
+            case .todo:
+                counts.todo += 1
+                counts.pending += paper.todoItems.filter { !$0.isDone }.count
+            case .note:
+                counts.note += 1
+            }
+        }
+    }
+
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
@@ -65,7 +78,7 @@ struct ContentView: View {
                             HomeOverview(papers: activePapers, theme: theme)
                                 .padding(.bottom, 2)
 
-                            PaperFilterBar(filter: $activeFilter, papers: activePapers, theme: theme)
+                            PaperFilterBar(filter: $activeFilter, counts: filterCounts, theme: theme)
 
                             if visiblePapers.isEmpty {
                                 FilterEmptyState(filter: activeFilter, theme: theme)
@@ -312,9 +325,25 @@ private enum PaperFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
+private struct PaperFilterCounts {
+    var all = 0
+    var todo = 0
+    var note = 0
+    var pending = 0
+
+    subscript(filter: PaperFilter) -> Int {
+        switch filter {
+        case .all: return all
+        case .todo: return todo
+        case .note: return note
+        case .pending: return pending
+        }
+    }
+}
+
 private struct PaperFilterBar: View {
     @Binding var filter: PaperFilter
-    let papers: [Paper]
+    let counts: PaperFilterCounts
     let theme: PaperPalette
 
     var body: some View {
@@ -327,7 +356,7 @@ private struct PaperFilterBar: View {
                         }
                     } label: {
                         VStack(spacing: 4) {
-                            Text("\(item.rawValue) \(count(for: item))")
+                            Text("\(item.rawValue) \(counts[item])")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(filter == item ? theme.paper : theme.weakText)
                             Capsule()
@@ -350,6 +379,9 @@ private struct PaperFilterBar: View {
                             }
                     }
                     .buttonStyle(PaperPressStyle(pressedScale: 0.96))
+                    .accessibilityLabel("筛选\(item.rawValue)")
+                    .accessibilityValue("\(counts[item]) 项")
+                    .accessibilityAddTraits(filter == item ? .isSelected : [])
                 }
             }
             .padding(.horizontal, 4)
@@ -357,17 +389,6 @@ private struct PaperFilterBar: View {
         .scrollIndicators(.hidden)
     }
 
-    private func count(for filter: PaperFilter) -> Int {
-        switch filter {
-        case .all: return papers.count
-        case .todo: return papers.filter { $0.kind == .todo }.count
-        case .note: return papers.filter { $0.kind == .note }.count
-        case .pending:
-            return papers.reduce(0) { result, paper in
-                result + (paper.kind == .todo ? paper.todoItems.filter { !$0.isDone }.count : 0)
-            }
-        }
-    }
 }
 
 private struct FilterEmptyState: View {
@@ -644,35 +665,18 @@ private struct HomeOverview: View {
     let papers: [Paper]
     let theme: PaperPalette
 
-    private var todoPapers: [Paper] {
-        papers.filter { $0.kind == .todo }
-    }
-
-    private var noteCount: Int {
-        papers.filter { $0.kind == .note }.count
-    }
-
-    private var pendingCount: Int {
-        todoPapers.reduce(0) { total, paper in
-            total + paper.todoItems.filter { !$0.isDone }.count
+    private var metrics: OverviewMetrics {
+        papers.reduce(into: OverviewMetrics()) { metrics, paper in
+            if paper.isPinned { metrics.pinnedCount += 1 }
+            switch paper.kind {
+            case .todo:
+                metrics.totalTodoCount += paper.todoItems.count
+                metrics.completedTodoCount += paper.todoItems.filter(\.isDone).count
+                metrics.pendingCount += paper.todoItems.filter { !$0.isDone }.count
+            case .note:
+                metrics.noteCount += 1
+            }
         }
-    }
-
-    private var pinnedCount: Int {
-        papers.filter(\.isPinned).count
-    }
-
-    private var totalTodoCount: Int {
-        todoPapers.reduce(0) { $0 + $1.todoItems.count }
-    }
-
-    private var completedTodoCount: Int {
-        todoPapers.reduce(0) { $0 + $1.todoItems.filter(\.isDone).count }
-    }
-
-    private var completionRate: Double {
-        guard totalTodoCount > 0 else { return 1 }
-        return Double(completedTodoCount) / Double(totalTodoCount)
     }
 
     var body: some View {
@@ -682,14 +686,14 @@ private struct HomeOverview: View {
                     Text("今日工作台")
                         .font(.system(.title3, design: .rounded).weight(.bold))
                         .foregroundStyle(theme.text)
-                    Text(pendingCount == 0 ? "所有待办都已处理" : "还有 \(pendingCount) 项待办等待处理")
+                    Text(metrics.pendingCount == 0 ? "所有待办都已处理" : "还有 \(metrics.pendingCount) 项待办等待处理")
                         .font(.caption)
                         .foregroundStyle(theme.weakText)
                 }
                 Spacer()
-                Image(systemName: pendingCount == 0 ? "checkmark.seal.fill" : "sparkles")
+                Image(systemName: metrics.pendingCount == 0 ? "checkmark.seal.fill" : "sparkles")
                     .font(.title2)
-                    .foregroundStyle(pendingCount == 0 ? theme.active : theme.tint)
+                    .foregroundStyle(metrics.pendingCount == 0 ? theme.active : theme.tint)
             }
 
             HStack(spacing: 0) {
@@ -697,15 +701,15 @@ private struct HomeOverview: View {
                 Divider()
                     .frame(height: 24)
                     .opacity(0.45)
-                overviewMetric(value: pendingCount, label: "待办")
+                overviewMetric(value: metrics.pendingCount, label: "待办")
                 Divider()
                     .frame(height: 24)
                     .opacity(0.45)
-                overviewMetric(value: noteCount, label: "笔记")
+                overviewMetric(value: metrics.noteCount, label: "笔记")
                 Divider()
                     .frame(height: 24)
                     .opacity(0.45)
-                overviewMetric(value: pinnedCount, label: "置顶")
+                overviewMetric(value: metrics.pinnedCount, label: "置顶")
             }
             .padding(.vertical, 10)
             .background(theme.surfaceGradient.opacity(0.72), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
@@ -716,16 +720,16 @@ private struct HomeOverview: View {
             .shadow(color: theme.shadow.opacity(0.4), radius: 10, y: 4)
 
             HStack(spacing: 10) {
-                Image(systemName: completionRate == 1 ? "checkmark.circle.fill" : "chart.bar.fill")
-                    .foregroundStyle(completionRate == 1 ? theme.active : theme.tint)
+                Image(systemName: metrics.completionRate == 1 ? "checkmark.circle.fill" : "chart.bar.fill")
+                    .foregroundStyle(metrics.completionRate == 1 ? theme.active : theme.tint)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("待办完成率")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(theme.weakText)
-                    ProgressView(value: completionRate)
-                        .tint(completionRate == 1 ? theme.active : theme.tint)
+                    ProgressView(value: metrics.completionRate)
+                        .tint(metrics.completionRate == 1 ? theme.active : theme.tint)
                 }
-                Text("\(Int(completionRate * 100))%")
+                Text("\(Int(metrics.completionRate * 100))%")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(theme.text)
                     .monospacedDigit()
@@ -749,6 +753,19 @@ private struct HomeOverview: View {
                 .foregroundStyle(theme.weakText)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct OverviewMetrics {
+    var noteCount = 0
+    var pendingCount = 0
+    var pinnedCount = 0
+    var totalTodoCount = 0
+    var completedTodoCount = 0
+
+    var completionRate: Double {
+        guard totalTodoCount > 0 else { return 1 }
+        return Double(completedTodoCount) / Double(totalTodoCount)
     }
 }
 

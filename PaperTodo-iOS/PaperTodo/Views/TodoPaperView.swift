@@ -21,6 +21,10 @@ struct TodoPaperView: View {
         paper.todoItems.sorted { $0.sortIndex < $1.sortIndex }
     }
 
+    private var hasCompletedTodos: Bool {
+        paper.todoItems.contains(where: \.isDone)
+    }
+
     private var theme: PaperPalette {
         settings.palette(systemDark: colorScheme == .dark)
     }
@@ -136,7 +140,7 @@ struct TodoPaperView: View {
                     } label: {
                         Label("清除已完成", systemImage: "checkmark.circle.badge.xmark")
                     }
-                    .disabled(!sortedTodos.contains(where: \.isDone))
+                    .disabled(!hasCompletedTodos)
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
