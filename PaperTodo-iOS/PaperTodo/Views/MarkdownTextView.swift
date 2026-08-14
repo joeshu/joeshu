@@ -7,6 +7,7 @@ struct MarkdownTextView: View {
     var textColor: Color = .primary
     var palette: PaperPalette? = nil
     private let parsedBlocks: [Block]
+    private let inlineCache: [Int: AttributedString]
 
     init(
         markdown: String,
@@ -20,13 +21,24 @@ struct MarkdownTextView: View {
         self.font = font
         self.textColor = textColor
         self.palette = palette
-        self.parsedBlocks = Self.parseBlocks(markdown, strength: strength)
+        let blocks = Self.parseBlocks(markdown, strength: strength)
+        self.parsedBlocks = blocks
+        var cache: [Int: AttributedString] = [:]
+        for (index, block) in blocks.enumerated() {
+            switch block {
+            case let .heading(_, text), let .quote(text), let .paragraph(text):
+                cache[index] = Self.resolveInline(text, strength: strength, palette: palette)
+            case .code, .divider:
+                break
+            }
+        }
+        self.inlineCache = cache
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(parsedBlocks.enumerated()), id: \.offset) { _, block in
-                blockView(block)
+            ForEach(Array(parsedBlocks.enumerated()), id: \.offset) { index, block in
+                blockView(block, index: index)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -41,10 +53,10 @@ struct MarkdownTextView: View {
     }
 
     @ViewBuilder
-    private func blockView(_ block: Block) -> some View {
+    private func blockView(_ block: Block, index: Int) -> some View {
         switch block {
-        case let .heading(level, text):
-            Text(inline(text))
+        case let .heading(level, _):
+            Text(inline(for: index))
                 .font(headingFont(level))
                 .foregroundStyle(textColor)
                 .padding(.top, level == 1 ? 8 : 3)
@@ -57,8 +69,8 @@ struct MarkdownTextView: View {
                     }
                 }
                 .accessibilityAddTraits(.isHeader)
-        case let .quote(text):
-            Text(inline(text))
+        case let .quote(_):
+            Text(inline(for: index))
                 .font(font)
                 .foregroundStyle(textColor)
                 .lineSpacing(4)
@@ -93,12 +105,16 @@ struct MarkdownTextView: View {
                 .shadow(color: (palette?.shadow ?? .black.opacity(0.15)).opacity(0.28), radius: 7, y: 3)
         case .divider:
             Divider().overlay((palette?.quoteBorder ?? textColor.opacity(0.25)).opacity(0.7))
-        case let .paragraph(text):
-            Text(inline(text))
+        case let .paragraph(_):
+            Text(inline(for: index))
                 .font(font)
                 .foregroundStyle(textColor)
                 .lineSpacing(4)
         }
+    }
+
+    private func inline(for index: Int) -> AttributedString {
+        inlineCache[index] ?? AttributedString("")
     }
 
     private func headingFont(_ level: Int) -> Font {
@@ -152,9 +168,10 @@ struct MarkdownTextView: View {
         return result.isEmpty ? [.paragraph(markdown)] : result
     }
 
-    private func inline(_ value: String) -> AttributedString {
+    static func resolveInline(_ value: String, strength: RenderStrength, palette: PaperPalette?) -> AttributedString {
         guard !value.isEmpty else { return AttributedString("") }
 
+        var attr: AttributedString
         switch strength {
         case .plain:
             return AttributedString(value)
@@ -162,24 +179,21 @@ struct MarkdownTextView: View {
             let options = AttributedString.MarkdownParsingOptions(
                 interpretedSyntax: .inlineOnlyPreservingWhitespace
             )
-            if var attr = try? AttributedString(markdown: value, options: options) {
-                colorLinks(in: &attr)
-                return attr
+            guard var parsed = try? AttributedString(markdown: value, options: options) else {
+                return AttributedString(value)
             }
-            return AttributedString(value)
+            attr = parsed
         case .full:
-            if var attr = try? AttributedString(markdown: value) {
-                colorLinks(in: &attr)
-                return attr
+            guard var parsed = try? AttributedString(markdown: value) else {
+                return AttributedString(value)
             }
-            return AttributedString(value)
+            attr = parsed
         }
-    }
-
-    private func colorLinks(in value: inout AttributedString) {
-        guard let linkColor = palette?.link else { return }
-        for run in value.runs where run.link != nil {
-            value[run.range].foregroundColor = linkColor
+        if let linkColor = palette?.link {
+            for run in attr.runs where run.link != nil {
+                attr[run.range].foregroundColor = linkColor
+            }
         }
+        return attr
     }
 }

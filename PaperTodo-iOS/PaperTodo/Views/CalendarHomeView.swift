@@ -10,9 +10,15 @@ struct CalendarHomeView: View {
     @State private var appeared = false
     @State private var isPresentingForm = false
     @State private var editingEvent: CalendarEvent?
+    @State private var saveErrorMessage: String?
 
     private let calendar = Calendar.current
-    private let weekdays = ["一", "二", "三", "四", "五", "六", "日"]
+    private let weekdayLabels = ["日", "一", "二", "三", "四", "五", "六"]
+
+    private var weekdays: [String] {
+        let first = calendar.firstWeekday - 1
+        return (0..<7).map { weekdayLabels[(first + $0) % 7] }
+    }
 
     private var monthTitle: String {
         month.formatted(.dateTime.month(.wide))
@@ -44,39 +50,76 @@ struct CalendarHomeView: View {
                 ZStack(alignment: .topLeading) {
                     CalendarBackdrop(theme: theme)
 
-                    MonthCard(
-                        month: month,
-                        title: monthTitle,
-                        days: days,
-                        weekdays: weekdays,
-                        events: events,
-                        selectedDate: selectedDate,
-                        calendar: calendar,
-                        theme: theme,
-                        onSelect: selectDate,
-                        onShift: shiftMonth
-                    )
-                    .padding(.leading, 12)
-                    .padding(.top, 34)
-                    .frame(width: max(width * 0.58, 296))
-                    .offset(y: appeared ? 0 : 40)
-                    .zIndex(1)
+                    if width < 720 {
+                        ScrollView(.vertical, showsIndicators: false) {
+                            VStack(spacing: 16) {
+                                MonthCard(
+                                    month: month,
+                                    title: monthTitle,
+                                    days: days,
+                                    weekdays: weekdays,
+                                    events: events,
+                                    selectedDate: selectedDate,
+                                    calendar: calendar,
+                                    theme: theme,
+                                    onSelect: selectDate,
+                                    onShift: shiftMonth
+                                )
+                                DayTimelineCard(
+                                    monthTitle: monthTitle,
+                                    selectedDate: selectedDate,
+                                    events: selectedEvents,
+                                    calendar: calendar,
+                                    theme: theme,
+                                    onSelect: selectDate,
+                                    onOpen: openEvent,
+                                    onAdd: addEvent
+                                )
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.top, 20)
+                            .padding(.bottom, 16)
+                            .frame(maxWidth: 560)
+                            .frame(maxWidth: .infinity)
+                        }
+                        .offset(y: appeared ? 0 : 40)
+                        .animation(.spring(response: 0.6, dampingFraction: 0.86), value: appeared)
+                    } else {
+                        MonthCard(
+                            month: month,
+                            title: monthTitle,
+                            days: days,
+                            weekdays: weekdays,
+                            events: events,
+                            selectedDate: selectedDate,
+                            calendar: calendar,
+                            theme: theme,
+                            onSelect: selectDate,
+                            onShift: shiftMonth
+                        )
+                        .padding(.leading, 12)
+                        .padding(.top, 34)
+                        .frame(width: max(width * 0.58, 296))
+                        .offset(y: appeared ? 0 : 40)
+                        .zIndex(1)
 
-                    DayTimelineCard(
-                        monthTitle: monthTitle,
-                        selectedDate: selectedDate,
-                        events: selectedEvents,
-                        calendar: calendar,
-                        theme: theme,
-                        onSelect: selectDate,
-                        onOpen: openEvent,
-                        onAdd: addEvent
-                    )
-                    .padding(.top, 104)
-                    .frame(width: width * 0.60)
-                    .offset(x: width * 0.40, y: appeared ? 0 : 40)
-                    .zIndex(2)
+                        DayTimelineCard(
+                            monthTitle: monthTitle,
+                            selectedDate: selectedDate,
+                            events: selectedEvents,
+                            calendar: calendar,
+                            theme: theme,
+                            onSelect: selectDate,
+                            onOpen: openEvent,
+                            onAdd: addEvent
+                        )
+                        .padding(.top, 104)
+                        .frame(width: width * 0.60)
+                        .offset(x: width * 0.40, y: appeared ? 0 : 40)
+                        .zIndex(2)
+                    }
                 }
+                .animation(.spring(response: 0.6, dampingFraction: 0.86), value: appeared)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
@@ -84,11 +127,27 @@ struct CalendarHomeView: View {
         .background(theme.backgroundGradient.ignoresSafeArea())
         .sheet(isPresented: $isPresentingForm) {
             CalendarEventFormView(event: editingEvent, date: selectedDate) {
-                try? modelContext.save()
+                saveEvents()
             }
+        }
+        .alert("保存失败", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(saveErrorMessage ?? "无法保存更改。")
         }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.86)) { appeared = true }
+        }
+    }
+
+    private func saveEvents() {
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = error.localizedDescription
         }
     }
 
@@ -375,17 +434,19 @@ private struct DayTimelineCard: View {
     }
 
     private var weekStrip: some View {
-        let weekdayIndex = calendar.component(.weekday, from: selectedDate) - 1
+        let firstWeekday = calendar.firstWeekday
+        let weekdayIndex = (calendar.component(.weekday, from: selectedDate) - firstWeekday + 7) % 7
         let weekStart = calendar.date(byAdding: .day, value: -weekdayIndex, to: selectedDate) ?? selectedDate
         let week = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: weekStart) }
-        let weekdayLabels = ["日", "一", "二", "三", "四", "五", "六"]
+        let labels = ["日", "一", "二", "三", "四", "五", "六"]
+        let orderedLabels = (0..<7).map { labels[(firstWeekday - 1 + $0) % 7] }
         return HStack(spacing: 3) {
             ForEach(week, id: \.self) { date in
                 let selected = calendar.isDate(date, inSameDayAs: selectedDate)
-                let weekdayIndex = calendar.component(.weekday, from: date) - 1
+                let weekdayIndex = (calendar.component(.weekday, from: date) - firstWeekday + 7) % 7
                 Button { onSelect(date) } label: {
                     VStack(spacing: 3) {
-                        Text(weekdayLabels[weekdayIndex]).font(.system(size: 10)).foregroundStyle(theme.weakText)
+                        Text(orderedLabels[weekdayIndex]).font(.system(size: 10)).foregroundStyle(theme.weakText)
                         ZStack {
                             Circle().fill(theme.accent)
                                 .frame(width: 30, height: 30)

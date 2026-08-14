@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct NoteRenderView: View {
     let markdown: String
@@ -27,22 +28,13 @@ struct NoteRenderView: View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(parsedSegments.enumerated()), id: \.offset) { _, segment in
                 if let imageName = segment.imageName {
-                    if let uiImage = NoteImageStore.image(
-                        named: imageName,
-                        maxPixelSize: UIScreen.main.bounds.width * UIScreen.main.scale
-                    ) {
-                        Image(uiImage: uiImage)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(maxWidth: .infinity)
-                            .clipShape(RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
-                            .shadow(color: (palette?.shadow ?? .black.opacity(0.22)).opacity(0.55), radius: 3, y: 1)
-                            .shadow(color: (palette?.shadow ?? .black.opacity(0.22)).opacity(0.35), radius: 10, y: 4)
-                    } else {
-                        Text(segment.raw)
-                            .font(font)
-                            .foregroundStyle(.secondary)
-                    }
+                    AsyncNoteImage(
+                        name: imageName,
+                        palette: palette,
+                        fallback: segment.raw,
+                        font: font,
+                        textColor: textColor
+                    )
                 } else if !segment.raw.isEmpty {
                     MarkdownTextView(
                         markdown: segment.raw,
@@ -99,6 +91,39 @@ struct NoteRenderView: View {
         init(raw: String, imageName: String? = nil) {
             self.raw = raw
             self.imageName = imageName
+        }
+    }
+}
+
+private struct AsyncNoteImage: View {
+    let name: String
+    let palette: PaperPalette?
+    let fallback: String
+    let font: Font
+    let textColor: Color
+    @State private var uiImage: UIImage?
+
+    var body: some View {
+        Group {
+            if let uiImage {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxWidth: .infinity)
+                    .clipShape(RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                    .shadow(color: (palette?.shadow ?? .black.opacity(0.22)).opacity(0.55), radius: 3, y: 1)
+                    .shadow(color: (palette?.shadow ?? .black.opacity(0.22)).opacity(0.35), radius: 10, y: 4)
+            } else {
+                Text(fallback)
+                    .font(font)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .task(id: name) {
+            let maxPixelSize = UIScreen.main.bounds.width * UIScreen.main.scale
+            uiImage = await Task.detached(priority: .userInitiated) {
+                NoteImageStore.image(named: name, maxPixelSize: maxPixelSize)
+            }.value
         }
     }
 }

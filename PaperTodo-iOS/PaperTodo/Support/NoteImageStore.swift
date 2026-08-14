@@ -10,6 +10,7 @@ enum NoteImageStore {
     private static let maxInputPixels = 12_000_000
     private static let maxDimension: CGFloat = 2048
     private static let jpegQuality: CGFloat = 0.76
+    private static let imageRegex = try? NSRegularExpression(pattern: #"!\[[^\]]*\]\(([^)]+)\)"#)
     private static let imageCache: NSCache<NSString, UIImage> = {
         let cache = NSCache<NSString, UIImage>()
         cache.countLimit = 32
@@ -65,7 +66,7 @@ enum NoteImageStore {
     }
 
     static func image(named: String, maxPixelSize: CGFloat = 2048) -> UIImage? {
-        let cacheKey = "\(named)-\(Int(maxPixelSize))" as NSString
+        let cacheKey = named as NSString
         if let cached = imageCache.object(forKey: cacheKey) {
             return cached
         }
@@ -85,14 +86,13 @@ enum NoteImageStore {
     }
 
     static func delete(named: String) {
-        imageCache.removeAllObjects()
+        imageCache.removeObject(forKey: named as NSString)
         let url = assetsDir.appendingPathComponent(named)
         try? FileManager.default.removeItem(at: url)
     }
 
     static func referencedNames(in markdown: String) -> Set<String> {
-        let pattern = #"!\[[^\]]*\]\(([^)]+)\)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+        guard let regex = imageRegex else { return [] }
         var names = Set<String>()
         var inFence = false
         for line in markdown.components(separatedBy: .newlines) {

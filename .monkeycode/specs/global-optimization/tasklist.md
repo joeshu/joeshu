@@ -42,20 +42,20 @@
 
 - [ ] 3. 检查点 - 界面优化完成，确保编译通过，如有疑问请询问用户
 
-- [ ] 4. 提升 Markdown 渲染与首页计算性能
-  - [ ] 4.1 编辑器增量高亮与防抖
+- [x] 4. 提升 Markdown 渲染与首页计算性能
+  - [x] 4.1 编辑器增量高亮与防抖
     - `MarkdownEditorTextView.textViewDidChange` 增加 150-300ms 防抖，避免每次击键全量 `AttributedString(markdown:)` 解析（MarkdownEditorTextView.swift:56-69）
     - 防抖期间保留当前高亮，避免输入闪烁
-  - [ ] 4.2 解析下沉与缓存
+  - [x] 4.2 解析下沉与缓存
     - `MarkdownTextView.inline(_:)` 的 `AttributedString(markdown:)` 解析下沉到 init 一次性完成，块级与内联均不再在 body 求值时重复解析（MarkdownTextView.swift:144-166）
-  - [ ] 4.3 首页 computed 链聚合
+  - [x] 4.3 首页 computed 链聚合
     - 合并 `sortedPapers → activePapers → visiblePapers → filterCounts` 为单次遍历构建索引，消除每次渲染的多重全量 filter/sort（ContentView.swift:16-63）
     - `PaperCard.summary/detailText` 笔记摘要只截取前 N 字符再正则/计词，避免每 60 秒全量扫描（ContentView.swift:492-505）
-  - [ ] 4.4 启动清理与图片加载异步化
+  - [x] 4.4 启动清理与图片加载异步化
     - `PaperTodoApp` 的 `cleanupOrphanedImages` 移到后台队列，避免启动阻塞主线程（PaperTodoApp.swift:30-38）
     - `NoteImageStore.referencedNames(in:)` 正则提升为 `static let` 一次性编译（NoteImageStore.swift:93-111）
     - `NoteImageStore.image(named:)` 同步主线程解码改为异步加载 + 占位图（NoteImageStore.swift:67-85）
-  - [ ] 4.5 undo/redo 快照优化
+  - [x] 4.5 undo/redo 快照优化
     - `TodoPaperView` undo 快照改为字段级回滚或复用对象 `id`，避免删除重建整个列表（TodoPaperView.swift:348-377）
   - [ ]* 4.6 渲染与计算性能基准测试
     - 大笔记连续输入、长列表滚动、多事件日历下测量主线程阻塞与帧率
@@ -63,32 +63,32 @@
 - [ ] 5. 检查点 - 性能优化完成，确保编译通过，如有疑问请询问用户
 
 - [ ] 6. 修复功能 Bug
-  - [ ] 6.1 修复筛选计数单位错误
+  - [x] 6.1 修复筛选计数单位错误
     - `filterCounts.pending` 改为统计含未完成项的纸片数，与筛选结果一致（ContentView.swift:52-63）
-  - [ ] 6.2 修复 autoClearDone 与 undo 竞态
+  - [x] 6.2 修复 autoClearDone 与 undo 竞态
     - 延迟删除前校验 `item` 未被删除/所属纸片未变，使用任务取消避免访问已删除对象（TodoPaperView.swift:427-436）
-  - [ ] 6.3 修复 undo/redo 破坏对象身份
+  - [x] 6.3 修复 undo/redo 破坏对象身份
     - `restore` 复用快照 `id` 恢复对象，保证正在编辑的 item 与外部引用在 undo 后仍有效（TodoPaperView.swift:354-365）
-  - [ ] 6.4 修复图片删除清空缓存
+  - [x] 6.4 修复图片删除清空缓存
     - `NoteImageStore.delete(named:)` 只移除对应 key，避免清空整个缓存（NoteImageStore.swift:87-91）
-  - [ ] 6.5 删除撤销一致性
+  - [x] 6.5 删除撤销一致性
     - 删除确认后延迟窗口内多次删除时保持各纸片独立撤销机会，避免前一纸片被立即永久删除（ContentView.swift:225-241）
   - [ ]* 6.6 单元测试
     - 为筛选计数、象限推导、undo/redo 对象身份编写单元测试
 
 - [ ] 7. 功能增强与缺失补齐
-  - [ ] 7.1 笔记标题重命名
+  - [x] 7.1 笔记标题重命名
     - `NotePaperView` 增加标题编辑入口，与 `TodoPaperView` 对齐（NotePaperView.swift）
-  - [ ] 7.2 Widget 数据主动刷新
+  - [x] 7.2 Widget 数据主动刷新
     - 关键变更（toggle/删除/添加）后调用 `WidgetCenter.shared.reloadAllTimelines()`，消除 30 分钟滞后（PaperTodoWidget.swift、TodoPaperView.swift、NotePaperView.swift）
-  - [ ] 7.3 导出异步化与失败提示
+  - [x] 7.3 导出异步化与失败提示
     - `NoteExportStore` 导出移到后台，失败时提示用户而非静默不弹 sheet（NoteExportStore.swift、NotePaperView.swift:112-117）
-  - [ ] 7.4 保存失败统一反馈
+  - [x] 7.4 保存失败统一反馈
     - 三个编辑页 `try? modelContext.save()` 静默吞错统一为失败提示，与 `ContentView` 的保存失败 alert 一致（TodoPaperView.swift、NotePaperView.swift、CalendarHomeView.swift）
-  - [ ] 7.5 空状态统一
+  - [x] 7.5 空状态统一
     - `TodoPaperView` 空列表增加"还没有待办"引导文案与输入框占位符（TodoPaperView.swift:47-121）
     - 全局空状态保留模式切换入口，日历模式无数据时提供首次引导（ContentView.swift:69-87）
-  - [ ] 7.6 日历表单与布局修复
+  - [x] 7.6 日历表单与布局修复
     - `CalendarEventFormView` 结束时间无效时保存按钮禁用并说明，而非静默改值（CalendarEventFormView.swift:88-90）
     - 月历星期表头与网格按系统 `firstWeekday` 生成，消除周一/周日起始错位（CalendarHomeView.swift:18、375）
     - 月卡/时间线卡布局改为小屏纵向堆叠、iPad 固定容器宽度，消除重叠与裁剪（CalendarHomeView.swift:45-83、309）

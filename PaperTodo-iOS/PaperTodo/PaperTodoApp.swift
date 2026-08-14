@@ -20,19 +20,24 @@ struct PaperTodoApp: App {
                 .environment(settings)
                 .preferredColorScheme(settings.appearance.colorScheme)
                 .task {
-                    cleanupOrphanedImages()
-                    SharedContainer.seedCalendarEvents(in: container.mainContext)
+                    let mainContext = container.mainContext
+                    await MainActor.run {
+                        SharedContainer.seedCalendarEvents(in: mainContext)
+                    }
+                    let noteBodies = (try? mainContext.fetch(FetchDescriptor<Paper>()))?
+                        .filter { $0.kind == .note }
+                        .map(\.body) ?? []
+                    Task.detached(priority: .utility) {
+                        cleanupOrphanedImages(noteBodies: noteBodies)
+                    }
                 }
         }
         .modelContainer(container)
     }
 
-    private func cleanupOrphanedImages() {
-        let papers = (try? container.mainContext.fetch(FetchDescriptor<Paper>())) ?? []
-        let referenced = papers.reduce(into: Set<String>()) { result, paper in
-            if paper.kind == .note {
-                result.formUnion(NoteImageStore.referencedNames(in: paper.body))
-            }
+    private func cleanupOrphanedImages(noteBodies: [String]) {
+        let referenced = noteBodies.reduce(into: Set<String>()) { result, body in
+            result.formUnion(NoteImageStore.referencedNames(in: body))
         }
         NoteImageStore.cleanupOrphans(referencedNames: referenced)
     }

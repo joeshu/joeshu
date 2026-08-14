@@ -22,7 +22,6 @@ struct MarkdownEditorTextView: UIViewRepresentable {
         tv.textColor = textColor
         context.coordinator.parentTextView = tv
         tv.inputAccessoryView = context.coordinator.makeToolbar()
-        applyHighlight(to: tv)
         return tv
     }
 
@@ -30,7 +29,7 @@ struct MarkdownEditorTextView: UIViewRepresentable {
         guard !context.coordinator.isUpdating else { return }
         if uiView.text != text {
             uiView.text = text
-            applyHighlight(to: uiView)
+            context.coordinator.scheduleHighlight(for: uiView)
         }
         if let request = insertionRequest {
             context.coordinator.insert(request, into: uiView)
@@ -38,16 +37,12 @@ struct MarkdownEditorTextView: UIViewRepresentable {
         }
     }
 
-    private func applyHighlight(to tv: UITextView) {
-        let selected = tv.selectedRange
-        tv.attributedText = MarkdownHighlight.highlight(tv.text, textColor: textColor, baseFont: baseFont)
-        tv.selectedRange = selected
-    }
-
     class Coordinator: NSObject, UITextViewDelegate {
         var parent: MarkdownEditorTextView
         var isUpdating = false
         weak var parentTextView: UITextView?
+        private var pendingHighlight: (() -> Void)?
+        private var pendingID = UUID()
 
         init(parent: MarkdownEditorTextView) {
             self.parent = parent
@@ -59,13 +54,32 @@ struct MarkdownEditorTextView: UIViewRepresentable {
             isUpdating = false
 
             guard textView.markedTextRange == nil else { return }
+            scheduleHighlight(for: textView)
+        }
+
+        func scheduleHighlight(for textView: UITextView) {
+            let id = UUID()
+            pendingID = id
             let selected = textView.selectedRange
-            textView.attributedText = MarkdownHighlight.highlight(
-                textView.text,
-                textColor: parent.textColor,
-                baseFont: parent.baseFont
-            )
-            textView.selectedRange = selected
+            let text = textView.text
+            let textColor = parent.textColor
+            let baseFont = parent.baseFont
+            let work = DispatchWorkItem { [weak self] in
+                guard let self, self.pendingID == id else { return }
+                let highlighted = MarkdownHighlight.highlight(
+                    text,
+                    textColor: textColor,
+                    baseFont: baseFont
+                )
+                DispatchQueue.main.async { [weak textView] in
+                    guard let textView else { return }
+                    textView.attributedText = highlighted
+                    textView.selectedRange = selected
+                }
+            }
+            pendingHighlight?.cancel()
+            pendingHighlight = work
+            DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.15, execute: work)
         }
 
         func makeToolbar() -> UIToolbar {

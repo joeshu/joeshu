@@ -15,6 +15,7 @@ struct CalendarEventFormView: View {
     @State private var category: EventCategory
     @State private var isCompleted: Bool
     @State private var note: String
+    @State private var saveError: String?
 
     private let calendar = Calendar.current
 
@@ -56,6 +57,13 @@ struct CalendarEventFormView: View {
                         Toggle("已完成", isOn: $isCompleted)
                     }
                 }
+                if endTime <= startTime {
+                    Section {
+                        Text("结束时间需晚于开始时间")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+                }
                 Section("备注") {
                     TextField("备注（可选）", text: $note, axis: .vertical)
                         .lineLimit(3...6)
@@ -76,17 +84,30 @@ struct CalendarEventFormView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") { save() }
-                        .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !isValidTime)
                 }
             }
+            .alert("无法保存", isPresented: Binding(
+                get: { saveError != nil },
+                set: { if !$0 { saveError = nil } }
+            )) {
+                Button("好", role: .cancel) { }
+            } message: {
+                Text(saveError ?? "请检查输入后重试。")
+            }
         }
+    }
+
+    private var isValidTime: Bool {
+        endTime > startTime
     }
 
     private func save() {
         let start = combined(date: date, time: startTime)
         var end = combined(date: date, time: endTime, fallback: start.addingTimeInterval(3600))
-        if end <= start {
-            end = start.addingTimeInterval(3600)
+        guard end > start else {
+            saveError = "结束时间需晚于开始时间。"
+            return
         }
         let target = event ?? CalendarEvent(title: title, startTime: start, endTime: end, category: category)
         target.title = title
@@ -99,6 +120,12 @@ struct CalendarEventFormView: View {
         }
         if event == nil {
             modelContext.insert(target)
+        }
+        do {
+            try modelContext.save()
+        } catch {
+            saveError = "保存失败：\(error.localizedDescription)"
+            return
         }
         onSave()
         dismiss()

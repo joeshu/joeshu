@@ -11,6 +11,8 @@ struct HomeModeContent: View {
     let onToggleCollapse: (Paper) -> Void
     let onPreview: (Paper) -> Void
     let onDelete: (Paper) -> Void
+    let onAddTodo: () -> Void
+    let onAddNote: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -29,16 +31,25 @@ struct HomeModeContent: View {
             Group {
                 switch mode {
                 case .list:
-                    PaperListHome(
-                        visiblePapers: visiblePapers,
-                        filter: $filter,
-                        filterCounts: filterCounts,
-                        theme: theme,
-                        onTogglePin: onTogglePin,
-                        onToggleCollapse: onToggleCollapse,
-                        onPreview: onPreview,
-                        onDelete: onDelete
-                    )
+                    if papers.isEmpty {
+                        EmptyStateView(
+                            theme: theme,
+                            onAddTodo: onAddTodo,
+                            onAddNote: onAddNote
+                        )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    } else {
+                        PaperListHome(
+                            visiblePapers: visiblePapers,
+                            filter: $filter,
+                            filterCounts: filterCounts,
+                            theme: theme,
+                            onTogglePin: onTogglePin,
+                            onToggleCollapse: onToggleCollapse,
+                            onPreview: onPreview,
+                            onDelete: onDelete
+                        )
+                    }
                 case .calendar:
                     CalendarHomeView(theme: theme)
                 case .quadrant:

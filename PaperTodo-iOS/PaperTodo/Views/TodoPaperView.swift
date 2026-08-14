@@ -2,6 +2,7 @@ import SwiftUI
 import SwiftData
 import UniformTypeIdentifiers
 import UIKit
+import WidgetKit
 
 struct TodoPaperView: View {
     @Bindable var paper: Paper
@@ -17,6 +18,8 @@ struct TodoPaperView: View {
     @State private var editingItemID: UUID?
     @FocusState private var editingItemFocused: Bool
     @State private var saveTask: Task<Void, Never>?
+    @State private var autoClearTask: Task<Void, Never>?
+    @State private var saveErrorMessage: String?
 
     private var sortedTodos: [TodoItem] {
         paper.todoItems.sorted { $0.sortIndex < $1.sortIndex }
@@ -87,6 +90,23 @@ struct TodoPaperView: View {
                 }
                 .onDelete(perform: deleteItems)
                 .onMove(perform: moveItems)
+                if sortedTodos.isEmpty {
+                    VStack(spacing: 8) {
+                        Image(systemName: "checklist")
+                            .font(.system(size: 34, weight: .light))
+                            .foregroundStyle(theme.weakText.opacity(0.6))
+                        Text("还没有待办")
+                            .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                            .foregroundStyle(theme.weakText)
+                        Text("在下方输入框输入内容，回车即可添加")
+                            .font(.caption)
+                            .foregroundStyle(theme.weakText.opacity(0.7))
+                            .multilineTextAlignment(.center)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .listRowBackground(clearCardBackground)
+                }
             } header: {
                 if !sortedTodos.isEmpty {
                     Text("\(sortedTodos.count) 项")
@@ -182,7 +202,7 @@ struct TodoPaperView: View {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                         paper.isCollapsed.toggle()
                         paper.updatedAt = Date()
-                        try? modelContext.save()
+                        saveContext()
                     }
                 } label: {
                     Image(systemName: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
@@ -194,9 +214,17 @@ struct TodoPaperView: View {
         }
         .navigationTitle(paper.title.isEmpty ? "待办" : paper.title)
         .navigationBarTitleDisplayMode(.inline)
+        .alert("保存失败", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(saveErrorMessage ?? "无法保存更改。")
+        }
         .onDisappear {
             saveTask?.cancel()
-            try? modelContext.save()
+            saveContext()
         }
     }
 
@@ -275,7 +303,7 @@ struct TodoPaperView: View {
                  withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     item.isDone.toggle()
                     paper.updatedAt = Date()
-                    try? modelContext.save()
+                    saveContext()
                 }
             } label: {
                 Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
@@ -336,8 +364,21 @@ struct TodoPaperView: View {
         saveTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(300))
             guard !Task.isCancelled else { return }
-            try? modelContext.save()
+            saveContext()
+            WidgetCenter.shared.reloadAllTimelines()
         }
+    }
+
+    private func saveContext() {
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func refreshWidget() {
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     private func beginEditing(_ item: TodoItem) {
@@ -354,16 +395,26 @@ struct TodoPaperView: View {
     }
 
     private func restore(_ snap: [TodoSnapshot]) {
+        let snapByID = Dictionary(uniqueKeysWithValues: snap.map { ($0.id, $0) })
+        let remainingIDs = Set(snapByID.keys)
         for item in paper.todoItems {
-            modelContext.delete(item)
+            if let match = snapByID[item.id] {
+                item.text = match.text
+                item.isDone = match.isDone
+                item.sortIndex = match.sortIndex
+                remainingIDs.remove(item.id)
+            } else {
+                modelContext.delete(item)
+            }
         }
-        for s in snap {
-            let item = TodoItem(text: s.text, isDone: s.isDone, sortIndex: s.sortIndex)
+        for id in remainingIDs {
+            guard let s = snapByID[id] else { continue }
+            let item = TodoItem(id: id, text: s.text, isDone: s.isDone, sortIndex: s.sortIndex)
             item.paper = paper
             modelContext.insert(item)
         }
         paper.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
     }
 
     private func undo() {
@@ -393,7 +444,8 @@ struct TodoPaperView: View {
         }
         if added > 0 {
             paper.updatedAt = Date()
-            try? modelContext.save()
+            saveContext()
+            refreshWidget()
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
         }
     }
@@ -418,7 +470,8 @@ struct TodoPaperView: View {
         pushUndo()
         item.isDone.toggle()
         paper.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
+        refreshWidget()
 
         if item.isDone {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
@@ -427,13 +480,22 @@ struct TodoPaperView: View {
         }
 
         if settings.autoClearDone && item.isDone {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
-                guard settings.autoClearDone, item.isDone, item.paper === paper else { return }
+            let itemID = item.id
+            let paperID = paper.persistentModelID
+            autoClearTask?.cancel()
+            autoClearTask = Task { @MainActor [weak self] in
+                try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled, let self else { return }
+                guard settings.autoClearDone,
+                      let current = self.paper.todoItems.first(where: { $0.id == itemID }),
+                      current.isDone,
+                      current.paper?.persistentModelID == paperID else { return }
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                    modelContext.delete(item)
+                    self.modelContext.delete(current)
                 }
-                paper.updatedAt = Date()
-                try? modelContext.save()
+                self.paper.updatedAt = Date()
+                self.saveContext()
+                self.refreshWidget()
             }
         }
     }
@@ -446,7 +508,8 @@ struct TodoPaperView: View {
             }
         }
         paper.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
+        refreshWidget()
     }
 
     private func deleteItem(_ item: TodoItem) {
@@ -455,7 +518,8 @@ struct TodoPaperView: View {
             modelContext.delete(item)
         }
         paper.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
+        refreshWidget()
     }
 
     private func deleteDragged(_ uuids: [String]) {
@@ -467,7 +531,8 @@ struct TodoPaperView: View {
             }
         }
         paper.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
+        refreshWidget()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
@@ -479,7 +544,8 @@ struct TodoPaperView: View {
             completed.forEach(modelContext.delete)
         }
         paper.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
+        refreshWidget()
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
@@ -491,7 +557,7 @@ struct TodoPaperView: View {
             item.sortIndex = index
         }
         paper.updatedAt = Date()
-        try? modelContext.save()
+        saveContext()
     }
 }
 

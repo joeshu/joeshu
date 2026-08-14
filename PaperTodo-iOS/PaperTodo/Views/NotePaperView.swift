@@ -15,6 +15,8 @@ struct NotePaperView: View {
     @State private var exportURL: URL?
     @State private var pendingImports = 0
     @State private var importError: String?
+    @State private var exportError: String?
+    @State private var saveErrorMessage: String?
     @State private var saveTask: Task<Void, Never>?
 
     private var theme: PaperPalette {
@@ -23,8 +25,18 @@ struct NotePaperView: View {
 
     var body: some View {
         @Bindable var settings = settings
-        Group {
-            if previewing {
+        VStack(alignment: .leading, spacing: 0) {
+            TextField("纸片标题", text: $paper.title)
+                .font(.system(.title3, design: .rounded).weight(.semibold))
+                .foregroundStyle(theme.text)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+                .onChange(of: paper.title) { _, _ in
+                    paper.updatedAt = Date()
+                    scheduleSave()
+                }
+            Group {
+                if previewing {
                 ScrollView {
                     NoteRenderView(
                         markdown: paper.body,
@@ -73,6 +85,8 @@ struct NotePaperView: View {
                     scheduleSave()
                 }
             }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .overlay(alignment: .bottom) {
             if pendingImports > 0 {
@@ -110,7 +124,7 @@ struct NotePaperView: View {
                 .accessibilityLabel("粘贴图片")
 
                 Button {
-                    exportURL = NoteExportStore.writeMarkdownPackage(title: paper.title, body: paper.body)
+                    exportNote()
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -176,9 +190,25 @@ struct NotePaperView: View {
         } message: {
             Text(importError ?? "无法处理这张图片。")
         }
+        .alert("导出失败", isPresented: Binding(
+            get: { exportError != nil },
+            set: { if !$0 { exportError = nil } }
+        )) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(exportError ?? "请重试。")
+        }
+        .alert("保存失败", isPresented: Binding(
+            get: { saveErrorMessage != nil },
+            set: { if !$0 { saveErrorMessage = nil } }
+        )) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(saveErrorMessage ?? "无法保存更改。")
+        }
         .onDisappear {
             saveTask?.cancel()
-            try? modelContext.save()
+            saveContext()
         }
     }
 
@@ -276,7 +306,30 @@ struct NotePaperView: View {
         saveTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
-            try? modelContext.save()
+            saveContext()
+        }
+    }
+
+    private func saveContext() {
+        do {
+            try modelContext.save()
+        } catch {
+            saveErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func exportNote() {
+        let title = paper.title
+        let body = paper.body
+        Task.detached(priority: .userInitiated) {
+            let url = NoteExportStore.writeMarkdownPackage(title: title, body: body)
+            await MainActor.run {
+                if let url {
+                    exportURL = url
+                } else {
+                    exportError = "导出失败，无法写入临时文件。"
+                }
+            }
         }
     }
 

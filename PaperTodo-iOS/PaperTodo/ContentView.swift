@@ -11,10 +11,18 @@ struct ContentView: View {
     @State private var activeFilter: PaperFilter = .all
     @State private var paperPreview: Paper?
     @State private var paperAwaitingDeletion: Paper?
-    @State private var deletionToken = UUID()
+    @State private var pendingDeletions: [UUID: PendingDeletion] = [:]
+    @State private var sortedCache: [Paper] = []
 
     private var sortedPapers: [Paper] {
-        papers.sorted {
+        if sortedCache.isEmpty && !papers.isEmpty {
+            return Self.sortPapers(papers)
+        }
+        return sortedCache
+    }
+
+    private static func sortPapers(_ input: [Paper]) -> [Paper] {
+        input.sorted {
             if $0.isPinned != $1.isPinned {
                 return $0.isPinned
             }
@@ -55,7 +63,9 @@ struct ContentView: View {
             switch paper.kind {
             case .todo:
                 counts.todo += 1
-                counts.pending += paper.todoItems.filter { !$0.isDone }.count
+                if paper.todoItems.contains(where: { !$0.isDone }) {
+                    counts.pending += 1
+                }
             case .note:
                 counts.note += 1
             }
@@ -66,29 +76,26 @@ struct ContentView: View {
         @Bindable var settings = settings
         NavigationStack {
             Group {
-                if papers.isEmpty && settings.homeMode != .calendar {
-                    EmptyStateView(
-                        theme: theme,
-                        onAddTodo: { addPaper(kind: .todo, title: "待办") },
-                        onAddNote: { addPaper(kind: .note, title: "笔记") }
-                    )
-                } else {
-                    HomeModeContent(
-                        mode: $settings.homeMode,
-                        papers: activePapers,
-                        visiblePapers: visiblePapers,
-                        filter: $activeFilter,
-                        filterCounts: filterCounts,
-                        theme: theme,
-                        onTogglePin: togglePin,
-                        onToggleCollapse: toggleCollapse,
-                        onPreview: { paperPreview = $0 },
-                        onDelete: { paperPendingDeletion = $0 }
-                    )
-                }
+                HomeModeContent(
+                    mode: $settings.homeMode,
+                    papers: activePapers,
+                    visiblePapers: visiblePapers,
+                    filter: $activeFilter,
+                    filterCounts: filterCounts,
+                    theme: theme,
+                    onTogglePin: togglePin,
+                    onToggleCollapse: toggleCollapse,
+                    onPreview: { paperPreview = $0 },
+                    onDelete: { paperPendingDeletion = $0 },
+                    onAddTodo: { addPaper(kind: .todo, title: "待办") },
+                    onAddNote: { addPaper(kind: .note, title: "笔记") }
+                )
             }
             .navigationTitle("PaperTodo")
             .navigationBarTitleDisplayMode(.inline)
+            .task(id: papers) {
+                sortedCache = Self.sortPapers(papers)
+            }
             .navigationDestination(for: Paper.self) { paper in
                 switch paper.kind {
                 case .todo:
@@ -223,33 +230,39 @@ struct ContentView: View {
     }
 
     private func deletePaper(_ paper: Paper) {
-        if let previous = paperAwaitingDeletion {
-            permanentlyDelete(previous)
-        }
+        let entry = PendingDeletion(paper: paper, token: UUID())
+        pendingDeletions[paper.id] = entry
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             paperAwaitingDeletion = paper
         }
         paperPendingDeletion = nil
 
-        let token = UUID()
-        deletionToken = token
         DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
-            guard deletionToken == token, paperAwaitingDeletion?.id == paper.id else { return }
-            permanentlyDelete(paper)
-            paperAwaitingDeletion = nil
+            guard let stored = pendingDeletions[paper.id], stored.token == entry.token else { return }
+            permanentlyDelete(stored.paper)
+            pendingDeletions.removeValue(forKey: paper.id)
+            if paperAwaitingDeletion?.id == paper.id {
+                paperAwaitingDeletion = nil
+            }
         }
     }
 
     private func undoDeletion() {
+        if let paper = paperAwaitingDeletion {
+            pendingDeletions.removeValue(forKey: paper.id)
+        }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             paperAwaitingDeletion = nil
         }
-        deletionToken = UUID()
     }
 
     private func permanentlyDelete(_ paper: Paper) {
         if paper.kind == .note {
             NoteImageStore.deleteReferenced(in: paper.body)
+        }
+        pendingDeletions.removeValue(forKey: paper.id)
+        if paperAwaitingDeletion?.id == paper.id {
+            paperAwaitingDeletion = nil
         }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             modelContext.delete(paper)
@@ -273,6 +286,11 @@ enum PaperFilter: String, CaseIterable, Identifiable {
     case pending = "未完成"
 
     var id: String { rawValue }
+}
+
+private struct PendingDeletion {
+    let paper: Paper
+    let token: UUID
 }
 
 struct PaperFilterCounts {
@@ -482,6 +500,8 @@ struct PaperCard: View {
     let theme: PaperPalette
     let onTogglePin: () -> Void
 
+    private static let previewLimit = 160
+
     private var summary: String {
         switch paper.kind {
         case .todo:
@@ -489,10 +509,12 @@ struct PaperCard: View {
             let total = paper.todoItems.count
             return total == 0 ? "空待办纸" : "\(done)/\(total) 已完成"
         case .note:
-            let text = paper.body
+            let prefix = String(paper.body.prefix(Self.previewLimit * 2))
+            let text = prefix
                 .replacingOccurrences(of: #"[`*_>#\[\]]"#, with: "", options: .regularExpression)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
-            return text.isEmpty ? "空笔记" : text
+            if text.isEmpty { return "空笔记" }
+            return text.count > Self.previewLimit ? String(text.prefix(Self.previewLimit)) + "…" : text
         }
     }
 
@@ -501,8 +523,9 @@ struct PaperCard: View {
         case .todo:
             return paper.todoItems.isEmpty ? "还没有任务" : "\(paper.todoItems.count) 项任务"
         case .note:
-            let count = paper.body.split { $0.isWhitespace || $0.isNewline }.count
-            return count == 0 ? "Markdown 笔记" : "\(count) 字 · Markdown 笔记"
+            let prefix = String(paper.body.prefix(Self.previewLimit * 2))
+            let count = prefix.split { $0.isWhitespace || $0.isNewline }.count
+            return count == 0 ? "Markdown 笔记" : "\(count)+ 字 · Markdown 笔记"
         }
     }
 
