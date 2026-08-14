@@ -17,7 +17,8 @@ struct NoteRenderView: View {
                             .scaledToFit()
                             .frame(maxWidth: .infinity)
                             .clipShape(RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
-                            .shadow(color: .black.opacity(0.15), radius: 8, y: 3)
+                            .shadow(color: (palette?.shadow ?? .black.opacity(0.22)).opacity(0.55), radius: 3, y: 1)
+                            .shadow(color: (palette?.shadow ?? .black.opacity(0.22)).opacity(0.35), radius: 10, y: 4)
                     } else {
                         Text(segment.raw)
                             .font(font)

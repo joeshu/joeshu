@@ -16,13 +16,19 @@ struct PaperCardModifier: ViewModifier {
             .padding(.vertical, 14)
             .background(
                 RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
-                    .fill(palette.paper)
+                    .fill(palette.surfaceGradient)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                     .stroke(palette.paperBorder.opacity(0.5), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.10), radius: 12, y: 2)
+            .overlay(alignment: .top) {
+                RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                    .stroke(palette.highlight, lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+            .shadow(color: palette.shadow.opacity(0.7), radius: 3, y: 1)
+            .shadow(color: palette.shadow.opacity(0.5), radius: 16, y: 6)
     }
 }
 
@@ -30,6 +36,30 @@ extension View {
     func paperCard(_ palette: PaperPalette) -> some View {
         modifier(PaperCardModifier(palette: palette))
     }
+}
+
+struct PaperPressStyle: ButtonStyle {
+    var pressedScale: CGFloat = 0.975
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? pressedScale : 1)
+            .opacity(configuration.isPressed ? 0.88 : 1)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+    }
+}
+
+extension PaperPalette {
+    var surfaceGradient: LinearGradient {
+        LinearGradient(
+            colors: [paper.opacity(0.98), paper.opacity(0.86)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+    }
+
+    var highlight: Color { text.opacity(0.12) }
+    var shadow: Color { Color.black.opacity(0.22) }
 }
 
 struct AnimatedCheckCircle: View {

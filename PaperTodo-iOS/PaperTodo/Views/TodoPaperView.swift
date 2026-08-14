@@ -178,12 +178,13 @@ struct TodoPaperView: View {
 
     private var clearCardBackground: some View {
         RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
-            .fill(theme.paper)
+            .fill(theme.surfaceGradient)
             .overlay(
                 RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                     .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
             )
-            .shadow(color: .black.opacity(0.10), radius: 12, y: 2)
+            .shadow(color: theme.shadow.opacity(0.65), radius: 3, y: 1)
+            .shadow(color: theme.shadow.opacity(0.4), radius: 14, y: 5)
     }
 
     private func todoRow(_ item: TodoItem) -> some View {

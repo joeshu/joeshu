@@ -37,13 +37,14 @@ struct NotePaperView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
-                            .fill(theme.paper)
+                            .fill(theme.surfaceGradient)
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
                             .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
                     )
-                    .shadow(color: .black.opacity(0.10), radius: 14, y: 2)
+                    .shadow(color: theme.shadow.opacity(0.65), radius: 3, y: 1)
+                    .shadow(color: theme.shadow.opacity(0.42), radius: 16, y: 6)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                 }

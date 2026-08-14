@@ -71,11 +71,12 @@ struct SettingsView: View {
             VStack(spacing: 0) {
                 content()
             }
-            .background(theme.paper, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+            .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                     .stroke(theme.paperBorder.opacity(0.65), lineWidth: 1)
             }
+            .shadow(color: theme.shadow.opacity(0.48), radius: 14, y: 5)
         }
     }
 }

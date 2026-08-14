@@ -72,7 +72,7 @@ struct ContentView: View {
                                         togglePin(paper)
                                     }
                                 }
-                                .buttonStyle(.plain)
+                                .buttonStyle(PaperPressStyle())
                                 .transition(.scale.combined(with: .opacity))
                                 .contextMenu {
                                     Button {
@@ -112,8 +112,8 @@ struct ContentView: View {
                     .background(
                         LinearGradient(
                             colors: [
-                                theme.paper.opacity(0.25),
-                                theme.paper.opacity(0.05)
+                                theme.paper.opacity(0.34),
+                                theme.paper.opacity(0.08)
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -293,14 +293,18 @@ private struct PaperFilterBar: View {
                             .padding(.vertical, 8)
                             .background(
                                 Capsule()
-                                    .fill(filter == item ? theme.active : theme.paper.opacity(0.55))
+                                    .fill(
+                                        filter == item
+                                            ? AnyShapeStyle(theme.activeGradient)
+                                            : AnyShapeStyle(theme.paper.opacity(0.55))
+                                    )
                             )
                             .overlay {
                                 Capsule()
                                     .stroke(theme.paperBorder.opacity(filter == item ? 0 : 0.5), lineWidth: 1)
                             }
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PaperPressStyle(pressedScale: 0.96))
                 }
             }
             .padding(.horizontal, 4)
@@ -381,7 +385,7 @@ private struct PaperPreviewSheet: View {
                 }
                 .padding(20)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(theme.paper, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+            .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                         .stroke(theme.paperBorder.opacity(0.65), lineWidth: 1)
@@ -423,8 +427,7 @@ private struct CapsuleBar: View {
                         .padding(.vertical, 8)
                         .background(
                             Capsule()
-                                .fill(theme.paper)
-                                .shadow(color: .black.opacity(0.08), radius: 5, y: 2)
+                                .fill(theme.surfaceGradient)
                         )
                         .overlay(
                             Capsule()
@@ -435,7 +438,7 @@ private struct CapsuleBar: View {
                         )
                         .contentShape(Capsule())
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(PaperPressStyle(pressedScale: 0.96))
                 }
             }
             .padding(.horizontal, 16)
@@ -524,7 +527,7 @@ struct PaperCard: View {
         .padding(.vertical, 13)
         .background(
             RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
-                .fill(theme.paper)
+                .fill(theme.surfaceGradient)
         )
         .overlay(
             RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
@@ -542,8 +545,8 @@ struct PaperCard: View {
                 )
                 .allowsHitTesting(false)
         }
-        .shadow(color: .black.opacity(0.08), radius: 3, y: 1)
-        .shadow(color: .black.opacity(0.07), radius: 14, y: 5)
+        .shadow(color: theme.shadow.opacity(0.75), radius: 3, y: 1)
+        .shadow(color: theme.shadow.opacity(0.48), radius: 16, y: 6)
         .contextMenu {
             Button(action: onTogglePin) {
                 Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
@@ -607,11 +610,12 @@ private struct HomeOverview: View {
                 overviewMetric(value: pinnedCount, label: "置顶")
             }
             .padding(.vertical, 10)
-            .background(theme.paper.opacity(0.48), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+            .background(theme.surfaceGradient.opacity(0.72), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous)
                     .stroke(theme.paperBorder.opacity(0.35), lineWidth: 1)
             }
+            .shadow(color: theme.shadow.opacity(0.4), radius: 10, y: 4)
         }
         .padding(.horizontal, 4)
         .padding(.top, 4)
@@ -662,18 +666,19 @@ struct EmptyStateView: View {
                         .foregroundStyle(.white)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(Capsule().fill(theme.tint))
+                        .background(Capsule().fill(theme.accentGradient))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PaperPressStyle())
                 Button(action: onAddNote) {
                     Label("笔记纸", systemImage: "note.text")
                         .font(.system(.subheadline, design: .rounded).weight(.semibold))
                         .foregroundStyle(theme.active)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 10)
-                        .background(Capsule().stroke(theme.active.opacity(0.4), lineWidth: 1))
+                        .background(Capsule().fill(theme.paper.opacity(0.72)))
+                        .overlay(Capsule().stroke(theme.active.opacity(0.4), lineWidth: 1))
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(PaperPressStyle())
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

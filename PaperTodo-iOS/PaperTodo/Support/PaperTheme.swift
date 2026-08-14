@@ -158,3 +158,13 @@ extension EnvironmentValues {
         set { self[PaperThemeKey.self] = newValue }
     }
 }
+
+extension PaperPalette {
+    var accentGradient: LinearGradient {
+        LinearGradient(colors: [tint, active], startPoint: .topLeading, endPoint: .bottomTrailing)
+    }
+
+    var activeGradient: LinearGradient {
+        LinearGradient(colors: [active.opacity(0.96), active.opacity(0.78)], startPoint: .top, endPoint: .bottom)
+    }
+}
