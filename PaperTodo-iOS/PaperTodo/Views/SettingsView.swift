@@ -20,13 +20,7 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    PickerRow(title: "纸张配色", value: settings.colorScheme.rawValue, theme: theme) {
-                        Picker("纸张配色", selection: $settings.colorScheme) {
-                            ForEach(PaperColorScheme.allCases) { scheme in
-                                Text(scheme.rawValue).tag(scheme)
-                            }
-                        }
-                    }
+                    ThemePickerRow(selection: $settings.colorScheme, dark: colorScheme == .dark)
                 }
 
                 settingsSection("待办", systemImage: "checklist", theme: theme) {
@@ -127,5 +121,72 @@ private struct ToggleRow: View {
             .foregroundStyle(theme.text)
             .padding(.horizontal, 14)
             .padding(.vertical, 11)
+    }
+}
+
+private struct ThemePickerRow: View {
+    @Binding var selection: PaperColorScheme
+    let dark: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text("纸张配色")
+                    .foregroundStyle(currentPalette.text)
+                Spacer()
+                Text(selection.rawValue)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(currentPalette.active)
+            }
+
+            HStack(spacing: 10) {
+                ForEach(PaperColorScheme.allCases) { scheme in
+                    let palette = PaperPalette.scheme(scheme, dark: dark)
+                    Button {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            selection = scheme
+                        }
+                    } label: {
+                        VStack(spacing: 6) {
+                            ZStack(alignment: .topTrailing) {
+                                RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous)
+                                    .fill(palette.surfaceGradient)
+                                    .frame(height: 42)
+                                    .overlay {
+                                        RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous)
+                                            .stroke(palette.paperBorder.opacity(0.85), lineWidth: 1)
+                                    }
+                                    .overlay(alignment: .bottomLeading) {
+                                        HStack(spacing: 3) {
+                                            Circle().fill(palette.active).frame(width: 7, height: 7)
+                                            Capsule().fill(palette.text.opacity(0.55)).frame(width: 18, height: 3)
+                                        }
+                                        .padding(7)
+                                    }
+
+                                if selection == scheme {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .font(.caption)
+                                        .foregroundStyle(palette.active)
+                                        .padding(5)
+                                }
+                            }
+                            Text(scheme.rawValue)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(currentPalette.text)
+                        }
+                    }
+                    .buttonStyle(PaperPressStyle(pressedScale: 0.96))
+                    .accessibilityLabel("纸张配色：\(scheme.rawValue)")
+                    .accessibilityAddTraits(selection == scheme ? .isSelected : [])
+                }
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+    }
+
+    private var currentPalette: PaperPalette {
+        PaperPalette.scheme(selection, dark: dark)
     }
 }
