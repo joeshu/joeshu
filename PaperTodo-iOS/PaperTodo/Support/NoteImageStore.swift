@@ -10,6 +10,12 @@ enum NoteImageStore {
     private static let maxInputPixels = 12_000_000
     private static let maxDimension: CGFloat = 2048
     private static let jpegQuality: CGFloat = 0.76
+    private static let imageCache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 32
+        cache.totalCostLimit = 32 * 2048 * 2048 * 4
+        return cache
+    }()
 
     private static var assetsDir: URL {
         let dir = URL.documentsDirectory.appendingPathComponent("note-assets", isDirectory: true)
@@ -59,6 +65,10 @@ enum NoteImageStore {
     }
 
     static func image(named: String, maxPixelSize: CGFloat = 2048) -> UIImage? {
+        let cacheKey = "\(named)-\(Int(maxPixelSize))" as NSString
+        if let cached = imageCache.object(forKey: cacheKey) {
+            return cached
+        }
         let url = assetsDir.appendingPathComponent(named)
         let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
         guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions as CFDictionary) else { return nil }
@@ -69,10 +79,13 @@ enum NoteImageStore {
             kCGImageSourceShouldCacheImmediately: true
         ]
         guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary) else { return nil }
-        return UIImage(cgImage: image)
+        let result = UIImage(cgImage: image)
+        imageCache.setObject(result, forKey: cacheKey, cost: image.bytesPerRow * image.height)
+        return result
     }
 
     static func delete(named: String) {
+        imageCache.removeAllObjects()
         let url = assetsDir.appendingPathComponent(named)
         try? FileManager.default.removeItem(at: url)
     }

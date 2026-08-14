@@ -58,6 +58,7 @@ struct MarkdownEditorTextView: UIViewRepresentable {
             parent.text = textView.text
             isUpdating = false
 
+            guard textView.markedTextRange == nil else { return }
             let selected = textView.selectedRange
             textView.attributedText = MarkdownHighlight.highlight(
                 textView.text,

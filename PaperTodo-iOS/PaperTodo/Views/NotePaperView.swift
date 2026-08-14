@@ -15,6 +15,7 @@ struct NotePaperView: View {
     @State private var exportURL: URL?
     @State private var pendingImports = 0
     @State private var importError: String?
+    @State private var saveTask: Task<Void, Never>?
 
     private var theme: PaperPalette {
         settings.palette(systemDark: colorScheme == .dark)
@@ -65,13 +66,18 @@ struct NotePaperView: View {
                 }
                 .onChange(of: paper.body) { _, _ in
                     paper.updatedAt = Date()
-                    try? modelContext.save()
+                    scheduleSave()
                 }
             }
         }
         .overlay(alignment: .bottom) {
             if pendingImports > 0 {
-                Label("正在导入图片", systemImage: "arrow.down.circle")
+                Label {
+                    Text("正在导入图片")
+                } icon: {
+                    ProgressView()
+                        .controlSize(.small)
+                }
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(theme.text)
                     .padding(.horizontal, 12)
@@ -158,6 +164,10 @@ struct NotePaperView: View {
             Button("好", role: .cancel) { }
         } message: {
             Text(importError ?? "无法处理这张图片。")
+        }
+        .onDisappear {
+            saveTask?.cancel()
+            try? modelContext.save()
         }
     }
 
@@ -247,7 +257,16 @@ struct NotePaperView: View {
     private func insertImageReference(_ name: String) {
         insertionRequest = (insertionRequest ?? "") + "\n![图片](\(name))\n"
         paper.updatedAt = Date()
-        try? modelContext.save()
+        scheduleSave()
+    }
+
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(350))
+            guard !Task.isCancelled else { return }
+            try? modelContext.save()
+        }
     }
 
     private func startImport() {

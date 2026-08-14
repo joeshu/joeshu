@@ -6,10 +6,26 @@ struct NoteRenderView: View {
     var font: Font = .body
     var textColor: Color = .primary
     var palette: PaperPalette? = nil
+    private let parsedSegments: [Segment]
+
+    init(
+        markdown: String,
+        strength: RenderStrength = .full,
+        font: Font = .body,
+        textColor: Color = .primary,
+        palette: PaperPalette? = nil
+    ) {
+        self.markdown = markdown
+        self.strength = strength
+        self.font = font
+        self.textColor = textColor
+        self.palette = palette
+        self.parsedSegments = Self.parseSegments(markdown)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+            ForEach(Array(parsedSegments.enumerated()), id: \.offset) { _, segment in
                 if let imageName = segment.imageName {
                     if let uiImage = NoteImageStore.image(
                         named: imageName,
@@ -40,7 +56,7 @@ struct NoteRenderView: View {
         }
     }
 
-    private var segments: [Segment] {
+    private static func parseSegments(_ markdown: String) -> [Segment] {
         var result: [Segment] = []
         let pattern = #"^!\[([^\]]*)\]\(([^)]+)\)$"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else {
