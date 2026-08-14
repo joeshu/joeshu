@@ -12,7 +12,7 @@ enum SharedContainer {
     }
 
     static func makeModelContainer() throws -> ModelContainer {
-        let schema = Schema([Paper.self, TodoItem.self])
+        let schema = Schema([Paper.self, TodoItem.self, CalendarEvent.self])
         let configuration = ModelConfiguration(schema: schema, url: storeURL())
         return try ModelContainer(for: schema, configurations: [configuration])
     }

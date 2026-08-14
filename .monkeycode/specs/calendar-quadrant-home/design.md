@@ -5,7 +5,7 @@ Updated: 2026-08-14
 
 ## Description
 
-在现有 PaperTodo 首页增加三种模式：纸片列表、日历视图、四象限视图。日历视图使用月历网格承载时间安排，四象限视图承载优先级整理。两种视图复用现有 `Paper` 和 `TodoItem`，通过轻量派生数据展示，不引入外部服务或数据库迁移。
+在现有 PaperTodo 首页增加三种模式：纸片列表、日历视图、四象限视图。日历视图使用月历网格和层叠日时间线承载时间安排，四象限视图承载优先级整理。日程数据使用 `CalendarEvent` 持久化，继续复用现有 SwiftData 容器和 App Group。
 
 ## Architecture
 
@@ -15,10 +15,10 @@ graph TD
     A --> C[PaperListHome]
     A --> D[CalendarHomeView]
     A --> E[QuadrantHomeView]
-    D --> F[CalendarViewModel]
-    E --> G[QuadrantViewModel]
-    F --> H[Paper and TodoItem]
-    G --> H
+    D --> F[CalendarEvent Query]
+    E --> G[Quadrant Derived View]
+    F --> H[SwiftData Container]
+    G --> I[Paper and TodoItem]
 ```
 
 `ContentView` 负责模式状态和导航，子视图负责单一展示场景。现有模型继续作为数据源；缺少日期或象限字段时使用确定性派生规则，保证旧数据立即可展示。
@@ -28,13 +28,15 @@ graph TD
 - `HomeMode`: 首页模式枚举，包含 `list`、`calendar`、`quadrant`。
 - `HomeModePicker`: 首页顶部的分段模式切换控件。
 - `CalendarHomeView`: 月份导航、日期网格、选中日期任务列表。
+- `MonthCard`: 参考图风格月视图卡片和多色事件标签。
+- `DayTimelineCard`: 参考图风格日时间线卡片、周标尺和事件卡片。
+- `CalendarTabBar`: 日历识图模式底部导航栏。
 - `QuadrantHomeView`: 四象限网格和任务卡片。
-- `CalendarTask`: 从 `Paper` 和 `TodoItem` 派生的日历任务。
 - `QuadrantTask`: 从待办项目派生的象限任务。
 
 ## Data Models
 
-现有 `Paper` 和 `TodoItem` 保持不变。任务日期使用 `TodoItem.createdAt` 作为首轮日历归属日期。四象限分类使用确定性规则：未完成任务按文本标签和任务状态推导默认象限；用户手动移动产生的分类暂存在视图状态中，后续可升级为模型字段。
+`CalendarEvent` 保存标题、开始时间、结束时间、分类、完成状态和备注。现有 `Paper` 和 `TodoItem` 保持兼容。四象限分类使用确定性规则：未完成任务按文本标签和任务状态推导默认象限；后续可将象限属性持久化到 `TodoItem`。
 
 ## Correctness Properties
 
