@@ -85,6 +85,7 @@ struct SettingsView: View {
 
 private struct PickerRow<PickerContent: View>: View {
     let title: String
+    let value: String
     let theme: PaperPalette
     let picker: PickerContent
 
@@ -95,6 +96,7 @@ private struct PickerRow<PickerContent: View>: View {
         @ViewBuilder picker: () -> PickerContent
     ) {
         self.title = title
+        self.value = value
         self.theme = theme
         self.picker = picker()
     }
