@@ -31,12 +31,23 @@ struct MarkdownTextView: View {
             Text(inline(text))
                 .font(.system(size: max(18, 27 - CGFloat(level) * 2), design: .rounded).weight(.semibold))
                 .foregroundStyle(textColor)
+                .padding(.top, level == 1 ? 8 : 3)
+                .overlay(alignment: .bottomLeading) {
+                    if level == 1 {
+                        Capsule()
+                            .fill(palette?.active ?? textColor.opacity(0.35))
+                            .frame(width: 28, height: 3)
+                            .offset(y: 7)
+                    }
+                }
+                .accessibilityAddTraits(.isHeader)
         case let .quote(text):
             Text(inline(text))
                 .font(font)
                 .foregroundStyle(textColor)
                 .lineSpacing(4)
                 .padding(.leading, 12)
+                .padding(.vertical, 4)
                 .overlay(alignment: .leading) {
                     Rectangle()
                         .fill(palette?.quoteBorder ?? textColor.opacity(0.35))
@@ -48,7 +59,22 @@ struct MarkdownTextView: View {
                 .foregroundStyle(textColor)
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background((palette?.code ?? textColor.opacity(0.08)).opacity(0.75), in: RoundedRectangle(cornerRadius: 8))
+                .background(
+                    LinearGradient(
+                        colors: [
+                            (palette?.code ?? textColor.opacity(0.08)).opacity(0.9),
+                            (palette?.code ?? textColor.opacity(0.08)).opacity(0.6)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous)
+                )
+                .overlay {
+                    RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous)
+                        .stroke((palette?.paperBorder ?? textColor.opacity(0.15)).opacity(0.7), lineWidth: 1)
+                }
+                .shadow(color: (palette?.shadow ?? .black.opacity(0.15)).opacity(0.28), radius: 7, y: 3)
         case .divider:
             Divider().overlay((palette?.quoteBorder ?? textColor.opacity(0.25)).opacity(0.7))
         case let .paragraph(text):

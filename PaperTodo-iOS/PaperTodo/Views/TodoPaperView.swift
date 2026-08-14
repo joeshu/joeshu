@@ -33,6 +33,10 @@ struct TodoPaperView: View {
         return Double(completedCount) / Double(sortedTodos.count)
     }
 
+    private var todoFontSize: CGFloat {
+        UIFontMetrics(forTextStyle: .body).scaledValue(for: settings.todoVisualSize.fontSize)
+    }
+
     var body: some View {
         List {
             Section {
@@ -69,7 +73,7 @@ struct TodoPaperView: View {
             Section {
                 ForEach(sortedTodos) { item in
                     todoRow(item)
-                        .listRowBackground(theme.paper)
+                        .listRowBackground(theme.surfaceGradient)
                 }
                 .onDelete(perform: deleteItems)
                 .onMove(perform: moveItems)
@@ -189,33 +193,25 @@ struct TodoPaperView: View {
 
     private func todoRow(_ item: TodoItem) -> some View {
         HStack(spacing: 12) {
-            Button {
-                toggle(item)
-            } label: {
-                AnimatedCheckCircle(
-                    isDone: item.isDone,
-                    tint: theme.active
-                )
-            }
-            .buttonStyle(.borderless)
+            AnimatedCheckCircle(
+                isDone: item.isDone,
+                tint: theme.active
+            )
+            .accessibilityHidden(true)
 
              if editingItemID == item.id {
                  TextField("待办事项", text: binding(for: item), onCommit: finishEditing)
-                     .font(.system(size: settings.todoVisualSize.fontSize, design: .rounded))
+                     .font(.system(size: todoFontSize, design: .rounded))
                      .foregroundStyle(theme.text)
                      .textFieldStyle(.plain)
                      .submitLabel(.done)
              } else {
                  Text(item.text)
-                     .font(.system(size: settings.todoVisualSize.fontSize, design: .rounded))
+                      .font(.system(size: todoFontSize, design: .rounded))
                      .strikethrough(item.isDone)
                      .foregroundStyle(item.isDone ? theme.weakText : theme.text)
                      .animation(.easeOut(duration: 0.2), value: item.isDone)
-                     .onTapGesture {
-                         pushUndo()
-                         editingItemID = item.id
-                     }
-             }
+              }
 
             Spacer()
 
@@ -224,6 +220,14 @@ struct TodoPaperView: View {
                 .foregroundStyle(theme.weakText.opacity(0.5))
         }
         .contentShape(Rectangle())
+        .onTapGesture {
+            guard editingItemID != item.id else { return }
+            toggle(item)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(item.text)
+        .accessibilityValue(item.isDone ? "已完成" : "未完成")
+        .accessibilityHint("双击切换完成状态，使用上下文菜单编辑")
         .onDrag { NSItemProvider(object: item.id.uuidString as NSString) }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
@@ -379,6 +383,8 @@ struct TodoPaperView: View {
 
         if item.isDone {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } else {
+            UISelectionFeedbackGenerator().selectionChanged()
         }
 
         if settings.autoClearDone && item.isDone {

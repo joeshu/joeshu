@@ -480,6 +480,12 @@ struct PaperCard: View {
         paper.kind == .todo ? "checklist" : "note.text"
     }
 
+    private var statusText: String {
+        if paper.isPinned { return "已置顶" }
+        if paper.kind == .todo && progress == 1 { return "已完成" }
+        return paper.kind == .todo ? "进行中" : "可编辑"
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous)
@@ -502,22 +508,28 @@ struct PaperCard: View {
                 Text(summary)
                     .font(.subheadline)
                     .foregroundStyle(theme.weakText)
-                    .lineLimit(1)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
                 if paper.kind == .todo && !paper.todoItems.isEmpty {
-                    ProgressView(value: progress)
-                        .tint(theme.active)
-                        .scaleEffect(x: 1, y: 0.65, anchor: .center)
+                    HStack(spacing: 8) {
+                        ProgressView(value: progress)
+                            .tint(theme.active)
+                            .scaleEffect(x: 1, y: 0.65, anchor: .center)
+                        Text("\(Int(progress * 100))%")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(theme.active)
+                            .monospacedDigit()
+                    }
                 }
             }
 
             Spacer()
 
             VStack(alignment: .trailing, spacing: 8) {
-                if paper.isPinned {
-                    Image(systemName: "pin.fill")
-                        .font(.caption)
-                        .foregroundStyle(theme.tint)
-                }
+                Label(statusText, systemImage: paper.isPinned ? "pin.fill" : (paper.kind == .todo && progress == 1 ? "checkmark.seal.fill" : icon))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(paper.isPinned || (paper.kind == .todo && progress == 1) ? theme.active : theme.weakText)
+                    .labelStyle(.iconOnly)
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(theme.weakText.opacity(0.5))
@@ -547,6 +559,9 @@ struct PaperCard: View {
         }
         .shadow(color: theme.shadow.opacity(0.75), radius: 3, y: 1)
         .shadow(color: theme.shadow.opacity(0.48), radius: 16, y: 6)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)，\(statusText)")
+        .accessibilityHint("双击打开")
         .contextMenu {
             Button(action: onTogglePin) {
                 Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
