@@ -38,6 +38,14 @@ enum RenderStrength: Int, CaseIterable, Identifiable {
     }
 }
 
+enum HomeMode: String, CaseIterable, Identifiable {
+    case list = "纸片"
+    case calendar = "日历"
+    case quadrant = "四象限"
+
+    var id: String { rawValue }
+}
+
 @Observable
 final class AppSettings {
     var appearance: AppearanceMode {
@@ -55,6 +63,9 @@ final class AppSettings {
     var renderStrength: RenderStrength {
         didSet { UserDefaults.standard.set(renderStrength.rawValue, forKey: "renderStrength") }
     }
+    var homeMode: HomeMode {
+        didSet { UserDefaults.standard.set(homeMode.rawValue, forKey: "homeMode") }
+    }
 
     init() {
         let defaults = UserDefaults.standard
@@ -63,6 +74,7 @@ final class AppSettings {
         todoVisualSize = TodoVisualSize(rawValue: defaults.string(forKey: "todoVisualSize") ?? "") ?? .medium
         autoClearDone = defaults.object(forKey: "autoClearDone") as? Bool ?? false
         renderStrength = RenderStrength(rawValue: defaults.integer(forKey: "renderStrength")) ?? .full
+        homeMode = HomeMode(rawValue: defaults.string(forKey: "homeMode") ?? "") ?? .list
     }
 
     func palette(systemDark: Bool) -> PaperPalette {

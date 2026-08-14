@@ -73,73 +73,17 @@ struct ContentView: View {
                         onAddNote: { addPaper(kind: .note, title: "笔记") }
                     )
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            HomeOverview(papers: activePapers, theme: theme)
-                                .padding(.bottom, 2)
-
-                            PaperFilterBar(filter: $activeFilter, counts: filterCounts, theme: theme)
-
-                            if visiblePapers.isEmpty {
-                                FilterEmptyState(filter: activeFilter, theme: theme)
-                                    .padding(.vertical, 30)
-                            }
-
-                            ForEach(visiblePapers) { paper in
-                                NavigationLink(value: paper) {
-                                    PaperCard(paper: paper, theme: theme) {
-                                        togglePin(paper)
-                                    }
-                                }
-                                .buttonStyle(PaperPressStyle())
-                                .transition(.scale.combined(with: .opacity))
-                                .contextMenu {
-                                    Button {
-                                        togglePin(paper)
-                                    } label: {
-                                        Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
-                                    }
-                                    Button {
-                                        toggleCollapse(paper)
-                                    } label: {
-                                        Label(paper.isCollapsed ? "展开纸片" : "折叠纸片", systemImage: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
-                                    }
-                                    Button {
-                                        paperPreview = paper
-                                    } label: {
-                                        Label("快速预览", systemImage: "eye")
-                                    }
-                                    Button(role: .destructive) {
-                                        paperPendingDeletion = paper
-                                    } label: {
-                                        Label("删除纸片", systemImage: "trash")
-                                    }
-                                }
-                                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                    Button(role: .destructive) {
-                                        paperPendingDeletion = paper
-                                    } label: {
-                                        Label("删除", systemImage: "trash")
-                                    }
-                                }
-                            }
-                        }
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .frame(maxWidth: 760)
-                        .frame(maxWidth: .infinity)
-                    }
-                    .scrollIndicators(.hidden)
-                    .background(
-                        LinearGradient(
-                            colors: [
-                                theme.paper.opacity(0.34),
-                                theme.paper.opacity(0.08)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .ignoresSafeArea()
+                    HomeModeContent(
+                        mode: $settings.homeMode,
+                        papers: activePapers,
+                        visiblePapers: visiblePapers,
+                        filter: $activeFilter,
+                        filterCounts: filterCounts,
+                        theme: theme,
+                        onTogglePin: togglePin,
+                        onToggleCollapse: toggleCollapse,
+                        onPreview: { paperPreview = $0 },
+                        onDelete: { paperPendingDeletion = $0 }
                     )
                 }
             }
@@ -322,7 +266,7 @@ struct ContentView: View {
     }
 }
 
-private enum PaperFilter: String, CaseIterable, Identifiable {
+enum PaperFilter: String, CaseIterable, Identifiable {
     case all = "全部"
     case todo = "待办"
     case note = "笔记"
@@ -331,7 +275,7 @@ private enum PaperFilter: String, CaseIterable, Identifiable {
     var id: String { rawValue }
 }
 
-private struct PaperFilterCounts {
+struct PaperFilterCounts {
     var all = 0
     var todo = 0
     var note = 0
@@ -347,7 +291,7 @@ private struct PaperFilterCounts {
     }
 }
 
-private struct PaperFilterBar: View {
+struct PaperFilterBar: View {
     @Binding var filter: PaperFilter
     let counts: PaperFilterCounts
     let theme: PaperPalette
@@ -397,7 +341,7 @@ private struct PaperFilterBar: View {
 
 }
 
-private struct FilterEmptyState: View {
+struct FilterEmptyState: View {
     let filter: PaperFilter
     let theme: PaperPalette
 
@@ -667,7 +611,7 @@ struct PaperCard: View {
     }
 }
 
-private struct HomeOverview: View {
+struct HomeOverview: View {
     let papers: [Paper]
     let theme: PaperPalette
 
