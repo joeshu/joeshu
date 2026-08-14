@@ -3,8 +3,9 @@ import Foundation
 enum NoteExportStore {
     static func writeMarkdownPackage(title: String, body: String) -> URL? {
         let baseName = title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? "PaperTodo-note" : title
-        let safeName = baseName.replacingOccurrences(of: "/", with: "-")
-        let directory = FileManager.default.temporaryDirectory.appendingPathComponent(safeName, isDirectory: true)
+        let safeName = sanitizeFileName(baseName)
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(safeName)-\(UUID().uuidString.prefix(8))", isDirectory: true)
         let markdownURL = directory.appendingPathComponent("note.md")
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
@@ -16,5 +17,13 @@ enum NoteExportStore {
         } catch {
             return nil
         }
+    }
+
+    private static func sanitizeFileName(_ value: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "- _"))
+        let filtered = String(value.unicodeScalars.map { allowed.contains($0) ? Character(String($0)) : "-" })
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let limited = String(filtered.prefix(80))
+        return limited.isEmpty ? "PaperTodo-note" : limited
     }
 }

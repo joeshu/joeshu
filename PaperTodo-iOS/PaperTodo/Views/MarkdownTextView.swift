@@ -6,10 +6,26 @@ struct MarkdownTextView: View {
     var font: Font = .body
     var textColor: Color = .primary
     var palette: PaperPalette? = nil
+    private let parsedBlocks: [Block]
+
+    init(
+        markdown: String,
+        strength: RenderStrength = .full,
+        font: Font = .body,
+        textColor: Color = .primary,
+        palette: PaperPalette? = nil
+    ) {
+        self.markdown = markdown
+        self.strength = strength
+        self.font = font
+        self.textColor = textColor
+        self.palette = palette
+        self.parsedBlocks = Self.parseBlocks(markdown, strength: strength)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(Array(blocks.enumerated()), id: \.offset) { _, block in
+            ForEach(Array(parsedBlocks.enumerated()), id: \.offset) { _, block in
                 blockView(block)
             }
         }
@@ -85,7 +101,7 @@ struct MarkdownTextView: View {
         }
     }
 
-    private var blocks: [Block] {
+    private static func parseBlocks(_ markdown: String, strength: RenderStrength) -> [Block] {
         guard strength != .plain else { return [.paragraph(markdown)] }
         var result: [Block] = []
         var paragraph: [String] = []

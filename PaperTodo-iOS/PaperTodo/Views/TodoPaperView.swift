@@ -149,6 +149,7 @@ struct TodoPaperView: View {
                 } label: {
                     Image(systemName: "ellipsis.circle")
                 }
+                .accessibilityLabel("更多操作")
 
                 Button {
                     undo()
@@ -156,6 +157,7 @@ struct TodoPaperView: View {
                     Image(systemName: "arrow.uturn.backward")
                 }
                 .disabled(undoStack.isEmpty)
+                .accessibilityLabel("撤销")
 
                 Button {
                     redo()
@@ -163,6 +165,7 @@ struct TodoPaperView: View {
                     Image(systemName: "arrow.uturn.forward")
                 }
                 .disabled(redoStack.isEmpty)
+                .accessibilityLabel("重做")
 
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
@@ -172,6 +175,7 @@ struct TodoPaperView: View {
                 } label: {
                     Image(systemName: paper.isPinned ? "pin.fill" : "pin")
                 }
+                .accessibilityLabel(paper.isPinned ? "取消置顶" : "置顶")
 
                 Button {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
@@ -182,6 +186,7 @@ struct TodoPaperView: View {
                 } label: {
                     Image(systemName: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
                 }
+                .accessibilityLabel(paper.isCollapsed ? "展开纸片" : "折叠纸片")
 
                 EditButton()
             }
