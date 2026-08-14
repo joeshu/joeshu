@@ -11,7 +11,10 @@ struct NoteRenderView: View {
         VStack(alignment: .leading, spacing: 10) {
             ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
                 if let imageName = segment.imageName {
-                    if let uiImage = NoteImageStore.image(named: imageName) {
+                    if let uiImage = NoteImageStore.image(
+                        named: imageName,
+                        maxPixelSize: UIScreen.main.bounds.width * UIScreen.main.scale
+                    ) {
                         Image(uiImage: uiImage)
                             .resizable()
                             .scaledToFit()

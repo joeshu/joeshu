@@ -171,7 +171,10 @@ struct NotePaperView: View {
                 }
                 return
             }
-            let name = await NoteImageImportQueue.shared.save(data: data)
+            let name = await NoteImageImportQueue.shared.save(
+                data: data,
+                referencedNames: NoteImageStore.referencedNames(in: paper.body)
+            )
             await MainActor.run {
                 finishImport(name: name)
                 pickerItem = nil
@@ -185,7 +188,10 @@ struct NotePaperView: View {
         guard let data = imageTypes.lazy.compactMap({ pasteboard.data(forPasteboardType: $0) }).first else { return }
         startImport()
         Task {
-            let name = await NoteImageImportQueue.shared.save(data: data)
+            let name = await NoteImageImportQueue.shared.save(
+                data: data,
+                referencedNames: NoteImageStore.referencedNames(in: paper.body)
+            )
             await MainActor.run {
                 finishImport(name: name)
             }
@@ -194,12 +200,18 @@ struct NotePaperView: View {
 
     private func loadDroppedImages(_ providers: [NSItemProvider]) {
         for provider in providers {
+            startImport()
             if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                 provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
-                    guard let data else { return }
+                    guard let data else {
+                        Task { @MainActor in finishImport(name: nil) }
+                        return
+                    }
                     Task {
-                        await MainActor.run { startImport() }
-                        let name = await NoteImageImportQueue.shared.save(data: data)
+                        let name = await NoteImageImportQueue.shared.save(
+                            data: data,
+                            referencedNames: NoteImageStore.referencedNames(in: paper.body)
+                        )
                         await MainActor.run {
                             finishImport(name: name)
                         }
@@ -208,13 +220,21 @@ struct NotePaperView: View {
             } else if provider.hasItemConformingToTypeIdentifier(UTType.fileURL.identifier) {
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                     Task {
-                        await MainActor.run { startImport() }
-                        guard let url = item as? URL,
+                        guard let url = item as? URL else {
+                            await MainActor.run { finishImport(name: nil) }
+                            return
+                        }
+                        let values = try? url.resourceValues(forKeys: [.fileSizeKey])
+                        guard let fileSize = values?.fileSize,
+                              fileSize <= NoteImageStore.maxInputBytes,
                               let data = try? Data(contentsOf: url) else {
                             await MainActor.run { finishImport(name: nil) }
                             return
                         }
-                        let name = await NoteImageImportQueue.shared.save(data: data)
+                        let name = await NoteImageImportQueue.shared.save(
+                            data: data,
+                            referencedNames: NoteImageStore.referencedNames(in: paper.body)
+                        )
                         await MainActor.run {
                             finishImport(name: name)
                         }

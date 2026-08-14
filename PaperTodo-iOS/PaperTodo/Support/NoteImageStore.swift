@@ -4,7 +4,10 @@ import ImageIO
 import UniformTypeIdentifiers
 
 enum NoteImageStore {
-    private static let maxInputBytes = 50 * 1024 * 1024
+    static let maxInputBytes = 50 * 1024 * 1024
+    private static let maxNoteBytes = 50 * 1024 * 1024
+    private static let maxStoredImageBytes = 3 * 1024 * 1024
+    private static let maxInputPixels = 12_000_000
     private static let maxDimension: CGFloat = 2048
     private static let jpegQuality: CGFloat = 0.76
 
@@ -19,13 +22,13 @@ enum NoteImageStore {
         return save(cgImage: cgImage)
     }
 
-    static func save(data: Data) -> String? {
+    static func save(data: Data, referencedNames: Set<String> = []) -> String? {
         guard data.count <= maxInputBytes else { return nil }
         guard let image = thumbnail(data: data, maxDimension: maxDimension) else { return nil }
-        return save(cgImage: image)
+        return save(cgImage: image, referencedNames: referencedNames)
     }
 
-    private static func save(cgImage: CGImage) -> String? {
+    private static func save(cgImage: CGImage, referencedNames: Set<String> = []) -> String? {
         let name = "\(UUID().uuidString).jpg"
         let url = assetsDir.appendingPathComponent(name)
         let output = NSMutableData()
@@ -39,17 +42,34 @@ enum NoteImageStore {
             kCGImageDestinationLossyCompressionQuality: jpegQuality
         ] as CFDictionary)
         guard CGImageDestinationFinalize(destination) else { return nil }
+        let encodedData = output as Data
+        guard encodedData.count <= maxStoredImageBytes else { return nil }
+        let referencedBytes = referencedNames.reduce(0) { total, name in
+            let fileURL = assetsDir.appendingPathComponent(name)
+            let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey])
+            return total + (values?.fileSize ?? 0)
+        }
+        guard referencedBytes + encodedData.count <= maxNoteBytes else { return nil }
         do {
-            try (output as Data).write(to: url, options: .atomic)
+            try encodedData.write(to: url, options: .atomic)
             return name
         } catch {
             return nil
         }
     }
 
-    static func image(named: String) -> UIImage? {
+    static func image(named: String, maxPixelSize: CGFloat = 2048) -> UIImage? {
         let url = assetsDir.appendingPathComponent(named)
-        return UIImage(contentsOfFile: url.path)
+        let sourceOptions: [CFString: Any] = [kCGImageSourceShouldCache: false]
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, sourceOptions as CFDictionary) else { return nil }
+        let thumbnailOptions: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixelSize,
+            kCGImageSourceShouldCacheImmediately: true
+        ]
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnailOptions as CFDictionary) else { return nil }
+        return UIImage(cgImage: image)
     }
 
     static func delete(named: String) {
@@ -104,6 +124,12 @@ enum NoteImageStore {
             kCGImageSourceShouldCache: false
         ]
         guard let source = CGImageSourceCreateWithData(data as CFData, sourceOptions as CFDictionary) else { return nil }
+        guard let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+              let width = properties[kCGImagePropertyPixelWidth] as? Int,
+              let height = properties[kCGImagePropertyPixelHeight] as? Int,
+              width > 0,
+              height > 0,
+              width <= maxInputPixels / height else { return nil }
         let options: [CFString: Any] = [
             kCGImageSourceCreateThumbnailFromImageAlways: true,
             kCGImageSourceCreateThumbnailWithTransform: true,
@@ -121,5 +147,9 @@ actor NoteImageImportQueue {
 
     func save(data: Data) -> String? {
         NoteImageStore.save(data: data)
+    }
+
+    func save(data: Data, referencedNames: Set<String>) -> String? {
+        NoteImageStore.save(data: data, referencedNames: referencedNames)
     }
 }
