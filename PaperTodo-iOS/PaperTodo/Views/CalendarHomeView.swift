@@ -11,6 +11,8 @@ struct CalendarHomeView: View {
     @State private var selectedDate = Date()
     @State private var activeTab = CalendarTab.calendar
     @State private var appeared = false
+    @State private var isPresentingForm = false
+    @State private var editingEvent: CalendarEvent?
 
     private let calendar = Calendar.current
     private let weekdays = ["一", "二", "三", "四", "五", "六", "日"]
@@ -68,7 +70,8 @@ struct CalendarHomeView: View {
                         events: selectedEvents,
                         calendar: calendar,
                         onSelect: selectDate,
-                        onToggleCompletion: toggleCompletion
+                        onOpen: openEvent,
+                        onAdd: addEvent
                     )
                     .padding(.top, 104)
                     .frame(width: width * 0.60)
@@ -82,6 +85,11 @@ struct CalendarHomeView: View {
             CalendarTabBar(selection: $activeTab, onSelect: onTabSelect)
         }
         .background(Color(hex: "E8EEF5").ignoresSafeArea())
+        .sheet(isPresented: $isPresentingForm) {
+            CalendarEventFormView(event: editingEvent, date: selectedDate) {
+                try? modelContext.save()
+            }
+        }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.86)) { appeared = true }
         }
@@ -105,9 +113,14 @@ struct CalendarHomeView: View {
         }
     }
 
-    private func toggleCompletion(_ event: CalendarEvent) {
-        event.isCompleted.toggle()
-        try? modelContext.save()
+    private func openEvent(_ event: CalendarEvent) {
+        editingEvent = event
+        isPresentingForm = true
+    }
+
+    private func addEvent() {
+        editingEvent = nil
+        isPresentingForm = true
     }
 }
 
@@ -307,7 +320,8 @@ private struct DayTimelineCard: View {
     let events: [CalendarEvent]
     let calendar: Calendar
     let onSelect: (Date) -> Void
-    let onToggleCompletion: (CalendarEvent) -> Void
+    let onOpen: (CalendarEvent) -> Void
+    let onAdd: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -318,6 +332,15 @@ private struct DayTimelineCard: View {
                     Text(calendar.isDateInToday(selectedDate) ? "今天" : selectedDate.formatted(.dateTime.day())).font(.system(size: 16, weight: .bold))
                 }
                 Spacer()
+                Button(action: onAdd) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(Color(hex: "1C1C1E"))
+                        .frame(width: 28, height: 28)
+                        .background(Color(hex: "F2F2F7"), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("新建日程")
             }
             .foregroundStyle(Color(hex: "1C1C1E"))
 
@@ -330,7 +353,7 @@ private struct DayTimelineCard: View {
                     } else {
                         ForEach(events) { event in
                             TimelineEventRow(event: event) {
-                                onToggleCompletion(event)
+                                onOpen(event)
                             }
                         }
                     }

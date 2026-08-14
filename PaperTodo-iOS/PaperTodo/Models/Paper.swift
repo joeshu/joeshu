@@ -12,6 +12,18 @@ enum EventCategory: String, Codable, CaseIterable, Identifiable {
     case personal, work, errand, important, leisure, daily, shopping, travel
 
     var id: String { rawValue }
+    var displayName: String {
+        switch self {
+        case .personal: return "个人"
+        case .work: return "工作"
+        case .errand: return "杂事"
+        case .important: return "重要"
+        case .leisure: return "休闲"
+        case .daily: return "日常"
+        case .shopping: return "购物"
+        case .travel: return "出行"
+        }
+    }
     var tagBackground: Color {
         switch self {
         case .personal: return Color(hex: "FFD1DC")
