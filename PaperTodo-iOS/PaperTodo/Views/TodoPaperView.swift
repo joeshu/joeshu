@@ -15,6 +15,7 @@ struct TodoPaperView: View {
     @State private var redoStack: [[TodoSnapshot]] = []
     @State private var isDropTargeted = false
     @State private var editingItemID: UUID?
+    @FocusState private var editingItemFocused: Bool
 
     private var sortedTodos: [TodoItem] {
         paper.todoItems.sorted { $0.sortIndex < $1.sortIndex }
@@ -201,10 +202,11 @@ struct TodoPaperView: View {
 
              if editingItemID == item.id {
                  TextField("待办事项", text: binding(for: item), onCommit: finishEditing)
-                     .font(.system(size: todoFontSize, design: .rounded))
-                     .foregroundStyle(theme.text)
-                     .textFieldStyle(.plain)
-                     .submitLabel(.done)
+                      .font(.system(size: todoFontSize, design: .rounded))
+                      .foregroundStyle(theme.text)
+                      .textFieldStyle(.plain)
+                      .submitLabel(.done)
+                      .focused($editingItemFocused)
              } else {
                  Text(item.text)
                       .font(.system(size: todoFontSize, design: .rounded))
@@ -244,7 +246,7 @@ struct TodoPaperView: View {
              }
              Button {
                   pushUndo()
-                  editingItemID = item.id
+                  beginEditing(item)
              } label: {
                  Label("编辑", systemImage: "pencil")
              }
@@ -306,6 +308,14 @@ struct TodoPaperView: View {
 
     private func finishEditing() {
         editingItemID = nil
+        editingItemFocused = false
+    }
+
+    private func beginEditing(_ item: TodoItem) {
+        editingItemID = item.id
+        DispatchQueue.main.async {
+            editingItemFocused = true
+        }
     }
 
     private func snapshot() -> [TodoSnapshot] {
@@ -389,6 +399,7 @@ struct TodoPaperView: View {
 
         if settings.autoClearDone && item.isDone {
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                guard settings.autoClearDone, item.isDone, item.paper === paper else { return }
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                     modelContext.delete(item)
                 }

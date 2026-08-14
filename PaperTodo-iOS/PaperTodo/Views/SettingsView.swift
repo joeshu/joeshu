@@ -8,6 +8,14 @@ struct SettingsView: View {
         settings.palette(systemDark: colorScheme == .dark)
     }
 
+    private var effectiveDarkMode: Bool {
+        switch settings.appearance {
+        case .system: return colorScheme == .dark
+        case .light: return false
+        case .dark: return true
+        }
+    }
+
     var body: some View {
         @Bindable var settings = settings
         ScrollView {
@@ -20,7 +28,7 @@ struct SettingsView: View {
                             }
                         }
                     }
-                    ThemePickerRow(selection: $settings.colorScheme, dark: colorScheme == .dark)
+                    ThemePickerRow(selection: $settings.colorScheme, dark: effectiveDarkMode)
                 }
 
                 settingsSection("待办", systemImage: "checklist", theme: theme) {
@@ -139,7 +147,7 @@ private struct ThemePickerRow: View {
                     .foregroundStyle(currentPalette.active)
             }
 
-            HStack(spacing: 10) {
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 64), spacing: 10)], spacing: 10) {
                 ForEach(PaperColorScheme.allCases) { scheme in
                     let palette = PaperPalette.scheme(scheme, dark: dark)
                     Button {

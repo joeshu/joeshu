@@ -100,7 +100,7 @@ struct MarkdownTextView: View {
 
         for line in markdown.components(separatedBy: .newlines) {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if trimmed == "```" {
+            if trimmed.hasPrefix("```") {
                 if inCode { result.append(.code(codeLines.joined(separator: "\n"))); codeLines.removeAll() } else { flushParagraph() }
                 inCode.toggle()
             } else if inCode {

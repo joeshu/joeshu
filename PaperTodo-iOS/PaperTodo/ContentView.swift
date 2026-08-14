@@ -10,6 +10,8 @@ struct ContentView: View {
     @State private var saveErrorMessage: String?
     @State private var activeFilter: PaperFilter = .all
     @State private var paperPreview: Paper?
+    @State private var paperAwaitingDeletion: Paper?
+    @State private var deletionToken = UUID()
 
     private var sortedPapers: [Paper] {
         papers.sorted {
@@ -25,19 +27,23 @@ struct ContentView: View {
     }
 
     private var capsulePapers: [Paper] {
-        sortedPapers.filter(\.isCollapsed)
+        activePapers.filter(\.isCollapsed)
+    }
+
+    private var activePapers: [Paper] {
+        sortedPapers.filter { $0.id != paperAwaitingDeletion?.id }
     }
 
     private var visiblePapers: [Paper] {
         switch activeFilter {
         case .all:
-            return sortedPapers
+            return activePapers
         case .todo:
-            return sortedPapers.filter { $0.kind == .todo }
+            return activePapers.filter { $0.kind == .todo }
         case .note:
-            return sortedPapers.filter { $0.kind == .note }
+            return activePapers.filter { $0.kind == .note }
         case .pending:
-            return sortedPapers.filter { paper in
+            return activePapers.filter { paper in
                 paper.kind == .todo && paper.todoItems.contains { !$0.isDone }
             }
         }
@@ -56,10 +62,10 @@ struct ContentView: View {
                 } else {
                     ScrollView {
                         LazyVStack(spacing: 12) {
-                            HomeOverview(papers: sortedPapers, theme: theme)
+                            HomeOverview(papers: activePapers, theme: theme)
                                 .padding(.bottom, 2)
 
-                            PaperFilterBar(filter: $activeFilter, theme: theme)
+                            PaperFilterBar(filter: $activeFilter, papers: activePapers, theme: theme)
 
                             if visiblePapers.isEmpty {
                                 FilterEmptyState(filter: activeFilter, theme: theme)
@@ -170,6 +176,15 @@ struct ContentView: View {
                     CapsuleBar(papers: capsulePapers, theme: theme)
                 }
             }
+            .overlay(alignment: .bottom) {
+                if let paperAwaitingDeletion {
+                    UndoDeletionBanner(paper: paperAwaitingDeletion, theme: theme) {
+                        undoDeletion()
+                    }
+                    .padding(.bottom, capsulePapers.isEmpty ? 12 : 64)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     Menu {
@@ -245,6 +260,31 @@ struct ContentView: View {
     }
 
     private func deletePaper(_ paper: Paper) {
+        if let previous = paperAwaitingDeletion {
+            permanentlyDelete(previous)
+        }
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            paperAwaitingDeletion = paper
+        }
+        paperPendingDeletion = nil
+
+        let token = UUID()
+        deletionToken = token
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+            guard deletionToken == token, paperAwaitingDeletion?.id == paper.id else { return }
+            permanentlyDelete(paper)
+            paperAwaitingDeletion = nil
+        }
+    }
+
+    private func undoDeletion() {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            paperAwaitingDeletion = nil
+        }
+        deletionToken = UUID()
+    }
+
+    private func permanentlyDelete(_ paper: Paper) {
         if paper.kind == .note {
             NoteImageStore.deleteReferenced(in: paper.body)
         }
@@ -252,7 +292,6 @@ struct ContentView: View {
             modelContext.delete(paper)
         }
         saveContext()
-        paperPendingDeletion = nil
     }
 
     private func saveContext() {
@@ -275,6 +314,7 @@ private enum PaperFilter: String, CaseIterable, Identifiable {
 
 private struct PaperFilterBar: View {
     @Binding var filter: PaperFilter
+    let papers: [Paper]
     let theme: PaperPalette
 
     var body: some View {
@@ -286,11 +326,16 @@ private struct PaperFilterBar: View {
                             filter = item
                         }
                     } label: {
-                        Text(item.rawValue)
+                        VStack(spacing: 4) {
+                            Text("\(item.rawValue) \(count(for: item))")
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(filter == item ? theme.paper : theme.weakText)
-                            .padding(.horizontal, 13)
-                            .padding(.vertical, 8)
+                            Capsule()
+                                .fill(filter == item ? theme.paper.opacity(0.9) : .clear)
+                                .frame(width: 18, height: 2)
+                        }
+                        .padding(.horizontal, 13)
+                        .padding(.vertical, 7)
                             .background(
                                 Capsule()
                                     .fill(
@@ -310,6 +355,18 @@ private struct PaperFilterBar: View {
             .padding(.horizontal, 4)
         }
         .scrollIndicators(.hidden)
+    }
+
+    private func count(for filter: PaperFilter) -> Int {
+        switch filter {
+        case .all: return papers.count
+        case .todo: return papers.filter { $0.kind == .todo }.count
+        case .note: return papers.filter { $0.kind == .note }.count
+        case .pending:
+            return papers.reduce(0) { result, paper in
+                result + (paper.kind == .todo ? paper.todoItems.filter { !$0.isDone }.count : 0)
+            }
+        }
     }
 }
 
@@ -467,6 +524,16 @@ struct PaperCard: View {
         }
     }
 
+    private var detailText: String {
+        switch paper.kind {
+        case .todo:
+            return paper.todoItems.isEmpty ? "还没有任务" : "\(paper.todoItems.count) 项任务"
+        case .note:
+            let count = paper.body.split { $0.isWhitespace || $0.isNewline }.count
+            return count == 0 ? "Markdown 笔记" : "\(count) 字 · Markdown 笔记"
+        }
+    }
+
     private var completedCount: Int {
         paper.todoItems.filter(\.isDone).count
     }
@@ -502,7 +569,7 @@ struct PaperCard: View {
                         .foregroundStyle(theme.text)
                         .lineLimit(1)
                 }
-                Text(paper.kind == .todo ? "待办清单" : "Markdown 笔记")
+                Text(detailText)
                     .font(.caption2.weight(.medium))
                     .foregroundStyle(theme.weakText)
                 Text(summary)
@@ -510,6 +577,9 @@ struct PaperCard: View {
                     .foregroundStyle(theme.weakText)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                Text(paper.updatedAt, style: .relative)
+                    .font(.caption2)
+                    .foregroundStyle(theme.weakText.opacity(0.82))
                 if paper.kind == .todo && !paper.todoItems.isEmpty {
                     HStack(spacing: 8) {
                         ProgressView(value: progress)
@@ -592,6 +662,19 @@ private struct HomeOverview: View {
         papers.filter(\.isPinned).count
     }
 
+    private var totalTodoCount: Int {
+        todoPapers.reduce(0) { $0 + $1.todoItems.count }
+    }
+
+    private var completedTodoCount: Int {
+        todoPapers.reduce(0) { $0 + $1.todoItems.filter(\.isDone).count }
+    }
+
+    private var completionRate: Double {
+        guard totalTodoCount > 0 else { return 1 }
+        return Double(completedTodoCount) / Double(totalTodoCount)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
@@ -631,6 +714,25 @@ private struct HomeOverview: View {
                     .stroke(theme.paperBorder.opacity(0.35), lineWidth: 1)
             }
             .shadow(color: theme.shadow.opacity(0.4), radius: 10, y: 4)
+
+            HStack(spacing: 10) {
+                Image(systemName: completionRate == 1 ? "checkmark.circle.fill" : "chart.bar.fill")
+                    .foregroundStyle(completionRate == 1 ? theme.active : theme.tint)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("待办完成率")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(theme.weakText)
+                    ProgressView(value: completionRate)
+                        .tint(completionRate == 1 ? theme.active : theme.tint)
+                }
+                Text("\(Int(completionRate * 100))%")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(theme.text)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 9)
+            .background(theme.paper.opacity(0.34), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
         }
         .padding(.horizontal, 4)
         .padding(.top, 4)
@@ -647,6 +749,35 @@ private struct HomeOverview: View {
                 .foregroundStyle(theme.weakText)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct UndoDeletionBanner: View {
+    let paper: Paper
+    let theme: PaperPalette
+    let onUndo: () -> Void
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "trash.slash")
+                .foregroundStyle(theme.danger)
+            Text("已移除纸片")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.text)
+            Spacer(minLength: 8)
+            Button("撤销", action: onUndo)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(theme.active)
+                .buttonStyle(PaperPressStyle(pressedScale: 0.96))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .background(.ultraThinMaterial, in: Capsule())
+        .overlay(Capsule().stroke(theme.paperBorder.opacity(0.7), lineWidth: 1))
+        .shadow(color: theme.shadow.opacity(0.55), radius: 12, y: 4)
+        .padding(.horizontal, 16)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("已移除纸片，可撤销")
     }
 }
 
