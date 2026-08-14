@@ -1,7 +1,9 @@
 import Foundation
 import SwiftData
 import SwiftUI
-import UIKitenum PaperKind: String, Codable, CaseIterable, Identifiable {
+import UIKit
+
+enum PaperKind: String, Codable, CaseIterable, Identifiable {
     case todo
     case note
     var id: String { rawValue }
