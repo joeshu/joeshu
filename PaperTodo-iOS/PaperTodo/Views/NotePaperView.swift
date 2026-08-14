@@ -51,6 +51,8 @@ struct NotePaperView: View {
                 }
                 .background(theme.paper.opacity(0.15))
                 .scrollIndicators(.hidden)
+                .frame(maxWidth: 800)
+                .frame(maxWidth: .infinity)
             } else {
                 MarkdownEditorTextView(
                     text: $paper.body,
@@ -59,6 +61,8 @@ struct NotePaperView: View {
                     baseFont: .systemFont(ofSize: 17)
                 )
                 .padding(.horizontal, 8)
+                .frame(maxWidth: 760)
+                .frame(maxWidth: .infinity)
                 .background(theme.paper.opacity(0.15))
                 .onDrop(of: [UTType.image.identifier, UTType.fileURL.identifier], isTargeted: nil) { providers in
                     loadDroppedImages(providers)
@@ -91,6 +95,7 @@ struct NotePaperView: View {
                 PhotosPicker(selection: $pickerItem, matching: .images) {
                     Image(systemName: "photo")
                 }
+                .accessibilityLabel("导入图片")
                 .onChange(of: pickerItem) { _, newItem in
                     if let newItem {
                         loadImage(from: newItem)
@@ -102,12 +107,14 @@ struct NotePaperView: View {
                 } label: {
                     Image(systemName: "doc.on.clipboard")
                 }
+                .accessibilityLabel("粘贴图片")
 
                 Button {
                     exportURL = NoteExportStore.writeMarkdownPackage(title: paper.title, body: paper.body)
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
+                .accessibilityLabel("导出笔记")
 
                 Button {
                     withAnimation {
@@ -117,6 +124,7 @@ struct NotePaperView: View {
                 } label: {
                     Image(systemName: paper.isPinned ? "pin.fill" : "pin")
                 }
+                .accessibilityLabel(paper.isPinned ? "取消置顶" : "置顶")
 
                 Button {
                     withAnimation {
@@ -126,6 +134,7 @@ struct NotePaperView: View {
                 } label: {
                     Image(systemName: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
                 }
+                .accessibilityLabel(paper.isCollapsed ? "展开纸片" : "折叠纸片")
 
                 Menu {
                     Picker("渲染强度", selection: $settings.renderStrength) {
@@ -136,6 +145,7 @@ struct NotePaperView: View {
                 } label: {
                     Image(systemName: "textformat")
                 }
+                .accessibilityLabel("渲染强度")
 
                 Button {
                     withAnimation {
@@ -144,6 +154,7 @@ struct NotePaperView: View {
                 } label: {
                     Image(systemName: previewing ? "pencil" : "eye")
                 }
+                .accessibilityLabel(previewing ? "编辑笔记" : "预览笔记")
             }
         }
         .navigationTitle(paper.title.isEmpty ? "笔记" : paper.title)

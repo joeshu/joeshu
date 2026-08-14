@@ -16,6 +16,7 @@ struct TodoPaperView: View {
     @State private var isDropTargeted = false
     @State private var editingItemID: UUID?
     @FocusState private var editingItemFocused: Bool
+    @State private var saveTask: Task<Void, Never>?
 
     private var sortedTodos: [TodoItem] {
         paper.todoItems.sorted { $0.sortIndex < $1.sortIndex }
@@ -70,6 +71,10 @@ struct TodoPaperView: View {
                     TextField("纸片标题", text: $paper.title)
                         .font(.system(.title3, design: .rounded).weight(.semibold))
                         .foregroundStyle(theme.text)
+                        .onChange(of: paper.title) { _, _ in
+                            paper.updatedAt = Date()
+                            scheduleSave()
+                        }
                 }
                 .padding(.vertical, 6)
                 .listRowBackground(clearCardBackground)
@@ -183,6 +188,10 @@ struct TodoPaperView: View {
         }
         .navigationTitle(paper.title.isEmpty ? "待办" : paper.title)
         .navigationBarTitleDisplayMode(.inline)
+        .onDisappear {
+            saveTask?.cancel()
+            try? modelContext.save()
+        }
     }
 
     private var clearCardBackground: some View {
@@ -305,7 +314,7 @@ struct TodoPaperView: View {
             set: {
                 item.text = $0
                 paper.updatedAt = Date()
-                try? modelContext.save()
+                scheduleSave()
             }
         )
     }
@@ -313,6 +322,15 @@ struct TodoPaperView: View {
     private func finishEditing() {
         editingItemID = nil
         editingItemFocused = false
+    }
+
+    private func scheduleSave() {
+        saveTask?.cancel()
+        saveTask = Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            guard !Task.isCancelled else { return }
+            try? modelContext.save()
+        }
     }
 
     private func beginEditing(_ item: TodoItem) {

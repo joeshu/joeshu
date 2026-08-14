@@ -126,6 +126,8 @@ struct ContentView: View {
                         }
                         .padding(.horizontal, 16)
                         .padding(.vertical, 12)
+                        .frame(maxWidth: 760)
+                        .frame(maxWidth: .infinity)
                     }
                     .scrollIndicators(.hidden)
                     .background(
@@ -209,12 +211,14 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "paintpalette")
                     }
+                    .accessibilityLabel("配色")
 
                     NavigationLink {
                         SettingsView()
                     } label: {
                         Image(systemName: "gearshape")
                     }
+                    .accessibilityLabel("设置")
 
                     Menu {
                         ForEach(sortedPapers) { paper in
@@ -228,6 +232,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "rectangle.stack")
                     }
+                    .accessibilityLabel("纸片列表")
 
                     Menu {
                         Button {
@@ -243,6 +248,7 @@ struct ContentView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .accessibilityLabel("新建纸片")
                 }
             }
         }
