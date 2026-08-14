@@ -117,6 +117,9 @@ private struct PickerRow<PickerContent: View>: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(title)，\(value)")
+        .accessibilityHint("打开菜单选择")
     }
 }
 

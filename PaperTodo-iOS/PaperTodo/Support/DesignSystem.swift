@@ -65,11 +65,12 @@ extension PaperPalette {
 struct AnimatedCheckCircle: View {
     let isDone: Bool
     let tint: Color
+    var untinted: Color = Color.secondary
 
     var body: some View {
         ZStack {
             Circle()
-                .strokeBorder(isDone ? tint : Color.secondary.opacity(0.5), lineWidth: 1.8)
+                .strokeBorder(isDone ? tint : untinted.opacity(0.5), lineWidth: 1.8)
             if isDone {
                 Image(systemName: "checkmark")
                     .font(.system(size: 11, weight: .bold))

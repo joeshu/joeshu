@@ -58,7 +58,7 @@ struct NotePaperView: View {
                     text: $paper.body,
                     insertionRequest: $insertionRequest,
                     textColor: UIColor(theme.text),
-                    baseFont: .systemFont(ofSize: 17)
+                    baseFont: UIFontMetrics(forTextStyle: .body).scaledFont(for: .systemFont(ofSize: 17))
                 )
                 .padding(.horizontal, 8)
                 .frame(maxWidth: 760)

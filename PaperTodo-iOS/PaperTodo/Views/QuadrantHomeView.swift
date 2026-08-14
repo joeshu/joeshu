@@ -93,7 +93,9 @@ struct QuadrantHomeView: View {
                 toggleDone(item)
             } label: {
                 Image(systemName: item.isDone ? "checkmark.square.fill" : "square")
-                    .foregroundStyle(item.isDone ? quadrant.color : Color.secondary)
+                    .foregroundStyle(item.isDone ? quadrant.color : theme.weakText)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(item.isDone ? "标记未完成" : "标记完成")
@@ -129,7 +131,9 @@ struct QuadrantHomeView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
-                    .foregroundStyle(Color.secondary)
+                    .foregroundStyle(theme.weakText)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(item.text)的操作")

@@ -45,7 +45,7 @@ struct MarkdownTextView: View {
         switch block {
         case let .heading(level, text):
             Text(inline(text))
-                .font(.system(size: max(18, 27 - CGFloat(level) * 2), design: .rounded).weight(.semibold))
+                .font(headingFont(level))
                 .foregroundStyle(textColor)
                 .padding(.top, level == 1 ? 8 : 3)
                 .overlay(alignment: .bottomLeading) {
@@ -99,6 +99,17 @@ struct MarkdownTextView: View {
                 .foregroundStyle(textColor)
                 .lineSpacing(4)
         }
+    }
+
+    private func headingFont(_ level: Int) -> Font {
+        let style: Font.TextStyle
+        switch level {
+        case 1: style = .title
+        case 2: style = .title2
+        case 3: style = .title3
+        default: style = .headline
+        }
+        return .system(style, design: .rounded).weight(.semibold)
     }
 
     private static func parseBlocks(_ markdown: String, strength: RenderStrength) -> [Block] {

@@ -102,7 +102,8 @@ struct TodoPaperView: View {
                         .foregroundStyle(theme.tint)
                         .padding(.top, 2)
                     TextEditor(text: $newTodoText)
-                        .frame(minHeight: 36, maxHeight: 88)
+                        .frame(minHeight: 36)
+                        .frame(maxHeight: 132)
                         .scrollContentBackground(.hidden)
                         .font(.system(.body, design: .rounded))
                         .foregroundStyle(theme.text)
@@ -214,7 +215,8 @@ struct TodoPaperView: View {
         HStack(spacing: 12) {
             AnimatedCheckCircle(
                 isDone: item.isDone,
-                tint: theme.active
+                tint: theme.active,
+                untinted: theme.weakText
             )
             .accessibilityHidden(true)
 
@@ -292,7 +294,7 @@ struct TodoPaperView: View {
         .frame(maxWidth: .infinity)
         .background(
             Capsule()
-                .fill(isDropTargeted ? Color.red : Color.red.opacity(0.65))
+                .fill(isDropTargeted ? theme.danger : theme.danger.opacity(0.65))
         )
         .padding(.horizontal, 16)
         .padding(.bottom, 4)

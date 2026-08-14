@@ -315,6 +315,7 @@ struct PaperFilterBar: View {
                         }
                         .padding(.horizontal, 13)
                         .padding(.vertical, 7)
+                        .frame(minHeight: 44)
                             .background(
                                 Capsule()
                                     .fill(

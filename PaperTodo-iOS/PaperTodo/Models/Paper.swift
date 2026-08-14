@@ -1,8 +1,7 @@
 import Foundation
 import SwiftData
 import SwiftUI
-
-enum PaperKind: String, Codable, CaseIterable, Identifiable {
+import UIKitenum PaperKind: String, Codable, CaseIterable, Identifiable {
     case todo
     case note
     var id: String { rawValue }
@@ -26,38 +25,38 @@ enum EventCategory: String, Codable, CaseIterable, Identifiable {
     }
     var tagBackground: Color {
         switch self {
-        case .personal: return Color(hex: "FFD1DC")
-        case .work: return Color(hex: "B8D4F0")
-        case .errand: return Color(hex: "C8E6C9")
-        case .important: return Color(hex: "FFF9C4")
-        case .leisure: return Color(hex: "E8DAEF")
-        case .daily: return Color(hex: "D6EAF8")
-        case .shopping: return Color(hex: "D4EDDA")
-        case .travel: return Color(hex: "FFE0B2")
+        case .personal: return .adaptive(light: "FFD1DC", dark: "5C2F3C")
+        case .work: return .adaptive(light: "B8D4F0", dark: "2B4560")
+        case .errand: return .adaptive(light: "C8E6C9", dark: "2E4A35")
+        case .important: return .adaptive(light: "FFF9C4", dark: "4A4420")
+        case .leisure: return .adaptive(light: "E8DAEF", dark: "413152")
+        case .daily: return .adaptive(light: "D6EAF8", dark: "2B4660")
+        case .shopping: return .adaptive(light: "D4EDDA", dark: "2D4835")
+        case .travel: return .adaptive(light: "FFE0B2", dark: "4A3820")
         }
     }
 
     var tagText: Color {
         switch self {
-        case .personal: return Color(hex: "8B4557")
-        case .work: return Color(hex: "2E5A87")
-        case .errand: return Color(hex: "2D6A4F")
-        case .important: return Color(hex: "8B7355")
-        case .leisure: return Color(hex: "6B4C9A")
-        case .daily: return Color(hex: "4A6FA5")
-        case .shopping: return Color(hex: "4A7C59")
-        case .travel: return Color(hex: "8B6914")
+        case .personal: return .adaptive(light: "8B4557", dark: "FFB3C4")
+        case .work: return .adaptive(light: "2E5A87", dark: "A8CDF0")
+        case .errand: return .adaptive(light: "2D6A4F", dark: "A8E0BD")
+        case .important: return .adaptive(light: "8B7355", dark: "F0D9A8")
+        case .leisure: return .adaptive(light: "6B4C9A", dark: "D0B8EE")
+        case .daily: return .adaptive(light: "4A6FA5", dark: "A8CDEE")
+        case .shopping: return .adaptive(light: "4A7C59", dark: "A8DDBB")
+        case .travel: return .adaptive(light: "8B6914", dark: "E8C688")
         }
     }
 
     var ringColor: Color {
         switch self {
-        case .personal: return Color(hex: "FF6B8A")
-        case .work, .daily, .travel: return Color(hex: "5B9BD5")
-        case .errand: return Color(hex: "5B9BD5")
-        case .shopping: return Color(hex: "4CD964")
-        case .important: return Color(hex: "FFCC00")
-        case .leisure: return Color(hex: "AF52DE")
+        case .personal: return .adaptive(light: "FF6B8A", dark: "FF8FA7")
+        case .work, .daily, .travel: return .adaptive(light: "5B9BD5", dark: "7CB8E8")
+        case .errand: return .adaptive(light: "5B9BD5", dark: "7CB8E8")
+        case .shopping: return .adaptive(light: "4CD964", dark: "6FE58A")
+        case .important: return .adaptive(light: "FFCC00", dark: "FFD633")
+        case .leisure: return .adaptive(light: "AF52DE", dark: "C77EEC")
         }
     }
 }
@@ -132,10 +131,10 @@ enum Quadrant: String, Codable, CaseIterable, Identifiable {
 
     var color: Color {
         switch self {
-        case .urgentImportant: return Color(hex: "4A7BF7")
-        case .importantNotUrgent: return Color(hex: "5B9BD5")
-        case .urgentNotImportant: return Color(hex: "FFB04A")
-        case .notUrgentNotImportant: return Color(hex: "4CD964")
+        case .urgentImportant: return .adaptive(light: "4A7BF7", dark: "6C96FF")
+        case .importantNotUrgent: return .adaptive(light: "5B9BD5", dark: "7CB8E8")
+        case .urgentNotImportant: return .adaptive(light: "FFB04A", dark: "FFBF73")
+        case .notUrgentNotImportant: return .adaptive(light: "4CD964", dark: "6FE58A")
         }
     }
 }
@@ -198,5 +197,18 @@ extension Color {
             green: Double((value >> 8) & 0xff) / 255,
             blue: Double(value & 0xff) / 255
         )
+    }
+
+    static func adaptive(light: String, dark: String) -> Color {
+        Color(UIColor { trait in
+            let hex = trait.userInterfaceStyle == .dark ? dark : light
+            let value = UInt64(hex, radix: 16) ?? 0
+            return UIColor(
+                red: CGFloat((value >> 16) & 0xff) / 255,
+                green: CGFloat((value >> 8) & 0xff) / 255,
+                blue: CGFloat(value & 0xff) / 255,
+                alpha: 1
+            )
+        })
     }
 }

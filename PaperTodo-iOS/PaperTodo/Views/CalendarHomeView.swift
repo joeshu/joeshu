@@ -3,13 +3,10 @@ import SwiftData
 
 struct CalendarHomeView: View {
     @Environment(\.modelContext) private var modelContext
-    let papers: [Paper]
     let theme: PaperPalette
-    let onTabSelect: (CalendarTab) -> Void
     @Query(sort: \CalendarEvent.startTime) private var events: [CalendarEvent]
     @State private var month = Date()
     @State private var selectedDate = Date()
-    @State private var activeTab = CalendarTab.calendar
     @State private var appeared = false
     @State private var isPresentingForm = false
     @State private var editingEvent: CalendarEvent?
@@ -45,7 +42,7 @@ struct CalendarHomeView: View {
             GeometryReader { geo in
                 let width = geo.size.width
                 ZStack(alignment: .topLeading) {
-                    CalendarBackdrop()
+                    CalendarBackdrop(theme: theme)
 
                     MonthCard(
                         month: month,
@@ -55,6 +52,7 @@ struct CalendarHomeView: View {
                         events: events,
                         selectedDate: selectedDate,
                         calendar: calendar,
+                        theme: theme,
                         onSelect: selectDate,
                         onShift: shiftMonth
                     )
@@ -69,6 +67,7 @@ struct CalendarHomeView: View {
                         selectedDate: selectedDate,
                         events: selectedEvents,
                         calendar: calendar,
+                        theme: theme,
                         onSelect: selectDate,
                         onOpen: openEvent,
                         onAdd: addEvent
@@ -81,10 +80,8 @@ struct CalendarHomeView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .clipped()
-
-            CalendarTabBar(selection: $activeTab, onSelect: onTabSelect)
         }
-        .background(Color(hex: "E8EEF5").ignoresSafeArea())
+        .background(theme.backgroundGradient.ignoresSafeArea())
         .sheet(isPresented: $isPresentingForm) {
             CalendarEventFormView(event: editingEvent, date: selectedDate) {
                 try? modelContext.save()
@@ -124,15 +121,12 @@ struct CalendarHomeView: View {
     }
 }
 
-enum CalendarTab: String, CaseIterable, Identifiable {
-    case calendar, apps, profile
-    var id: String { rawValue }
-}
-
 private struct CalendarBackdrop: View {
+    let theme: PaperPalette
+
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color(hex: "F0F4F8"), Color(hex: "E8EEF5")], startPoint: .top, endPoint: .bottom)
+            theme.backgroundGradient
             Canvas { context, size in
                 let step: CGFloat = 40
                 var path = Path()
@@ -144,7 +138,7 @@ private struct CalendarBackdrop: View {
                     path.move(to: CGPoint(x: 0, y: y))
                     path.addLine(to: CGPoint(x: size.width, y: y))
                 }
-                context.stroke(path, with: .color(Color(red: 180 / 255, green: 195 / 255, blue: 220 / 255).opacity(0.12)), lineWidth: 1)
+                context.stroke(path, with: .color(theme.paperBorder.opacity(0.22)), lineWidth: 1)
             }
             VStack {
                 HStack(spacing: 12) {
@@ -240,13 +234,14 @@ private struct MonthCard: View {
     let events: [CalendarEvent]
     let selectedDate: Date
     let calendar: Calendar
+    let theme: PaperPalette
     let onSelect: (Date) -> Void
     let onShift: (Int) -> Void
 
     var body: some View {
         VStack(spacing: 10) {
             HStack {
-                Text(title).font(.system(size: 18, weight: .bold)).foregroundStyle(Color(hex: "1C1C1E"))
+                Text(title).font(.system(size: 18, weight: .bold)).foregroundStyle(theme.text)
                 Spacer()
                 Menu {
                     Button("上个月") { onShift(-1) }
@@ -255,15 +250,16 @@ private struct MonthCard: View {
                 } label: {
                     Image(systemName: "ellipsis")
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(Color(hex: "1C1C1E"))
-                        .frame(width: 28, height: 28)
-                        .background(Color(hex: "F2F2F7"), in: Circle())
+                        .foregroundStyle(theme.text)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
+                        .background(theme.paper.opacity(0.5), in: Circle())
                 }
                 .accessibilityLabel("更多选项")
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
                 ForEach(weekdays, id: \.self) { day in
-                    Text(day).font(.system(size: 12, weight: .medium)).foregroundStyle(Color(hex: "C7C7CC"))
+                    Text(day).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.weakText)
                 }
                 ForEach(days, id: \.self) { date in
                     monthDay(date)
@@ -271,9 +267,13 @@ private struct MonthCard: View {
             }
         }
         .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .background(Color.white.opacity(0.88), in: RoundedRectangle(cornerRadius: 24, style: .continuous))
-        .shadow(color: .black.opacity(0.05), radius: 24, y: 12)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
+        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
+                .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
+        )
+        .shadow(color: theme.shadow.opacity(0.35), radius: 20, y: 12)
     }
 
     private func monthDay(_ date: Date) -> some View {
@@ -285,10 +285,10 @@ private struct MonthCard: View {
             VStack(alignment: .leading, spacing: 1.5) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(.system(size: selected ? 14 : (inMonth ? 14 : 13), weight: selected ? .bold : .medium))
-                    .foregroundStyle(selected ? .white : (inMonth ? Color(hex: "1C1C1E") : Color(hex: "E5E5EA")))
+                    .foregroundStyle(selected ? theme.paper : (inMonth ? theme.text : theme.weakText.opacity(0.5)))
                     .frame(width: 34, height: 34)
-                    .background(selected ? Color(hex: "4A7BF7") : .clear, in: Circle())
-                    .shadow(color: selected ? Color(hex: "4A7BF7").opacity(0.25) : .clear, radius: 6, y: 3)
+                    .background(selected ? theme.accent : .clear, in: Circle())
+                    .shadow(color: selected ? theme.accent.opacity(0.25) : .clear, radius: 6, y: 3)
                 ForEach(visibleEvents) { event in
                     Text(event.title)
                         .font(.system(size: 9, weight: .medium))
@@ -302,7 +302,7 @@ private struct MonthCard: View {
                 if dayEvents.count > 3 {
                     Text("+\(dayEvents.count - 3)")
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(Color(hex: "C7C7CC"))
+                        .foregroundStyle(theme.weakText)
                         .frame(height: 12, alignment: .leading)
                 }
             }
@@ -319,6 +319,7 @@ private struct DayTimelineCard: View {
     let selectedDate: Date
     let events: [CalendarEvent]
     let calendar: Calendar
+    let theme: PaperPalette
     let onSelect: (Date) -> Void
     let onOpen: (CalendarEvent) -> Void
     let onAdd: () -> Void
@@ -328,31 +329,32 @@ private struct DayTimelineCard: View {
             HStack(spacing: 12) {
                 Image(systemName: "calendar.badge.clock").font(.system(size: 22))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(monthTitle).font(.system(size: 11)).foregroundStyle(Color(hex: "8E8E93"))
+                    Text(monthTitle).font(.system(size: 11)).foregroundStyle(theme.weakText)
                     Text(calendar.isDateInToday(selectedDate) ? "今天" : selectedDate.formatted(.dateTime.day())).font(.system(size: 16, weight: .bold))
                 }
                 Spacer()
                 Button(action: onAdd) {
                     Image(systemName: "plus")
                         .font(.system(size: 13, weight: .bold))
-                        .foregroundStyle(Color(hex: "1C1C1E"))
-                        .frame(width: 28, height: 28)
-                        .background(Color(hex: "F2F2F7"), in: Circle())
+                        .foregroundStyle(theme.text)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Circle())
+                        .background(theme.paper.opacity(0.5), in: Circle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("新建日程")
             }
-            .foregroundStyle(Color(hex: "1C1C1E"))
+            .foregroundStyle(theme.text)
 
             weekStrip
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 10) {
                     if events.isEmpty {
-                        Text("当天暂无日程").font(.subheadline).foregroundStyle(Color(hex: "8E8E93")).frame(maxWidth: .infinity, minHeight: 180)
+                        Text("当天暂无日程").font(.subheadline).foregroundStyle(theme.weakText).frame(maxWidth: .infinity, minHeight: 180)
                     } else {
                         ForEach(events) { event in
-                            TimelineEventRow(event: event) {
+                            TimelineEventRow(event: event, theme: theme) {
                                 onOpen(event)
                             }
                         }
@@ -363,9 +365,13 @@ private struct DayTimelineCard: View {
         .padding(.horizontal, 16)
         .padding(.top, 18)
         .padding(.bottom, 16)
-        .background(.thinMaterial, in: UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 28, bottomTrailingRadius: 24, topTrailingRadius: 24))
-        .background(Color.white.opacity(0.95), in: UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 28, bottomTrailingRadius: 24, topTrailingRadius: 24))
-        .shadow(color: .black.opacity(0.08), radius: 28, x: -8, y: 8)
+        .background(.thinMaterial, in: UnevenRoundedRectangle(topLeadingRadius: PaperRadius.shell, bottomLeadingRadius: PaperRadius.shell, bottomTrailingRadius: PaperRadius.block, topTrailingRadius: PaperRadius.block))
+        .background(theme.surfaceGradient, in: UnevenRoundedRectangle(topLeadingRadius: PaperRadius.shell, bottomLeadingRadius: PaperRadius.shell, bottomTrailingRadius: PaperRadius.block, topTrailingRadius: PaperRadius.block))
+        .overlay(
+            UnevenRoundedRectangle(topLeadingRadius: PaperRadius.shell, bottomLeadingRadius: PaperRadius.shell, bottomTrailingRadius: PaperRadius.block, topTrailingRadius: PaperRadius.block)
+                .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
+        )
+        .shadow(color: theme.shadow.opacity(0.4), radius: 24, x: -8, y: 8)
     }
 
     private var weekStrip: some View {
@@ -379,20 +385,22 @@ private struct DayTimelineCard: View {
                 let weekdayIndex = calendar.component(.weekday, from: date) - 1
                 Button { onSelect(date) } label: {
                     VStack(spacing: 3) {
-                        Text(weekdayLabels[weekdayIndex]).font(.system(size: 10)).foregroundStyle(Color(hex: "C7C7CC"))
+                        Text(weekdayLabels[weekdayIndex]).font(.system(size: 10)).foregroundStyle(theme.weakText)
                         ZStack {
-                            Circle().fill(Color(hex: "4A7BF7"))
+                            Circle().fill(theme.accent)
                                 .frame(width: 30, height: 30)
                                 .scaleEffect(selected ? 1.0 : 0.5)
                                 .opacity(selected ? 1 : 0)
                                 .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selected)
                             Text("\(calendar.component(.day, from: date))")
                                 .font(.system(size: 13, weight: selected ? .bold : .regular))
-                                .foregroundStyle(selected ? .white : Color(hex: "8E8E93"))
+                                .foregroundStyle(selected ? theme.paper : theme.weakText)
                         }
                         .frame(width: 30, height: 30)
                     }
                     .frame(maxWidth: .infinity)
+                    .contentShape(Rectangle())
+                    .frame(minHeight: 44)
                 }
                 .buttonStyle(.plain)
             }
@@ -402,6 +410,7 @@ private struct DayTimelineCard: View {
 
 private struct TimelineEventRow: View {
     let event: CalendarEvent
+    let theme: PaperPalette
     let onToggle: () -> Void
 
     var body: some View {
@@ -409,12 +418,12 @@ private struct TimelineEventRow: View {
             HStack(alignment: .top, spacing: 6) {
                 Text(event.startTime.formatted(.dateTime.hour().minute()))
                     .font(.system(size: 11))
-                    .foregroundStyle(Color(hex: "C7C7CC"))
+                    .foregroundStyle(theme.weakText)
                     .frame(width: 44, alignment: .trailing)
                     .padding(.top, 11)
 
                 ZStack {
-                    Rectangle().fill(Color(hex: "E5E5EA")).frame(width: 1)
+                    Rectangle().fill(theme.paperBorder.opacity(0.6)).frame(width: 1)
                     Circle().stroke(event.category.ringColor, lineWidth: 2)
                         .frame(width: 10, height: 10)
                         .padding(.top, 13)
@@ -424,23 +433,28 @@ private struct TimelineEventRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(Color(hex: "5B9BD5"))
+                        .foregroundStyle(theme.timeColor)
                     Text(event.title)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(event.isCompleted ? Color(hex: "8E8E93") : Color(hex: "1C1C1E"))
+                        .foregroundStyle(event.isCompleted ? theme.weakText : theme.text)
                         .strikethrough(event.isCompleted)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    pressed ? Color(hex: "F5F5F7") : Color.white,
-                    in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    pressed ? theme.paper.opacity(0.7) : theme.paper.opacity(0.45),
+                    in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                 )
-                .shadow(color: .black.opacity(0.04), radius: 10, y: 4)
+                .overlay(
+                    RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                        .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
+                )
+                .shadow(color: theme.shadow.opacity(0.3), radius: 8, y: 4)
             }
         }
         .accessibilityLabel("\(event.title)，\(event.isCompleted ? "已完成" : "未完成")")
+        .accessibilityHint("打开编辑")
     }
 }
 
@@ -461,48 +475,5 @@ private struct PressableScaleButton<Label: View>: View {
                 .onEnded { _ in pressed = false }
         )
         .animation(.spring(response: 0.25, dampingFraction: 0.7), value: pressed)
-    }
-}
-
-private struct CalendarTabBar: View {
-    @Binding var selection: CalendarTab
-    let onSelect: (CalendarTab) -> Void
-
-    var body: some View {
-        HStack {
-            tab(.calendar, icon: "calendar")
-            tab(.apps, icon: "square.grid.2x2")
-            tab(.profile, icon: "person.circle")
-        }
-        .padding(.horizontal, 28)
-        .frame(height: 70)
-        .background(.thinMaterial)
-        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 24, topTrailingRadius: 24))
-        .shadow(color: .black.opacity(0.06), radius: 16, y: -4)
-    }
-
-    private func tab(_ item: CalendarTab, icon: String) -> some View {
-        let selected = item == selection
-        return Button {
-            selection = item
-            onSelect(item)
-        } label: {
-            ZStack {
-                Circle().fill(Color(hex: "4A7BF7"))
-                    .frame(width: 52, height: 52)
-                    .scaleEffect(selected ? 1 : 0)
-                    .opacity(selected ? 1 : 0)
-                    .shadow(color: Color(hex: "4A7BF7").opacity(0.3), radius: 10, y: 5)
-                Image(systemName: icon)
-                    .font(.system(size: selected ? 22 : 24, weight: .semibold))
-                    .foregroundStyle(selected ? .white : Color(hex: "C7C7CC"))
-            }
-            .frame(width: 52, height: 52)
-            .offset(y: selected ? -2 : 0)
-        }
-        .buttonStyle(.plain)
-        .frame(maxWidth: .infinity)
-        .animation(.spring(response: 0.35, dampingFraction: 0.75), value: selection)
-        .accessibilityLabel(item == .calendar ? "日历" : (item == .apps ? "应用" : "个人中心"))
     }
 }
