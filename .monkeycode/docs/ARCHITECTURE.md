@@ -34,9 +34,10 @@ graph TD
 - `CalendarContextToolbar` 提供日历月份、选中日期、今天定位、月份切换和快速新增入口。
 - `CalendarDisplayMode` 控制月视图和日程视图；iPhone 使用单列流，iPad 使用非重叠双列布局。
 - `WeekCalendarCard` 展示选中日期所在周的七日事件列，复用日期选择、编辑和完成状态回调。
+- `WeekAllDayStrip` 将全天事件和全天待办放在周视图小时网格上方，避免全天项进入具体时间排序。
 - `TimelineEventRow` 根据选中日期生成单日或跨日时间摘要，并通过 `CalendarHomeView` 保存完成状态。
 - `TodayHomeView` 聚合当天的未完成待办、已安排任务、日历事件、完成进度和计划容量。
-- `TaskScheduleSheet` 编辑任务的计划开始时间和预计时长，并保存派生结束时间。
+- `TaskScheduleSheet` 编辑任务的计划开始时间、预计时长和全天状态，并保存派生结束时间。
 - `QuickCaptureSheet` 将输入保存为收件箱任务或新笔记纸片。
 - `PaperSearchSheet` 搜索纸片标题、Markdown 正文和待办内容，并支持直接打开结果。
 - `DailyReviewSheet` 展示今日完成数、剩余数、排期时长和完成率。

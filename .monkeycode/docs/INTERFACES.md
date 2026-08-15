@@ -18,11 +18,11 @@
 
 ### `TodoItem`
 
-包含 `id`、`text`、`isDone`、`sortIndex`、`createdAt`、可选的 `estimatedMinutes`、`scheduledStart`、`scheduledEnd`、`quadrantRaw` 和可选的 `paper` 关系。`quadrant` 计算属性将 `quadrantRaw` 映射为四象限枚举。
+包含 `id`、`text`、`isDone`、`sortIndex`、`createdAt`、可选的 `estimatedMinutes`、`scheduledStart`、`scheduledEnd`、`isAllDay`、`quadrantRaw` 和可选的 `paper` 关系。`quadrant` 计算属性将 `quadrantRaw` 映射为四象限枚举。`isAllDay` 为真时，排期区域使用日期区间展示并从小时网格分离。
 
 ### `CalendarEvent`
 
-包含 `id`、`title`、`startTime`、`endTime`、`categoryRaw`、`isCompleted` 和可选 `note`。`category` 计算属性映射个人、工作、杂事、重要、休闲、日常、购物和出行八种分类。
+包含 `id`、`title`、`startTime`、`endTime`、`isAllDay`、`categoryRaw`、`isCompleted` 和可选 `note`。`category` 计算属性映射个人、工作、杂事、重要、休闲、日常、购物和出行八种分类。全天事件使用开始日期到结束日期次日的半开区间。
 
 ## 支持层接口
 

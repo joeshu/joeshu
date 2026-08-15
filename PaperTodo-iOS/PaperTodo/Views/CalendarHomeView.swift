@@ -612,6 +612,16 @@ private struct WeekCalendarCard: View {
                 .accessibilityLabel("新建本周日程")
             }
 
+            WeekAllDayStrip(
+                weekDates: weekDates,
+                events: events,
+                scheduledTodos: scheduledTodos,
+                calendar: calendar,
+                theme: theme,
+                onToggleEvent: onToggleCompletion,
+                onToggleTodo: onToggleTodo
+            )
+
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 8) {
                     ForEach(weekDates, id: \.self) { date in
@@ -759,7 +769,7 @@ private struct WeekCalendarCard: View {
     private func events(on date: Date) -> [CalendarEvent] {
         let day = calendar.startOfDay(for: date)
         return events.filter { event in
-            day >= calendar.startOfDay(for: event.startTime) && day <= calendar.startOfDay(for: event.endTime)
+            !event.isAllDay && day >= calendar.startOfDay(for: event.startTime) && day <= calendar.startOfDay(for: event.endTime)
         }
         .sorted { $0.startTime < $1.startTime }
     }
@@ -767,7 +777,7 @@ private struct WeekCalendarCard: View {
     private func todos(on date: Date) -> [TodoItem] {
         let day = calendar.startOfDay(for: date)
         return scheduledTodos.filter { item in
-            guard let start = item.scheduledStart else { return false }
+            guard !item.isAllDay, let start = item.scheduledStart else { return false }
             let end = item.scheduledEnd ?? start
             return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
         }
@@ -794,6 +804,84 @@ private struct WeekCalendarCard: View {
 
     private func selectedDateBackground(selected: Bool) -> Color {
         selected ? theme.accent.opacity(0.1) : theme.paper.opacity(0.26)
+    }
+}
+
+private struct WeekAllDayStrip: View {
+    let weekDates: [Date]
+    let events: [CalendarEvent]
+    let scheduledTodos: [TodoItem]
+    let calendar: Calendar
+    let theme: PaperPalette
+    let onToggleEvent: (CalendarEvent) -> Void
+    let onToggleTodo: (TodoItem) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("全天安排")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.weakText)
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 6) {
+                    ForEach(weekDates, id: \.self) { date in
+                        let dayEvents = allDayEvents(on: date)
+                        let dayTodos = allDayTodos(on: date)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(date.formatted(.dateTime.weekday(.abbreviated)))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(theme.weakText)
+                            ForEach(dayEvents) { event in
+                                allDayChip(event.title, tint: event.category.ringColor, isDone: event.isCompleted) {
+                                    onToggleEvent(event)
+                                }
+                            }
+                            ForEach(dayTodos) { item in
+                                allDayChip(item.text, tint: theme.active, isDone: item.isDone) {
+                                    onToggleTodo(item)
+                                }
+                            }
+                            if dayEvents.isEmpty && dayTodos.isEmpty {
+                                Text("-")
+                                    .font(.caption2)
+                                    .foregroundStyle(theme.weakText.opacity(0.5))
+                            }
+                        }
+                        .frame(width: 92, alignment: .leading)
+                    }
+                }
+            }
+        }
+        .padding(10)
+        .background(theme.accent.opacity(0.06), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+    }
+
+    private func allDayEvents(on date: Date) -> [CalendarEvent] {
+        let day = calendar.startOfDay(for: date)
+        return events.filter { event in
+            event.isAllDay && day >= calendar.startOfDay(for: event.startTime) && day < calendar.startOfDay(for: event.endTime)
+        }
+    }
+
+    private func allDayTodos(on date: Date) -> [TodoItem] {
+        let day = calendar.startOfDay(for: date)
+        return scheduledTodos.filter { item in
+            guard item.isAllDay, let start = item.scheduledStart, let end = item.scheduledEnd else { return false }
+            return day >= calendar.startOfDay(for: start) && day < calendar.startOfDay(for: end)
+        }
+    }
+
+    private func allDayChip(_ title: String, tint: Color, isDone: Bool, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Text(title)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(isDone ? theme.weakText : theme.text)
+                .strikethrough(isDone)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(6)
+                .background(tint.opacity(0.14), in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -1043,14 +1131,16 @@ private struct MonthCard: View {
         let day = calendar.startOfDay(for: date)
         let startDay = calendar.startOfDay(for: event.startTime)
         let endDay = calendar.startOfDay(for: event.endTime)
-        return day >= startDay && day <= endDay
+        return event.isAllDay ? day >= startDay && day < endDay : day >= startDay && day <= endDay
     }
 
     private func todoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
         guard let start = item.scheduledStart else { return false }
         let end = item.scheduledEnd ?? start
         let day = calendar.startOfDay(for: date)
-        return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
+        return item.isAllDay
+            ? day >= calendar.startOfDay(for: start) && day < calendar.startOfDay(for: end)
+            : day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
     }
 }
 
@@ -1091,7 +1181,8 @@ private struct DayTimelineCard: View {
     }
 
     private var timelineItems: [TimelineItem] {
-        let scheduleItems = events.map(TimelineItem.event) + scheduledTodos.map(TimelineItem.todo)
+        let scheduleItems = events.filter { !$0.isAllDay }.map(TimelineItem.event)
+            + scheduledTodos.filter { !$0.isAllDay }.map(TimelineItem.todo)
         guard calendar.isDateInToday(selectedDate) else {
             return scheduleItems.sorted { $0.startTime < $1.startTime }
         }
@@ -1134,6 +1225,13 @@ private struct DayTimelineCard: View {
             .foregroundStyle(theme.text)
 
             weekStrip
+            AllDayTimelineStrip(
+                selectedDate: selectedDate,
+                events: events,
+                scheduledTodos: scheduledTodos,
+                calendar: calendar,
+                theme: theme
+            )
             TimelineStatusStrip(
                 selectedDate: selectedDate,
                 events: events,
@@ -1234,6 +1332,57 @@ private struct DayTimelineCard: View {
                 }
                 .buttonStyle(.plain)
             }
+        }
+    }
+}
+
+private struct AllDayTimelineStrip: View {
+    let selectedDate: Date
+    let events: [CalendarEvent]
+    let scheduledTodos: [TodoItem]
+    let calendar: Calendar
+    let theme: PaperPalette
+
+    private var allDayEvents: [CalendarEvent] {
+        let day = calendar.startOfDay(for: selectedDate)
+        return events.filter { event in
+            event.isAllDay && day >= calendar.startOfDay(for: event.startTime) && day < calendar.startOfDay(for: event.endTime)
+        }
+    }
+
+    private var allDayTodos: [TodoItem] {
+        let day = calendar.startOfDay(for: selectedDate)
+        return scheduledTodos.filter { item in
+            guard item.isAllDay, let start = item.scheduledStart, let end = item.scheduledEnd else { return false }
+            return day >= calendar.startOfDay(for: start) && day < calendar.startOfDay(for: end)
+        }
+    }
+
+    var body: some View {
+        if allDayEvents.isEmpty && allDayTodos.isEmpty {
+            EmptyView()
+        } else {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("全天")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(theme.weakText)
+                ForEach(allDayEvents) { event in
+                    Label(event.title, systemImage: "calendar")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(event.isCompleted ? theme.weakText : event.category.tagText)
+                        .strikethrough(event.isCompleted)
+                }
+                ForEach(allDayTodos) { item in
+                    Label(item.text, systemImage: "checklist")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(item.isDone ? theme.weakText : theme.active)
+                        .strikethrough(item.isDone)
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(theme.accent.opacity(0.08), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
         }
     }
 }

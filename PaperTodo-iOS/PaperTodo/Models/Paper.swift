@@ -151,6 +151,7 @@ final class TodoItem {
     var estimatedMinutes: Int?
     var scheduledStart: Date?
     var scheduledEnd: Date?
+    var isAllDay: Bool
     var quadrantRaw: String = ""
     var paper: Paper?
 
@@ -168,6 +169,7 @@ final class TodoItem {
         self.estimatedMinutes = nil
         self.scheduledStart = nil
         self.scheduledEnd = nil
+        self.isAllDay = false
     }
 }
 
@@ -177,6 +179,7 @@ final class CalendarEvent {
     var title: String
     var startTime: Date
     var endTime: Date
+    var isAllDay: Bool
     var categoryRaw: String
     var isCompleted: Bool
     var note: String?
@@ -186,11 +189,12 @@ final class CalendarEvent {
         set { categoryRaw = newValue.rawValue }
     }
 
-    init(title: String, startTime: Date, endTime: Date, category: EventCategory, note: String? = nil) {
+    init(title: String, startTime: Date, endTime: Date, category: EventCategory, note: String? = nil, isAllDay: Bool = false) {
         self.id = UUID()
         self.title = title
         self.startTime = startTime
         self.endTime = endTime
+        self.isAllDay = isAllDay
         self.categoryRaw = category.rawValue
         self.isCompleted = false
         self.note = note

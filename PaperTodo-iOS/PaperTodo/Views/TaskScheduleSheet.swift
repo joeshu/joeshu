@@ -5,6 +5,7 @@ struct TaskScheduleSheet: View {
     @State private var hasSchedule: Bool
     @State private var start: Date
     @State private var estimatedMinutes: Int
+    @State private var isAllDay: Bool
     let item: TodoItem
     let theme: PaperPalette
     let onSave: () -> Void
@@ -16,6 +17,7 @@ struct TaskScheduleSheet: View {
         _hasSchedule = State(initialValue: item.scheduledStart != nil)
         _start = State(initialValue: item.scheduledStart ?? Date())
         _estimatedMinutes = State(initialValue: item.estimatedMinutes ?? 30)
+        _isAllDay = State(initialValue: item.isAllDay)
     }
 
     var body: some View {
@@ -28,10 +30,13 @@ struct TaskScheduleSheet: View {
                 Section("计划") {
                     Toggle("安排到今日", isOn: $hasSchedule)
                     if hasSchedule {
+                        Toggle("全天", isOn: $isAllDay)
                         DatePicker("开始时间", selection: $start, displayedComponents: [.date, .hourAndMinute])
-                        Picker("预计时长", selection: $estimatedMinutes) {
-                            ForEach([15, 30, 45, 60, 90, 120], id: \.self) { minutes in
-                                Text("\(minutes) 分钟").tag(minutes)
+                        if !isAllDay {
+                            Picker("预计时长", selection: $estimatedMinutes) {
+                                ForEach([15, 30, 45, 60, 90, 120], id: \.self) { minutes in
+                                    Text("\(minutes) 分钟").tag(minutes)
+                                }
                             }
                         }
                     }
@@ -62,12 +67,16 @@ struct TaskScheduleSheet: View {
     private func save() {
         if hasSchedule {
             item.scheduledStart = start
-            item.estimatedMinutes = estimatedMinutes
-            item.scheduledEnd = Calendar.current.date(byAdding: .minute, value: estimatedMinutes, to: start)
+            item.isAllDay = isAllDay
+            item.estimatedMinutes = isAllDay ? nil : estimatedMinutes
+            item.scheduledEnd = isAllDay
+                ? Calendar.current.date(byAdding: .day, value: 1, to: Calendar.current.startOfDay(for: start))
+                : Calendar.current.date(byAdding: .minute, value: estimatedMinutes, to: start)
         } else {
             item.scheduledStart = nil
             item.scheduledEnd = nil
             item.estimatedMinutes = nil
+            item.isAllDay = false
         }
         onSave()
         dismiss()

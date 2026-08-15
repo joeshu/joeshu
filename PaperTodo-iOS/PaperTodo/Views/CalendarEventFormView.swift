@@ -13,6 +13,7 @@ struct CalendarEventFormView: View {
     @State private var endDate: Date
     @State private var startTime: Date
     @State private var endTime: Date
+    @State private var isAllDay: Bool
     @State private var category: EventCategory
     @State private var isCompleted: Bool
     @State private var note: String
@@ -30,6 +31,7 @@ struct CalendarEventFormView: View {
         _endDate = State(initialValue: endDay)
         _startTime = State(initialValue: event?.startTime ?? startDay.addingTimeInterval(7 * 3600))
         _endTime = State(initialValue: event?.endTime ?? startDay.addingTimeInterval(8 * 3600))
+        _isAllDay = State(initialValue: event?.isAllDay ?? false)
         _category = State(initialValue: event?.category ?? .daily)
         _isCompleted = State(initialValue: event?.isCompleted ?? false)
         _note = State(initialValue: event?.note ?? "")
@@ -42,10 +44,13 @@ struct CalendarEventFormView: View {
                     TextField("标题", text: $title)
                 }
                 Section("时间") {
+                    Toggle("全天", isOn: $isAllDay)
                     DatePicker("开始日期", selection: $startDate, displayedComponents: .date)
                     DatePicker("结束日期", selection: $endDate, displayedComponents: .date)
-                    DatePicker("开始", selection: $startTime, displayedComponents: .hourAndMinute)
-                    DatePicker("结束", selection: $endTime, displayedComponents: .hourAndMinute)
+                    if !isAllDay {
+                        DatePicker("开始", selection: $startTime, displayedComponents: .hourAndMinute)
+                        DatePicker("结束", selection: $endTime, displayedComponents: .hourAndMinute)
+                    }
                 }
                 Section("分类") {
                     Picker("分类", selection: $category) {
@@ -103,12 +108,15 @@ struct CalendarEventFormView: View {
     }
 
     private var isValidTime: Bool {
+        if isAllDay { return combined(date: endDate, time: endTime) >= combined(date: startDate, time: startTime) }
         combined(date: endDate, time: endTime) > combined(date: startDate, time: startTime)
     }
 
     private func save() {
-        let start = combined(date: startDate, time: startTime)
-        let end = combined(date: endDate, time: endTime, fallback: start.addingTimeInterval(3600))
+        let start = calendar.startOfDay(for: combined(date: startDate, time: startTime))
+        let end = isAllDay
+            ? calendar.date(byAdding: .day, value: 1, to: calendar.startOfDay(for: combined(date: endDate, time: endTime))) ?? start.addingTimeInterval(86400)
+            : combined(date: endDate, time: endTime, fallback: start.addingTimeInterval(3600))
         guard end > start else {
             saveError = "结束时间需晚于开始时间。"
             return
@@ -117,6 +125,7 @@ struct CalendarEventFormView: View {
         target.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         target.startTime = start
         target.endTime = end
+        target.isAllDay = isAllDay
         target.category = category
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         target.note = trimmedNote.isEmpty ? nil : trimmedNote
