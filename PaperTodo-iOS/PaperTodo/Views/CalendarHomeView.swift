@@ -1459,8 +1459,8 @@ private struct DayTimelineCard: View {
                             }
                         }
                     }
-                    .padding(.bottom, 96)
                 }
+                .padding(.bottom, 96)
             }
         }
         .padding(.horizontal, PaperSpacing.content)
