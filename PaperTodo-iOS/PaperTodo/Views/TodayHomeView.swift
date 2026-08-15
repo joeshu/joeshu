@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 
 struct TodayHomeView: View {
     @Environment(\.modelContext) private var modelContext
@@ -31,6 +32,12 @@ struct TodayHomeView: View {
 
     private var unscheduledTodos: [TodoItem] {
         pendingTodos.filter { $0.scheduledStart == nil }
+    }
+
+    private var scheduledMinutes: Int {
+        scheduledTodos.reduce(0) { total, item in
+            total + (item.estimatedMinutes ?? 0)
+        }
     }
 
     private var todayEvents: [CalendarEvent] {
@@ -109,6 +116,12 @@ struct TodayHomeView: View {
             }
             ProgressView(value: completion)
                 .tint(theme.active)
+            HStack(spacing: 14) {
+                Label("已安排 \(scheduledMinutes) 分钟", systemImage: "clock")
+                Label("未安排 \(unscheduledTodos.count) 项", systemImage: "tray")
+            }
+            .font(.caption)
+            .foregroundStyle(theme.weakText)
             HStack(spacing: 10) {
                 Button(action: onQuickCapture) {
                     Label("快速记录", systemImage: "square.and.pencil")
@@ -160,11 +173,10 @@ struct TodayHomeView: View {
             }
             ForEach(scheduledTodos) { item in
                 Button {
-                    schedulingItem = item
+                    complete(item)
                 } label: {
                     HStack(spacing: 12) {
-                        Image(systemName: "checklist")
-                            .foregroundStyle(theme.active)
+                        AnimatedCheckCircle(isDone: false, tint: theme.active)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.text)
                                 .font(.body.weight(.medium))
@@ -175,15 +187,22 @@ struct TodayHomeView: View {
                                 .foregroundStyle(theme.weakText)
                         }
                         Spacer()
-                        Image(systemName: "clock")
+                        Image(systemName: "checkmark")
                             .font(.caption.weight(.semibold))
-                            .foregroundStyle(theme.active)
+                            .foregroundStyle(theme.weakText)
                     }
                 }
                 .buttonStyle(.plain)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 10)
                 .background(theme.active.opacity(0.1), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                .contextMenu {
+                    Button {
+                        schedulingItem = item
+                    } label: {
+                        Label("调整时间", systemImage: "clock.badge.plus")
+                    }
+                }
             }
         }
     }
@@ -191,7 +210,7 @@ struct TodayHomeView: View {
     private var taskSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             sectionTitle("未完成任务", symbol: "checklist")
-            if pendingTodos.isEmpty {
+            if unscheduledTodos.isEmpty {
                 Text("没有待处理任务，给自己留一点空白。")
                     .font(.subheadline)
                     .foregroundStyle(theme.weakText)
@@ -250,6 +269,15 @@ struct TodayHomeView: View {
             return "今天 \(time) · 预计 \(minutes) 分钟"
         }
         return "今天 \(time)"
+    }
+
+    private func complete(_ item: TodoItem) {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+            item.isDone = true
+            item.paper?.updatedAt = Date()
+            try? modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
 }
