@@ -3,6 +3,7 @@ import SwiftData
 
 private enum CalendarDisplayMode: String, CaseIterable, Identifiable {
     case month = "月视图"
+    case week = "周视图"
     case agenda = "日程"
 
     var id: String { rawValue }
@@ -10,6 +11,7 @@ private enum CalendarDisplayMode: String, CaseIterable, Identifiable {
     var symbolName: String {
         switch self {
         case .month: return "calendar"
+        case .week: return "calendar.badge.clock"
         case .agenda: return "list.bullet"
         }
     }
@@ -220,6 +222,17 @@ struct CalendarHomeView: View {
                 onToggleCompletion: toggleEventCompletion
             )
 
+        case .week:
+            WeekCalendarCard(
+                selectedDate: selectedDate,
+                events: events,
+                calendar: calendar,
+                theme: theme,
+                onSelect: selectDate,
+                onOpen: openEvent,
+                onToggleCompletion: toggleEventCompletion
+            )
+
         case .agenda:
             DayTimelineCard(
                 monthTitle: monthTitle,
@@ -266,6 +279,18 @@ struct CalendarHomeView: View {
                 )
                 .frame(maxWidth: .infinity)
             }
+        case .week:
+            WeekCalendarCard(
+                selectedDate: selectedDate,
+                events: events,
+                calendar: calendar,
+                theme: theme,
+                onSelect: selectDate,
+                onOpen: openEvent,
+                onToggleCompletion: toggleEventCompletion
+            )
+            .frame(maxWidth: 920)
+
         case .agenda:
             DayTimelineCard(
                 monthTitle: monthTitle,
@@ -436,6 +461,132 @@ private struct CalendarBackdrop: View {
                 context.stroke(path, with: .color(theme.paperBorder.opacity(0.12)), lineWidth: 1)
             }
         }
+    }
+}
+
+private struct WeekCalendarCard: View {
+    let selectedDate: Date
+    let events: [CalendarEvent]
+    let calendar: Calendar
+    let theme: PaperPalette
+    let onSelect: (Date) -> Void
+    let onOpen: (CalendarEvent) -> Void
+    let onToggleCompletion: (CalendarEvent) -> Void
+
+    private var weekDates: [Date] {
+        guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else { return [] }
+        return (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: interval.start) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("本周安排")
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .foregroundStyle(theme.text)
+                    Text(weekDates.first?.formatted(.dateTime.month().day()) ?? "")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(theme.weakText)
+                }
+                Spacer()
+                Text("\(weekDates.reduce(0) { $0 + events(on: $1).count }) 项")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.accent)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(weekDates, id: \.self) { date in
+                        weekColumn(for: date)
+                    }
+                }
+                .padding(.bottom, 2)
+            }
+        }
+        .padding(16)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
+        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
+                .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
+        )
+        .shadow(color: theme.shadow.opacity(0.28), radius: 18, y: 9)
+    }
+
+    private func weekColumn(for date: Date) -> some View {
+        let dayEvents = events(on: date)
+        let selected = calendar.isDate(date, inSameDayAs: selectedDate)
+        let today = calendar.isDateInToday(date)
+        return VStack(alignment: .leading, spacing: 8) {
+            Button { onSelect(date) } label: {
+                VStack(spacing: 5) {
+                    Text(date.formatted(.dateTime.weekday(.abbreviated)))
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(selected || today ? theme.accent : theme.weakText)
+                    Text(date.formatted(.dateTime.day()))
+                        .font(.system(size: 18, weight: selected ? .bold : .semibold, design: .rounded))
+                        .foregroundStyle(selected ? theme.paper : theme.text)
+                        .frame(width: 36, height: 36)
+                        .background(selected ? theme.accent : (today ? theme.accent.opacity(0.12) : .clear), in: Circle())
+                }
+                .frame(maxWidth: .infinity)
+                .frame(minHeight: 64)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(dayEvents.count) 个事件")
+
+            if dayEvents.isEmpty {
+                Text("空闲")
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(theme.weakText)
+                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .topLeading)
+            } else {
+                ForEach(dayEvents) { event in
+                    Button { onOpen(event) } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(event.startTime.formatted(.dateTime.hour().minute()))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(event.category.ringColor)
+                            Text(event.title)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(event.isCompleted ? theme.weakText : theme.text)
+                                .strikethrough(event.isCompleted)
+                                .lineLimit(3)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(event.category.tagBackground.opacity(0.72), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(event.category.ringColor)
+                                .frame(width: 3)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button { onToggleCompletion(event) } label: {
+                            Label(event.isCompleted ? "标记为未完成" : "标记为已完成", systemImage: event.isCompleted ? "arrow.uturn.backward" : "checkmark")
+                        }
+                    }
+                }
+            }
+        }
+        .padding(8)
+        .frame(width: 112, alignment: .topLeading)
+        .background(selectedDateBackground(selected: selected), in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+    }
+
+    private func events(on date: Date) -> [CalendarEvent] {
+        let day = calendar.startOfDay(for: date)
+        return events.filter { event in
+            day >= calendar.startOfDay(for: event.startTime) && day <= calendar.startOfDay(for: event.endTime)
+        }
+        .sorted { $0.startTime < $1.startTime }
+    }
+
+    private func selectedDateBackground(selected: Bool) -> Color {
+        selected ? theme.accent.opacity(0.1) : theme.paper.opacity(0.26)
     }
 }
 
