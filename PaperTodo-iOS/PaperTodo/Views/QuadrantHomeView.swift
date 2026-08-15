@@ -147,12 +147,12 @@ struct QuadrantHomeView: View {
         let tasks = activeItems.filter { resolvedQuadrant(of: $0) == quadrant }
         let completedCount = completedItems.filter { resolvedQuadrant(of: $0) == quadrant }.count
         return VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: PaperSpacing.compact) {
+            HStack(alignment: .top, spacing: PaperSpacing.micro) {
                 Image(systemName: symbolName(for: quadrant))
-                    .font(.system(size: PaperIconSize.small, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(quadrant.color)
-                    .frame(width: 30, height: 30)
-                    .background(quadrant.color.opacity(0.12), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                    .frame(width: 22, height: 22)
+                    .background(quadrant.color.opacity(0.1), in: RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(quadrant.displayName)
                         .font(.caption.weight(.bold))
@@ -174,7 +174,7 @@ struct QuadrantHomeView: View {
             if tasks.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Image(systemName: completedCount > 0 ? "checkmark.circle" : "tray")
-                        .font(.system(size: PaperIconSize.small))
+                        .font(.system(size: 13))
                         .foregroundStyle(completedCount > 0 ? theme.active : theme.weakText)
                     Text(completedCount > 0 ? "本象限已清空" : "从这里开始整理")
                         .font(.caption2.weight(.medium))
@@ -205,7 +205,8 @@ struct QuadrantHomeView: View {
                     .foregroundStyle(theme.active)
             }
         }
-        .padding(PaperSpacing.control)
+        .padding(.horizontal, PaperSpacing.control)
+        .padding(.vertical, PaperSpacing.compact)
         .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
         .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
         .overlay {
@@ -227,7 +228,7 @@ struct QuadrantHomeView: View {
     }
 
     private func taskRow(_ item: TodoItem, quadrant: Quadrant) -> some View {
-        HStack(spacing: PaperSpacing.compact) {
+        HStack(spacing: PaperSpacing.micro) {
             Button {
                 toggleDone(item)
             } label: {
@@ -277,7 +278,8 @@ struct QuadrantHomeView: View {
                     presentEdit(item)
                 }
             } label: {
-                Image(systemName: "ellipsis.circle")
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(theme.weakText)
                     .frame(minWidth: 44, minHeight: 44)
                     .contentShape(Rectangle())
