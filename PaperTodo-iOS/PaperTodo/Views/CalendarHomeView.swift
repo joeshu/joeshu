@@ -267,7 +267,9 @@ struct CalendarHomeView: View {
                 onSelect: selectDate,
                 onOpen: openEvent,
                 onAdd: addEvent,
-                onToggleCompletion: toggleEventCompletion
+                onToggleCompletion: toggleEventCompletion,
+                scheduledTodos: selectedScheduledTodos,
+                onCompleteTodo: completeTodo
             )
         }
     }
