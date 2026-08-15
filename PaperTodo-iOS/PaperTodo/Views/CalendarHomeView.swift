@@ -1213,30 +1213,32 @@ private struct MonthCard: View {
     let theme: PaperPalette
     let onSelect: (Date) -> Void
 
+    private struct MonthEvent: Identifiable {
+        let id: String
+        let title: String
+        let color: Color
+        let isCompleted: Bool
+    }
+
     var body: some View {
-        VStack(spacing: 10) {
-            HStack {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.system(.title3, design: .rounded).weight(.bold))
-                        .foregroundStyle(theme.text)
-                    Text("月视图")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(theme.accent)
-                }
+        VStack(spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+                    .foregroundStyle(theme.text)
                 Spacer()
-                 Text("\(monthEventCount) 项")
-                     .font(.caption2.weight(.semibold))
-                     .foregroundStyle(theme.accent)
-                     .padding(.horizontal, 9)
-                     .padding(.vertical, 6)
-                     .background(theme.accent.opacity(0.11), in: Capsule())
-             }
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
+                Text("共 \(monthEventCount) 项")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.weakText)
+            }
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
                 ForEach(weekdays, id: \.self) { day in
                     Text(day)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(day == "日" || day == "六" ? theme.accent : theme.weakText)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(theme.weakText)
+                        .frame(maxWidth: .infinity)
+                        .padding(.bottom, 8)
                 }
                 ForEach(days, id: \.self) { date in
                     monthDay(date)
@@ -1265,51 +1267,73 @@ private struct MonthCard: View {
     private func monthDay(_ date: Date) -> some View {
         let inMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
         let selected = calendar.isDate(date, inSameDayAs: selectedDate)
-        let dayEvents = events.filter { eventCoversDate($0, date) }
-        let dayTodos = scheduledTodos.filter { todoCoversDate($0, date) }
-        let itemCount = dayEvents.count + dayTodos.count
-        let visibleEvents = Array(dayEvents.prefix(3))
+        let items = monthEvents(on: date)
+        let visibleItems = Array(items.prefix(2))
+        let itemCount = items.count
         return Button { onSelect(date) } label: {
-            VStack(alignment: .leading, spacing: 1.5) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text("\(calendar.component(.day, from: date))")
-                    .font(.system(size: selected ? 14 : (inMonth ? 14 : 13), weight: selected ? .bold : .medium))
+                    .font(.system(size: selected ? 15 : (inMonth ? 14 : 13), weight: selected ? .bold : .semibold))
                     .foregroundStyle(selected ? theme.paper : (inMonth ? theme.text : theme.weakText.opacity(0.5)))
-                    .frame(width: 34, height: 34)
+                    .frame(width: 30, height: 30)
                     .background(selected ? theme.accent : .clear, in: Circle())
                     .overlay {
                         if calendar.isDateInToday(date) && !selected {
-                            Circle().stroke(theme.accent, lineWidth: 1.5)
+                            Circle().stroke(theme.accent, lineWidth: 1.25)
                         }
                     }
-                    .shadow(color: selected ? theme.accent.opacity(0.25) : .clear, radius: 6, y: 3)
-                HStack(spacing: 3) {
-                    ForEach(visibleEvents) { event in
-                        Circle()
-                            .fill(event.isCompleted ? theme.weakText.opacity(0.45) : event.category.ringColor)
-                            .frame(width: 5, height: 5)
-                            .accessibilityHidden(true)
-                    }
-                    if dayTodos.count > 0 {
-                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
-                            .fill(dayTodos.allSatisfy(\.isDone) ? theme.weakText.opacity(0.45) : theme.active)
-                            .frame(width: 7, height: 5)
-                            .accessibilityHidden(true)
-                    }
-                    if itemCount > visibleEvents.count + (dayTodos.isEmpty ? 0 : 1) {
-                        Text("+\(itemCount - visibleEvents.count - (dayTodos.isEmpty ? 0 : 1))")
-                            .font(.system(size: 9, weight: .semibold))
-                            .foregroundStyle(theme.weakText)
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(visibleItems) { item in
+                        Text(item.title)
+                            .font(.system(size: 9, weight: .medium))
+                            .foregroundStyle(item.isCompleted ? theme.weakText : item.color.opacity(0.9))
+                            .lineLimit(1)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 3)
+                            .background(item.color.opacity(item.isCompleted ? 0.08 : 0.16), in: Capsule())
                     }
                 }
-                .frame(height: 16, alignment: .leading)
+                if items.count > visibleItems.count {
+                    Text("+\(items.count - visibleItems.count) 项")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(theme.weakText)
+                }
             }
-            .frame(minHeight: 68, alignment: .top)
+            .frame(minHeight: 92, alignment: .top)
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, 3)
+            .padding(.top, 5)
+            .background(selected ? theme.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(
             "\(date.formatted(.dateTime.month().day()))，\(itemCount) 项安排\(calendar.isDateInToday(date) ? "，今天" : "")\(selected ? "，已选中" : "")"
         )
+    }
+
+    private func monthEvents(on date: Date) -> [MonthEvent] {
+        let calendarEvents = events
+            .filter { eventCoversDate($0, date) }
+            .map { event in
+                MonthEvent(
+                    id: "event-\(event.id.uuidString)-\(date.timeIntervalSinceReferenceDate)",
+                    title: event.title,
+                    color: event.category.tagText,
+                    isCompleted: event.isCompleted
+                )
+            }
+        let todoEvents = scheduledTodos
+            .filter { todoCoversDate($0, date) }
+            .map { item in
+                MonthEvent(
+                    id: "todo-\(item.id.uuidString)-\(date.timeIntervalSinceReferenceDate)",
+                    title: item.text,
+                    color: theme.active,
+                    isCompleted: item.isDone
+                )
+            }
+        return (calendarEvents + todoEvents).sorted { $0.title < $1.title }
     }
 
     private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
