@@ -242,44 +242,16 @@ struct TodoPaperView: View {
     }
 
     private func todoRow(_ item: TodoItem) -> some View {
-        HStack(spacing: PaperSpacing.control) {
-            AnimatedCheckCircle(
-                isDone: item.isDone,
-                tint: theme.active,
-                untinted: theme.weakText
-            )
-            .accessibilityHidden(true)
-
-             if editingItemID == item.id {
-                 TextField("待办事项", text: binding(for: item), onCommit: finishEditing)
-                       .font(.system(size: todoFontSize, weight: .regular, design: .rounded, relativeTo: .body))
-                      .foregroundStyle(theme.text)
-                      .textFieldStyle(.plain)
-                      .submitLabel(.done)
-                      .focused($editingItemFocused)
-             } else {
-                 Text(item.text)
-                       .font(.system(size: todoFontSize, weight: .regular, design: .rounded, relativeTo: .body))
-                     .strikethrough(item.isDone)
-                     .foregroundStyle(item.isDone ? theme.weakText : theme.text)
-                     .animation(.easeOut(duration: 0.2), value: item.isDone)
-              }
-
-            Spacer()
-
-            Image(systemName: "line.3.horizontal")
-                .font(.caption)
-                .foregroundStyle(theme.weakText.opacity(0.5))
-        }
-        .contentShape(Rectangle())
+        todoRowContent(item)
+            .contentShape(Rectangle())
         .onTapGesture {
             guard editingItemID != item.id else { return }
             toggle(item)
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.text)
-         .accessibilityValue(item.isDone ? "已完成" : "未完成")
-         .accessibilityHint("双击切换完成状态，使用上下文菜单编辑")
+        .accessibilityValue(item.isDone ? "已完成" : "未完成")
+        .accessibilityHint("双击切换完成状态，使用上下文菜单编辑")
         .onDrag { NSItemProvider(object: item.id.uuidString as NSString) }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
@@ -288,32 +260,69 @@ struct TodoPaperView: View {
                 Label("删除", systemImage: "trash")
             }
         }
-         .contextMenu {
-             Button {
-                 deleteItem(item)
+        .contextMenu {
+            Button {
+                deleteItem(item)
             } label: {
                 Label("删除", systemImage: "trash")
-             }
-             Button {
-                  pushUndo()
-                  beginEditing(item)
-             } label: {
-                 Label("编辑", systemImage: "pencil")
-             }
-             Button {
-                   toggle(item)
-              } label: {
-                 Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
-             }
-             Button {
-                 schedulingItem = item
-             } label: {
-                 Label("安排时间", systemImage: "clock.badge.plus")
-          }
-         .padding(.horizontal, PaperSpacing.compact)
-         .padding(.vertical, PaperSpacing.micro)
-         .background(theme.paper.opacity(0.24), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
-     }
+            }
+            Button {
+                pushUndo()
+                beginEditing(item)
+            } label: {
+                Label("编辑", systemImage: "pencil")
+            }
+            Button {
+                toggle(item)
+            } label: {
+                Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
+            }
+            Button {
+                schedulingItem = item
+            } label: {
+                Label("安排时间", systemImage: "clock.badge.plus")
+            }
+        }
+        .padding(.horizontal, PaperSpacing.compact)
+        .padding(.vertical, PaperSpacing.micro)
+        .background(theme.paper.opacity(0.24), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+    }
+
+    private func todoRowContent(_ item: TodoItem) -> some View {
+        HStack(spacing: PaperSpacing.control) {
+            AnimatedCheckCircle(
+                isDone: item.isDone,
+                tint: theme.active,
+                untinted: theme.weakText
+            )
+            .accessibilityHidden(true)
+
+            todoItemText(item)
+
+            Spacer()
+
+            Image(systemName: "line.3.horizontal")
+                .font(.caption)
+                .foregroundStyle(theme.weakText.opacity(0.5))
+        }
+    }
+
+    @ViewBuilder
+    private func todoItemText(_ item: TodoItem) -> some View {
+        if editingItemID == item.id {
+            TextField("待办事项", text: binding(for: item), onCommit: finishEditing)
+                .font(.system(size: todoFontSize, weight: .regular, design: .rounded, relativeTo: .body))
+                .foregroundStyle(theme.text)
+                .textFieldStyle(.plain)
+                .submitLabel(.done)
+                .focused($editingItemFocused)
+        } else {
+            Text(item.text)
+                .font(.system(size: todoFontSize, weight: .regular, design: .rounded, relativeTo: .body))
+                .strikethrough(item.isDone)
+                .foregroundStyle(item.isDone ? theme.weakText : theme.text)
+                .animation(.easeOut(duration: 0.2), value: item.isDone)
+        }
     }
 
     private var dropZone: some View {
