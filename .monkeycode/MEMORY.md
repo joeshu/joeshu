@@ -45,3 +45,9 @@ Entries discovered by the Agent during task execution should follow this format:
 - Category: Workflow & Collaboration
 - Instructions:
   - Before committing, run `git diff --check`; after pushing, verify CI runs (`PaperTodo iOS Build`, `Build and Deploy`) with `gh run list` / `gh run watch` before marking tasks complete in the tasklist.
+
+[User Instruction Summary]
+- Date: 2026-08-15
+- Context: Calendar optimization implementation workflow
+- Instructions:
+  - Execute the calendar implementation plan in batches, verify each batch, push each completed batch to Git, and report after the full checklist is completed.
