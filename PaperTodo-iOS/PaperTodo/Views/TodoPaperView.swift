@@ -497,6 +497,7 @@ struct TodoPaperView: View {
         item.isDone.toggle()
         paper.updatedAt = Date()
         saveContext()
+        Task { await ReminderNotificationService.schedule(todo: item) }
         refreshWidget()
 
         if item.isDone {
@@ -532,6 +533,9 @@ struct TodoPaperView: View {
 
     private func deleteItems(_ indexSet: IndexSet) {
         pushUndo()
+        for index in indexSet {
+            Task { await ReminderNotificationService.remove(for: sortedTodos[index].id) }
+        }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             for index in indexSet {
                 modelContext.delete(sortedTodos[index])
@@ -544,6 +548,7 @@ struct TodoPaperView: View {
 
     private func deleteItem(_ item: TodoItem) {
         pushUndo()
+        Task { await ReminderNotificationService.remove(for: item.id) }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             modelContext.delete(item)
         }
@@ -555,6 +560,9 @@ struct TodoPaperView: View {
     private func deleteDragged(_ uuids: [String]) {
         pushUndo()
         let set = Set(uuids)
+        for item in paper.todoItems where set.contains(item.id.uuidString) {
+            Task { await ReminderNotificationService.remove(for: item.id) }
+        }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             for item in paper.todoItems where set.contains(item.id.uuidString) {
                 modelContext.delete(item)
@@ -570,6 +578,9 @@ struct TodoPaperView: View {
         let completed = paper.todoItems.filter(\.isDone)
         guard !completed.isEmpty else { return }
         pushUndo()
+        for item in completed {
+            Task { await ReminderNotificationService.remove(for: item.id) }
+        }
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             completed.forEach(modelContext.delete)
         }

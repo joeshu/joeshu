@@ -19,6 +19,7 @@ struct CalendarEventFormView: View {
     @State private var recurrenceInterval: Int
     @State private var recurrenceEndDate: Date
     @State private var hasRecurrenceEnd: Bool
+    @State private var reminderMinutes: Int?
     @State private var category: EventCategory
     @State private var isCompleted: Bool
     @State private var note: String
@@ -43,6 +44,7 @@ struct CalendarEventFormView: View {
         _recurrenceInterval = State(initialValue: rule?.interval ?? 1)
         _hasRecurrenceEnd = State(initialValue: rule?.endDate != nil)
         _recurrenceEndDate = State(initialValue: rule?.endDate ?? startDay.addingTimeInterval(30 * 86400))
+        _reminderMinutes = State(initialValue: event?.reminderMinutes)
         _category = State(initialValue: event?.category ?? .daily)
         _isCompleted = State(initialValue: event?.isCompleted ?? false)
         _note = State(initialValue: event?.note ?? "")
@@ -85,6 +87,19 @@ struct CalendarEventFormView: View {
                         if hasRecurrenceEnd {
                             DatePicker("结束日期", selection: $recurrenceEndDate, displayedComponents: .date)
                         }
+                    }
+                }
+                Section("提醒") {
+                    Picker("提醒时间", selection: Binding(
+                        get: { reminderMinutes ?? 0 },
+                        set: { reminderMinutes = $0 == 0 ? nil : $0 }
+                    )) {
+                        Text("关闭").tag(0)
+                        Text("提前 5 分钟").tag(5)
+                        Text("提前 15 分钟").tag(15)
+                        Text("提前 30 分钟").tag(30)
+                        Text("提前 1 小时").tag(60)
+                        Text("提前 1 天").tag(1440)
                     }
                 }
                 if event != nil {
@@ -160,6 +175,7 @@ struct CalendarEventFormView: View {
                 exceptionDates: event?.recurrenceRule?.exceptionDates ?? []
             )
             : nil
+        target.reminderMinutes = reminderMinutes
         target.category = category
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         target.note = trimmedNote.isEmpty ? nil : trimmedNote
@@ -176,12 +192,14 @@ struct CalendarEventFormView: View {
             return
         }
         onSave()
+        Task { await ReminderNotificationService.requestAuthorization(); await ReminderNotificationService.schedule(event: target) }
         dismiss()
     }
 
     private func delete() {
         guard let event else { return }
         modelContext.delete(event)
+        Task { await ReminderNotificationService.remove(for: event.id) }
         onSave()
         dismiss()
     }

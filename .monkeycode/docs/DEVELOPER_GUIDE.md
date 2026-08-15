@@ -30,6 +30,8 @@ xcodebuild -project PaperTodo.xcodeproj -scheme PaperTodo -configuration Release
 - 保存操作应处理 `modelContext.save()` 错误并保留用户输入。
 - 页面异步任务需要在页面离开或对象变化时取消或验证代际标识。
 - 日历事件通过 `CalendarEventFormView` 校验开始和结束日期时间，跨日事件按覆盖日期显示。
+- 本地提醒通过 `ReminderNotificationService` 统一调度；模型保存成功后再更新通知，完成、清除排期和删除对象时取消对应提醒。
+- 本地提醒通过 `ReminderNotificationService` 统一调度；模型保存成功后再更新通知，完成、清除排期和删除对象时取消对应提醒。
 
 ## CI 流程
 

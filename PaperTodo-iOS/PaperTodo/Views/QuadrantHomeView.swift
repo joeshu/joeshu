@@ -168,6 +168,7 @@ struct QuadrantHomeView: View {
         item.isDone.toggle()
         item.paper?.updatedAt = Date()
         saveContext()
+        Task { await ReminderNotificationService.schedule(todo: item) }
     }
 
     private func move(_ item: TodoItem, to quadrant: Quadrant) {

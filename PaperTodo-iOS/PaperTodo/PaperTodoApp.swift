@@ -20,9 +20,18 @@ struct PaperTodoApp: App {
                 .environment(settings)
                 .preferredColorScheme(settings.appearance.colorScheme)
                 .task {
+                    await ReminderNotificationService.requestAuthorization()
                     let mainContext = container.mainContext
                     await MainActor.run {
                         SharedContainer.seedCalendarEvents(in: mainContext)
+                    }
+                    let calendarEvents = (try? mainContext.fetch(FetchDescriptor<CalendarEvent>())) ?? []
+                    let scheduledTodos = (try? mainContext.fetch(FetchDescriptor<TodoItem>())) ?? []
+                    for event in calendarEvents {
+                        await ReminderNotificationService.schedule(event: event)
+                    }
+                    for item in scheduledTodos {
+                        await ReminderNotificationService.schedule(todo: item)
                     }
                     let noteBodies = (try? mainContext.fetch(FetchDescriptor<Paper>()))?
                         .filter { $0.kind == .note }

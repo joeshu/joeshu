@@ -11,6 +11,7 @@ struct TaskScheduleSheet: View {
     @State private var recurrenceInterval: Int
     @State private var recurrenceEndDate: Date
     @State private var hasRecurrenceEnd: Bool
+    @State private var reminderMinutes: Int?
     let item: TodoItem
     let theme: PaperPalette
     let onSave: () -> Void
@@ -29,6 +30,7 @@ struct TaskScheduleSheet: View {
         _recurrenceInterval = State(initialValue: rule?.interval ?? 1)
         _hasRecurrenceEnd = State(initialValue: rule?.endDate != nil)
         _recurrenceEndDate = State(initialValue: rule?.endDate ?? (item.scheduledStart ?? Date()).addingTimeInterval(30 * 86400))
+        _reminderMinutes = State(initialValue: item.reminderMinutes)
     }
 
     var body: some View {
@@ -62,6 +64,17 @@ struct TaskScheduleSheet: View {
                             if hasRecurrenceEnd {
                                 DatePicker("结束日期", selection: $recurrenceEndDate, displayedComponents: .date)
                             }
+                        }
+                        Picker("提醒时间", selection: Binding(
+                            get: { reminderMinutes ?? 0 },
+                            set: { reminderMinutes = $0 == 0 ? nil : $0 }
+                        )) {
+                            Text("关闭").tag(0)
+                            Text("提前 5 分钟").tag(5)
+                            Text("提前 15 分钟").tag(15)
+                            Text("提前 30 分钟").tag(30)
+                            Text("提前 1 小时").tag(60)
+                            Text("提前 1 天").tag(1440)
                         }
                     }
                 }
@@ -104,14 +117,17 @@ struct TaskScheduleSheet: View {
                     exceptionDates: item.recurrenceRule?.exceptionDates ?? []
                 )
                 : nil
+            item.reminderMinutes = reminderMinutes
         } else {
             item.scheduledStart = nil
             item.scheduledEnd = nil
             item.estimatedMinutes = nil
             item.isAllDay = false
             item.recurrenceRule = nil
+            item.reminderMinutes = nil
         }
         onSave()
+        Task { await ReminderNotificationService.requestAuthorization(); await ReminderNotificationService.schedule(todo: item) }
         dismiss()
     }
 }

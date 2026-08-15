@@ -214,6 +214,7 @@ struct CalendarHomeView: View {
         event.isCompleted.toggle()
         do {
             try modelContext.save()
+            Task { await ReminderNotificationService.schedule(event: event) }
         } catch {
             event.isCompleted.toggle()
             saveErrorMessage = error.localizedDescription
@@ -225,6 +226,7 @@ struct CalendarHomeView: View {
         item.paper?.updatedAt = Date()
         do {
             try modelContext.save()
+            Task { await ReminderNotificationService.schedule(todo: item) }
         } catch {
             item.isDone.toggle()
             saveErrorMessage = error.localizedDescription
@@ -241,10 +243,12 @@ struct CalendarHomeView: View {
         let oldEnd = event.endTime
         event.startTime = slot.dateValue(using: calendar)
         event.endTime = event.startTime.addingTimeInterval(max(duration, 60))
-        saveCalendarChange {
+        saveCalendarChange(onFailure: {
             event.startTime = oldStart
             event.endTime = oldEnd
-        }
+        }, onSuccess: {
+            Task { await ReminderNotificationService.schedule(event: event) }
+        })
     }
 
     private func moveTodo(_ item: TodoItem, to slot: CalendarTimeSlot) {
@@ -253,15 +257,18 @@ struct CalendarHomeView: View {
         let duration = oldEnd?.timeIntervalSince(oldStart) ?? Double((item.estimatedMinutes ?? 30) * 60)
         item.scheduledStart = slot.dateValue(using: calendar)
         item.scheduledEnd = item.scheduledStart?.addingTimeInterval(max(duration, 60))
-        saveCalendarChange {
+        saveCalendarChange(onFailure: {
             item.scheduledStart = oldStart
             item.scheduledEnd = oldEnd
-        }
+        }, onSuccess: {
+            Task { await ReminderNotificationService.schedule(todo: item) }
+        })
     }
 
-    private func saveCalendarChange(onFailure: () -> Void) {
+    private func saveCalendarChange(onFailure: () -> Void, onSuccess: () -> Void = {}) {
         do {
             try modelContext.save()
+            onSuccess()
         } catch {
             onFailure()
             saveErrorMessage = error.localizedDescription

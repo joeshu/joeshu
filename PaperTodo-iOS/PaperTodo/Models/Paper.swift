@@ -221,6 +221,7 @@ final class TodoItem {
     var scheduledEnd: Date?
     var isAllDay: Bool
     var recurrenceJSON: String?
+    var reminderMinutes: Int?
     var quadrantRaw: String = ""
     var paper: Paper?
 
@@ -240,6 +241,7 @@ final class TodoItem {
         self.scheduledEnd = nil
         self.isAllDay = false
         self.recurrenceJSON = nil
+        self.reminderMinutes = nil
     }
 
     var recurrenceRule: CalendarRecurrenceRule? {
@@ -270,6 +272,7 @@ final class CalendarEvent {
     var isCompleted: Bool
     var note: String?
     var recurrenceJSON: String?
+    var reminderMinutes: Int?
 
     var category: EventCategory {
         get { EventCategory(rawValue: categoryRaw) ?? .daily }
@@ -286,6 +289,7 @@ final class CalendarEvent {
         self.isCompleted = false
         self.note = note
         self.recurrenceJSON = nil
+        self.reminderMinutes = nil
     }
 
     var recurrenceRule: CalendarRecurrenceRule? {
