@@ -1302,18 +1302,20 @@ private struct MonthCard: View {
         VStack(spacing: 14) {
             HStack(alignment: .firstTextBaseline) {
                 Text(title)
-                    .font(.system(.title2, design: .rounded).weight(.bold))
+                    .font(.system(.title, design: .rounded).weight(.bold))
                     .foregroundStyle(theme.text)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
                 Spacer()
                 Text("共 \(monthEventCount) 项")
-                    .font(.caption.weight(.semibold))
+                    .font(.subheadline.weight(.semibold))
                     .foregroundStyle(theme.weakText)
             }
 
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
                 ForEach(weekdays, id: \.self) { day in
                     Text(day)
-                        .font(.caption2.weight(.semibold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(theme.weakText)
                         .frame(maxWidth: .infinity)
                         .padding(.bottom, 8)
@@ -1362,14 +1364,15 @@ private struct MonthCard: View {
                     }
                 VStack(alignment: .leading, spacing: 3) {
                     ForEach(visibleItems) { item in
-                        Text(item.title)
-                            .font(.system(size: 9, weight: .medium))
+                        Text(monthEventTitle(item.title))
+                            .font(.system(size: 10, weight: .medium))
                             .foregroundStyle(item.isCompleted ? theme.weakText : item.color.opacity(0.9))
-                            .lineLimit(1)
+                            .lineLimit(2)
+                            .fixedSize(horizontal: false, vertical: true)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 5)
                             .padding(.vertical, 3)
-                            .background(item.color.opacity(item.isCompleted ? 0.08 : 0.16), in: Capsule())
+                            .background(item.color.opacity(item.isCompleted ? 0.08 : 0.16), in: RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous))
                     }
                 }
                 if items.count > visibleItems.count {
@@ -1378,7 +1381,7 @@ private struct MonthCard: View {
                         .foregroundStyle(theme.weakText)
                 }
             }
-            .frame(minHeight: 92, alignment: .top)
+            .frame(minHeight: 116, alignment: .top)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 3)
             .padding(.top, 5)
@@ -1388,6 +1391,11 @@ private struct MonthCard: View {
         .accessibilityLabel(
             "\(date.formatted(.dateTime.month().day()))，\(itemCount) 项安排\(calendar.isDateInToday(date) ? "，今天" : "")\(selected ? "，已选中" : "")"
         )
+    }
+
+    private func monthEventTitle(_ title: String) -> String {
+        let normalized = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        return normalized.isEmpty ? "未命名安排" : normalized
     }
 
     private func monthEvents(on date: Date) -> [MonthEvent] {

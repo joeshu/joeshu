@@ -5,6 +5,7 @@ struct QuadrantHomeView: View {
     let papers: [Paper]
     let theme: PaperPalette
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var editorConfig: QuadrantEditorConfig?
     @State private var saveErrorMessage: String?
@@ -48,7 +49,7 @@ struct QuadrantHomeView: View {
                 .frame(minHeight: 36)
                 .background(theme.paper.opacity(0.46), in: Capsule())
 
-                LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 12), GridItem(.flexible(minimum: 0), spacing: 12)], spacing: 12) {
+                LazyVGrid(columns: quadrantColumns, spacing: 12) {
                     ForEach(Quadrant.allCases) { quadrant in
                         quadrantCard(quadrant)
                     }
@@ -91,6 +92,12 @@ struct QuadrantHomeView: View {
         } message: {
             Text(saveErrorMessage ?? "无法保存当前修改。")
         }
+    }
+
+    private var quadrantColumns: [GridItem] {
+        horizontalSizeClass == .regular
+            ? [GridItem(.flexible(minimum: 0), spacing: 12), GridItem(.flexible(minimum: 0), spacing: 12)]
+            : [GridItem(.flexible(minimum: 0))]
     }
 
     private var summaryStrip: some View {
@@ -142,6 +149,8 @@ struct QuadrantHomeView: View {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(quadrant.displayName)
                         .font(.subheadline.weight(.bold))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(quadrant.subtitle)
                         .font(PaperTypography.metadata)
                         .foregroundStyle(theme.weakText)
@@ -226,9 +235,9 @@ struct QuadrantHomeView: View {
             if let paper = item.paper {
                 NavigationLink(value: paper) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(item.text)
-                            .lineLimit(2)
-                            .font(.caption.weight(.medium))
+                            Text(item.text)
+                                .lineLimit(4)
+                                .font(.caption.weight(.medium))
                             .foregroundStyle(theme.text)
                             .fixedSize(horizontal: false, vertical: true)
                         Text(paper.title.isEmpty ? "待办纸片" : paper.title)
