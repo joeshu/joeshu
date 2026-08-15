@@ -7,7 +7,9 @@ struct TodayHomeView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \CalendarEvent.startTime) private var events: [CalendarEvent]
     @State private var schedulingItem: TodoItem?
+    @State private var editingEvent: CalendarEvent?
     @State private var isReviewPresented = false
+    @State private var isEventFormPresented = false
     let papers: [Paper]
     let theme: PaperPalette
     let onQuickCapture: () -> Void
@@ -97,6 +99,11 @@ struct TodayHomeView: View {
                 pendingCount: pendingTodos.count,
                 theme: theme
             )
+        }
+        .sheet(isPresented: $isEventFormPresented) {
+            CalendarEventFormView(event: editingEvent, date: today) {
+                saveEvents()
+            }
         }
     }
 
@@ -242,31 +249,43 @@ struct TodayHomeView: View {
                     .foregroundStyle(theme.weakText)
             }
             ForEach(todayEvents) { event in
-                PaperSurface(palette: theme, elevation: .flat) {
-                    HStack(spacing: PaperSpacing.control) {
-                        timelineMarker(color: event.category.ringColor, symbol: "calendar")
-                        VStack(alignment: .leading, spacing: PaperSpacing.micro) {
-                            Text(event.title)
-                                .font(.body.weight(.medium))
-                                .foregroundStyle(theme.text)
-                                .multilineTextAlignment(.leading)
-                            Text("\(event.startTime.formatted(date: .omitted, time: .shortened)) - \(event.endTime.formatted(date: .omitted, time: .shortened))")
-                                .font(PaperTypography.metadata)
-                                .foregroundStyle(theme.weakText)
+                Button {
+                    openEvent(event)
+                } label: {
+                    PaperSurface(palette: theme, elevation: .flat) {
+                        HStack(spacing: PaperSpacing.control) {
+                            timelineMarker(color: event.category.ringColor, symbol: "calendar")
+                            VStack(alignment: .leading, spacing: PaperSpacing.micro) {
+                                Text(event.title)
+                                    .font(.body.weight(.medium))
+                                    .foregroundStyle(theme.text)
+                                    .multilineTextAlignment(.leading)
+                                Text("\(event.startTime.formatted(date: .omitted, time: .shortened)) - \(event.endTime.formatted(date: .omitted, time: .shortened))")
+                                    .font(PaperTypography.metadata)
+                                    .foregroundStyle(theme.weakText)
+                            }
+                            Spacer(minLength: PaperSpacing.compact)
+                            Text(event.category.displayName)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(event.category.tagText)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(event.category.tagBackground, in: Capsule())
                         }
-                        Spacer(minLength: PaperSpacing.compact)
-                        Text(event.category.displayName)
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(event.category.tagText)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(event.category.tagBackground, in: Capsule())
                     }
                 }
+                .buttonStyle(.plain)
                 .accessibilityElement(children: .combine)
                 .accessibilityLabel("日历事件，\(event.title)")
                 .accessibilityValue("\(event.startTime.formatted(date: .omitted, time: .shortened)) 至 \(event.endTime.formatted(date: .omitted, time: .shortened))，\(event.isCompleted ? "已完成" : "未完成")")
-                .accessibilityHint("日历事件")
+                .accessibilityHint("点击打开日程编辑，可修改或删除")
+                .contextMenu {
+                    Button {
+                        openEvent(event)
+                    } label: {
+                        Label("编辑日程", systemImage: "pencil")
+                    }
+                }
             }
             ForEach(scheduledTodos) { item in
                 Button {
@@ -385,6 +404,20 @@ struct TodayHomeView: View {
         Label(title, systemImage: symbol)
             .font(.headline.weight(.semibold))
             .foregroundStyle(theme.text)
+    }
+
+    private func openEvent(_ event: CalendarEvent) {
+        editingEvent = event
+        isEventFormPresented = true
+    }
+
+    private func saveEvents() {
+        do {
+            try modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
+        } catch {
+            // The shared event form presents its own validation errors.
+        }
     }
 
     private func scheduleText(for item: TodoItem) -> String {
