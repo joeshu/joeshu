@@ -74,3 +74,13 @@
 2. WHEN a calendar month or week contains scheduled todos, THE system SHALL include them in arrangement counts and day density indicators.
 3. WHEN a scheduled todo is completed, THE system SHALL preserve it in calendar history with completed styling and include it in completion totals.
 4. WHEN the selected date is today, THE system SHALL show a current-time marker in the execution timeline.
+
+### Requirement 7
+
+**User Story:** AS a user, I want to edit a scheduled todo from the calendar, so that I can adjust my plan where I review it.
+
+#### Acceptance Criteria
+
+1. WHEN the user opens a scheduled todo action menu in the calendar, THE system SHALL provide an edit-schedule action.
+2. WHEN the user saves schedule changes, THE system SHALL update the todo start, estimated duration, and end time through the existing persistence path.
+3. WHEN a scheduled todo spans multiple dates, THE system SHALL describe its first, middle, and final dates with distinct time context.

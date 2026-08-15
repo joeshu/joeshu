@@ -33,6 +33,7 @@ graph TD
 - `MonthCard`: 保留紧凑事件色点和日期选择。
 - `DayTimelineCard`: 作为月视图右侧或 agenda 模式主内容展示。
 - `ScheduledTodoTimelineRow`: 展示已排期未完成待办，支持直接完成和上下文菜单操作。
+- `TaskScheduleSheet`: 复用今日页的排期表单，在日历中编辑待办开始时间、预计时长和清除排期。
 - `TimelineStatusStrip`: 将日历事件和已排期待办纳入同一项数和完成进度。
 - `TimelineNowMarker`: 在今天的执行时间线中标记当前时间。
 - `CalendarEventFormView`: 使用完整日期时间比较进行跨日校验。
@@ -67,6 +68,7 @@ graph TD
 - 检查排期待办显示、直接完成、保存失败回滚和统一进度统计。
 - 检查跨日排期待办在月视图、周视图和日程视图中的覆盖范围。
 - 检查今天的当前时间标记和已完成排期待办的历史展示。
+- 检查日历中的待办排期编辑入口和跨日待办首日、中间日、末日的时间语义。
 
 ## References
 

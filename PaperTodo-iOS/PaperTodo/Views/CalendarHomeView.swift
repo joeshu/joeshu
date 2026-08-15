@@ -27,6 +27,7 @@ struct CalendarHomeView: View {
     @State private var appeared = false
     @State private var isPresentingForm = false
     @State private var editingEvent: CalendarEvent?
+    @State private var schedulingTodo: TodoItem?
     @State private var saveErrorMessage: String?
     @State private var displayMode: CalendarDisplayMode = .month
 
@@ -151,6 +152,11 @@ struct CalendarHomeView: View {
                 saveEvents()
             }
         }
+        .sheet(item: $schedulingTodo) { item in
+            TaskScheduleSheet(item: item, theme: theme) {
+                saveEvents()
+            }
+        }
         .alert("保存失败", isPresented: Binding(
             get: { saveErrorMessage != nil },
             set: { if !$0 { saveErrorMessage = nil } }
@@ -221,6 +227,10 @@ struct CalendarHomeView: View {
         }
     }
 
+    private func editTodoSchedule(_ item: TodoItem) {
+        schedulingTodo = item
+    }
+
     @ViewBuilder
     private var compactCalendarContent: some View {
         switch displayMode {
@@ -249,7 +259,8 @@ struct CalendarHomeView: View {
                 onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion,
                 scheduledTodos: selectedScheduledTodos,
-                onCompleteTodo: completeTodo
+                onCompleteTodo: completeTodo,
+                onEditTodo: editTodoSchedule
             )
 
         case .week:
@@ -263,7 +274,8 @@ struct CalendarHomeView: View {
                 onOpen: openEvent,
                 onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion,
-                onToggleTodo: completeTodo
+                onToggleTodo: completeTodo,
+                onEditTodo: editTodoSchedule
             )
 
         case .agenda:
@@ -278,7 +290,8 @@ struct CalendarHomeView: View {
                 onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion,
                 scheduledTodos: selectedScheduledTodos,
-                onCompleteTodo: completeTodo
+                onCompleteTodo: completeTodo,
+                onEditTodo: editTodoSchedule
             )
         }
     }
@@ -313,7 +326,8 @@ struct CalendarHomeView: View {
                     onAdd: addEvent,
                     onToggleCompletion: toggleEventCompletion,
                     scheduledTodos: selectedScheduledTodos,
-                    onCompleteTodo: completeTodo
+                    onCompleteTodo: completeTodo,
+                    onEditTodo: editTodoSchedule
                 )
                 .frame(maxWidth: .infinity)
             }
@@ -328,7 +342,8 @@ struct CalendarHomeView: View {
                 onOpen: openEvent,
                 onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion,
-                onToggleTodo: completeTodo
+                onToggleTodo: completeTodo,
+                onEditTodo: editTodoSchedule
             )
             .frame(maxWidth: 920)
 
@@ -344,7 +359,8 @@ struct CalendarHomeView: View {
                 onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion,
                 scheduledTodos: selectedScheduledTodos,
-                onCompleteTodo: completeTodo
+                onCompleteTodo: completeTodo,
+                onEditTodo: editTodoSchedule
             )
             .frame(maxWidth: 620)
         }
@@ -518,6 +534,7 @@ private struct WeekCalendarCard: View {
     let onAdd: () -> Void
     let onToggleCompletion: (CalendarEvent) -> Void
     let onToggleTodo: (TodoItem) -> Void
+    let onEditTodo: (TodoItem) -> Void
 
     private var weekDates: [Date] {
         guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else { return [] }
@@ -672,6 +689,9 @@ private struct WeekCalendarCard: View {
                     .contextMenu {
                         Button { onToggleTodo(item) } label: {
                             Label(item.isDone ? "标记为未完成" : "标记为已完成", systemImage: item.isDone ? "arrow.uturn.backward" : "checkmark")
+                        }
+                        Button { onEditTodo(item) } label: {
+                            Label("编辑排期", systemImage: "pencil")
                         }
                     }
                 }
@@ -871,6 +891,7 @@ private struct DayTimelineCard: View {
     let onToggleCompletion: (CalendarEvent) -> Void
     let scheduledTodos: [TodoItem]
     let onCompleteTodo: (TodoItem) -> Void
+    let onEditTodo: (TodoItem) -> Void
 
     private enum TimelineItem: Identifiable {
         case event(CalendarEvent)
@@ -974,8 +995,10 @@ private struct DayTimelineCard: View {
                             case .todo(let todo):
                                 ScheduledTodoTimelineRow(
                                     item: todo,
+                                    selectedDate: selectedDate,
                                     theme: theme,
-                                    onComplete: { onCompleteTodo(todo) }
+                                    onComplete: { onCompleteTodo(todo) },
+                                    onEdit: { onEditTodo(todo) }
                                 )
                             case .now(let date):
                                 TimelineNowMarker(date: date, theme: theme)
@@ -1135,12 +1158,28 @@ private struct TimelineEventRow: View {
 
 private struct ScheduledTodoTimelineRow: View {
     let item: TodoItem
+    let selectedDate: Date
     let theme: PaperPalette
     let onComplete: () -> Void
+    let onEdit: () -> Void
 
     private var timeSummary: String {
         guard let start = item.scheduledStart else { return "已安排" }
-        guard let end = item.scheduledEnd else {
+        let calendar = Calendar.current
+        let selectedDay = calendar.startOfDay(for: selectedDate)
+        let startDay = calendar.startOfDay(for: start)
+        let end = item.scheduledEnd ?? start
+        let endDay = calendar.startOfDay(for: end)
+        if startDay < selectedDay && endDay > selectedDay {
+            return "跨日 · 全天"
+        }
+        if startDay < selectedDay {
+            return "延续至 \(end.formatted(.dateTime.hour().minute()))"
+        }
+        guard item.scheduledEnd != nil else {
+            return "从 \(start.formatted(.dateTime.hour().minute())) 开始"
+        }
+        if startDay == selectedDay && endDay > selectedDay {
             return "从 \(start.formatted(.dateTime.hour().minute())) 开始"
         }
         return "\(start.formatted(.dateTime.hour().minute())) - \(end.formatted(.dateTime.hour().minute()))"
@@ -1187,6 +1226,9 @@ private struct ScheduledTodoTimelineRow: View {
             .contextMenu {
                 Button(action: onComplete) {
                     Label("标记为已完成", systemImage: "checkmark")
+                }
+                Button(action: onEdit) {
+                    Label("编辑排期", systemImage: "pencil")
                 }
             }
         }
