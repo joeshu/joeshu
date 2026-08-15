@@ -13,6 +13,7 @@ struct HomeModeContent: View {
     let onDelete: (Paper) -> Void
     let onAddTodo: () -> Void
     let onAddNote: () -> Void
+    let onQuickCapture: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -30,6 +31,8 @@ struct HomeModeContent: View {
 
             Group {
                 switch mode {
+                case .today:
+                    TodayHomeView(papers: papers, theme: theme, onQuickCapture: onQuickCapture)
                 case .list:
                     if papers.isEmpty {
                         EmptyStateView(

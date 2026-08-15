@@ -8,12 +8,14 @@ graph TD
     A --> S["AppSettings"]
     A --> H["ContentView"]
     H --> L["HomeModeContent"]
+    L --> Y["TodayHomeView"]
     L --> P["PaperListHome"]
     L --> M["CalendarHomeView"]
     L --> Q["QuadrantHomeView"]
     P --> T["TodoPaperView"]
     P --> N["NotePaperView"]
     M --> E["CalendarEventFormView"]
+    Y --> R["QuickCaptureSheet"]
     N --> I["NoteImageStore"]
     N --> X["NoteExportStore"]
     C --> D["SwiftData ModelContainer"]
@@ -27,7 +29,9 @@ graph TD
 
 ## 展示层
 
-- `HomeModeContent` 根据 `HomeMode` 切换纸片、日历和四象限。
+- `HomeModeContent` 根据 `HomeMode` 切换今日、纸片、日历和四象限。
+- `TodayHomeView` 聚合当天的未完成待办、日历事件和完成进度。
+- `QuickCaptureSheet` 将输入保存为收件箱任务或新笔记纸片。
 - `TodoPaperView` 管理待办排序、完成、删除、拖放、撤销/重做、自动清除和 Widget 刷新。
 - `NotePaperView` 管理 Markdown 编辑、预览、图片导入、导出和标题。
 - `CalendarHomeView` 管理月份网格、日期选择、彩色事件标签、周标尺和日时间线。

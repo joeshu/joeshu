@@ -44,7 +44,9 @@
 - `todoVisualSize`：小、中、大。
 - `autoClearDone`：完成后自动清除。
 - `renderStrength`：纯文本、轻渲染、完整渲染。
-- `homeMode`：纸片、日历、四象限。
+- `homeMode`：今日、纸片、日历、四象限，默认值为今日。
+
+今日页面通过 `@Query` 读取 `CalendarEvent`，通过 `Paper` 关系聚合未完成 `TodoItem`。
 
 ## Widget 接口
 

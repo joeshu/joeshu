@@ -12,6 +12,7 @@ struct ContentView: View {
     @State private var paperPreview: Paper?
     @State private var paperAwaitingDeletion: Paper?
     @State private var pendingDeletions: [UUID: PendingDeletion] = [:]
+    @State private var isQuickCapturePresented = false
 
     private var sortedPapers: [Paper] {
         Self.sortPapers(papers)
@@ -89,7 +90,8 @@ struct ContentView: View {
                     onPreview: { paperPreview = $0 },
                     onDelete: { paperPendingDeletion = $0 },
                     onAddTodo: { addPaper(kind: .todo, title: "待办") },
-                    onAddNote: { addPaper(kind: .note, title: "笔记") }
+                    onAddNote: { addPaper(kind: .note, title: "笔记") },
+                    onQuickCapture: { isQuickCapturePresented = true }
                 )
             }
             .navigationTitle("PaperTodo")
@@ -133,6 +135,11 @@ struct ContentView: View {
             ) {
                 if let paperPreview {
                     PaperPreviewSheet(paper: paperPreview, theme: theme)
+                }
+            }
+            .sheet(isPresented: $isQuickCapturePresented) {
+                QuickCaptureSheet(papers: activePapers, theme: theme) { kind, text in
+                    capture(kind: kind, text: text)
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -185,6 +192,11 @@ struct ContentView: View {
 
                     Menu {
                         Button {
+                            isQuickCapturePresented = true
+                        } label: {
+                            Label("快速记录", systemImage: "square.and.pencil")
+                        }
+                        Button {
                             addPaper(kind: .todo, title: "待办")
                         } label: {
                             Label("新建待办纸", systemImage: "checklist")
@@ -207,6 +219,26 @@ struct ContentView: View {
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
             let paper = Paper(kind: kind, title: title)
             modelContext.insert(paper)
+            saveContext()
+        }
+    }
+
+    private func capture(kind: PaperKind, text: String) {
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty else { return }
+
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+            if kind == .note {
+                modelContext.insert(Paper(kind: .note, title: value))
+            } else {
+                let existingInbox = activePapers.first(where: { $0.kind == .todo && $0.title == "收件箱" })
+                let inbox = existingInbox ?? Paper(kind: .todo, title: "收件箱")
+                if existingInbox == nil {
+                    modelContext.insert(inbox)
+                }
+                inbox.todoItems.append(TodoItem(text: value, sortIndex: inbox.todoItems.count))
+                inbox.updatedAt = Date()
+            }
             saveContext()
         }
     }
