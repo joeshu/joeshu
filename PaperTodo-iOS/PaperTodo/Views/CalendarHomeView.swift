@@ -21,6 +21,7 @@ struct CalendarHomeView: View {
     @Environment(\.modelContext) private var modelContext
     let theme: PaperPalette
     @Query(sort: \CalendarEvent.startTime) private var events: [CalendarEvent]
+    @Query private var papers: [Paper]
     @State private var month = Date()
     @State private var selectedDate = Date()
     @State private var appeared = false
@@ -58,6 +59,15 @@ struct CalendarHomeView: View {
     private var selectedEvents: [CalendarEvent] {
         events.filter { eventCoversDate($0, selectedDate) }
             .sorted { $0.startTime < $1.startTime }
+    }
+
+    private var selectedScheduledTodos: [TodoItem] {
+        papers.flatMap(\.todoItems)
+            .filter { item in
+                guard !item.isDone, let start = item.scheduledStart else { return false }
+                return calendar.isDate(start, inSameDayAs: selectedDate)
+            }
+            .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
     }
 
     private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
@@ -194,6 +204,17 @@ struct CalendarHomeView: View {
         }
     }
 
+    private func completeTodo(_ item: TodoItem) {
+        item.isDone = true
+        item.paper?.updatedAt = Date()
+        do {
+            try modelContext.save()
+        } catch {
+            item.isDone = false
+            saveErrorMessage = error.localizedDescription
+        }
+    }
+
     @ViewBuilder
     private var compactCalendarContent: some View {
         switch displayMode {
@@ -219,7 +240,9 @@ struct CalendarHomeView: View {
                 onSelect: selectDate,
                 onOpen: openEvent,
                 onAdd: addEvent,
-                onToggleCompletion: toggleEventCompletion
+                onToggleCompletion: toggleEventCompletion,
+                scheduledTodos: selectedScheduledTodos,
+                onCompleteTodo: completeTodo
             )
 
         case .week:
@@ -276,7 +299,9 @@ struct CalendarHomeView: View {
                     onSelect: selectDate,
                     onOpen: openEvent,
                     onAdd: addEvent,
-                    onToggleCompletion: toggleEventCompletion
+                    onToggleCompletion: toggleEventCompletion,
+                    scheduledTodos: selectedScheduledTodos,
+                    onCompleteTodo: completeTodo
                 )
                 .frame(maxWidth: .infinity)
             }
@@ -303,7 +328,9 @@ struct CalendarHomeView: View {
                 onSelect: selectDate,
                 onOpen: openEvent,
                 onAdd: addEvent,
-                onToggleCompletion: toggleEventCompletion
+                onToggleCompletion: toggleEventCompletion,
+                scheduledTodos: selectedScheduledTodos,
+                onCompleteTodo: completeTodo
             )
             .frame(maxWidth: 620)
         }
@@ -763,6 +790,32 @@ private struct DayTimelineCard: View {
     let onOpen: (CalendarEvent) -> Void
     let onAdd: () -> Void
     let onToggleCompletion: (CalendarEvent) -> Void
+    let scheduledTodos: [TodoItem]
+    let onCompleteTodo: (TodoItem) -> Void
+
+    private enum TimelineItem: Identifiable {
+        case event(CalendarEvent)
+        case todo(TodoItem)
+
+        var id: UUID {
+            switch self {
+            case .event(let event): event.id
+            case .todo(let item): item.id
+            }
+        }
+
+        var startTime: Date {
+            switch self {
+            case .event(let event): event.startTime
+            case .todo(let item): item.scheduledStart ?? .distantFuture
+            }
+        }
+    }
+
+    private var timelineItems: [TimelineItem] {
+        (events.map(TimelineItem.event) + scheduledTodos.map(TimelineItem.todo))
+            .sorted { $0.startTime < $1.startTime }
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -779,7 +832,7 @@ private struct DayTimelineCard: View {
                         .foregroundStyle(theme.text)
                 }
                 Spacer()
-                Text("\(events.count) 项")
+                Text("\(timelineItems.count) 项")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(theme.weakText)
                 Button(action: onAdd) {
@@ -799,12 +852,13 @@ private struct DayTimelineCard: View {
             TimelineStatusStrip(
                 selectedDate: selectedDate,
                 events: events,
+                scheduledTodos: scheduledTodos,
                 theme: theme
             )
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 10) {
-                    if events.isEmpty {
+                    if timelineItems.isEmpty {
                         VStack(spacing: 10) {
                             Image(systemName: "calendar.badge.plus")
                                 .font(.system(size: 28, weight: .light))
@@ -818,14 +872,23 @@ private struct DayTimelineCard: View {
                         }
                         .frame(maxWidth: .infinity, minHeight: 180)
                     } else {
-                        ForEach(events) { event in
-                            TimelineEventRow(
-                                event: event,
-                                selectedDate: selectedDate,
-                                theme: theme,
-                                onOpen: { onOpen(event) },
-                                onToggleCompletion: { onToggleCompletion(event) }
-                            )
+                        ForEach(timelineItems) { item in
+                            switch item {
+                            case .event(let event):
+                                TimelineEventRow(
+                                    event: event,
+                                    selectedDate: selectedDate,
+                                    theme: theme,
+                                    onOpen: { onOpen(event) },
+                                    onToggleCompletion: { onToggleCompletion(event) }
+                                )
+                            case .todo(let todo):
+                                ScheduledTodoTimelineRow(
+                                    item: todo,
+                                    theme: theme,
+                                    onComplete: { onCompleteTodo(todo) }
+                                )
+                            }
                         }
                     }
                 }
@@ -979,13 +1042,80 @@ private struct TimelineEventRow: View {
     }
 }
 
+private struct ScheduledTodoTimelineRow: View {
+    let item: TodoItem
+    let theme: PaperPalette
+    let onComplete: () -> Void
+
+    private var timeSummary: String {
+        guard let start = item.scheduledStart else { return "已安排" }
+        guard let end = item.scheduledEnd else {
+            return "从 \(start.formatted(.dateTime.hour().minute())) 开始"
+        }
+        return "\(start.formatted(.dateTime.hour().minute())) - \(end.formatted(.dateTime.hour().minute()))"
+    }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 6) {
+            Text(item.scheduledStart?.formatted(.dateTime.hour().minute()) ?? "")
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(theme.active)
+                .frame(width: 44, alignment: .trailing)
+                .padding(.top, 11)
+
+            ZStack {
+                Rectangle().fill(theme.active.opacity(0.42)).frame(width: 1.5)
+                Circle().stroke(theme.active, lineWidth: 2)
+                    .frame(width: 10, height: 10)
+                    .padding(.top, 13)
+            }
+            .frame(maxWidth: 1, maxHeight: .infinity)
+
+            Button(action: onComplete) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(timeSummary)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.timeColor)
+                    Text(item.text)
+                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .foregroundStyle(theme.text)
+                        .multilineTextAlignment(.leading)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(theme.active.opacity(0.1), in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(theme.active)
+                        .frame(width: 3)
+                        .padding(.vertical, 8)
+                }
+            }
+            .buttonStyle(.plain)
+            .contextMenu {
+                Button(action: onComplete) {
+                    Label("标记为已完成", systemImage: "checkmark")
+                }
+            }
+        }
+        .accessibilityLabel("待办，\(item.text)，\(timeSummary)")
+        .accessibilityHint("点击标记为已完成")
+    }
+}
+
 private struct TimelineStatusStrip: View {
     let selectedDate: Date
     let events: [CalendarEvent]
+    let scheduledTodos: [TodoItem]
     let theme: PaperPalette
 
     private var completedCount: Int {
         events.filter(\.isCompleted).count
+    }
+
+    private var totalCount: Int {
+        events.count + scheduledTodos.count
     }
 
     var body: some View {
@@ -1007,16 +1137,16 @@ private struct TimelineStatusStrip: View {
 
                 Spacer()
 
-                Text(events.isEmpty ? "暂无日程" : "已完成 \(completedCount)/\(events.count)")
+                Text(totalCount == 0 ? "暂无安排" : "日程 \(completedCount)/\(totalCount)")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(theme.weakText)
 
-                if !events.isEmpty {
-                    ProgressView(value: Double(completedCount), total: Double(events.count))
+                if totalCount > 0 {
+                    ProgressView(value: Double(completedCount), total: Double(totalCount))
                         .tint(theme.accent)
                         .frame(width: 52)
                         .accessibilityLabel("日程完成进度")
-                        .accessibilityValue("已完成 \(completedCount) 项，共 \(events.count) 项")
+                        .accessibilityValue("已完成 \(completedCount) 项，共 \(totalCount) 项")
                 }
             }
             .padding(.horizontal, 12)

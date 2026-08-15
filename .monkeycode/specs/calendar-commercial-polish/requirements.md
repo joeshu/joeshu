@@ -9,6 +9,7 @@
 - **月视图**：展示完整月份网格和事件密度标记的日历视图。
 - **日程视图**：展示选中日期事件列表、周日期条和当天执行状态的视图。
 - **日历工具栏**：展示日历标题、日期上下文、月份导航、视图切换和新增入口的顶部区域。
+- **统一日程流**：将日历事件和具有排期时间的未完成待办按选中日期聚合到同一条执行时间线。
 
 ## Requirements
 
@@ -51,3 +52,14 @@
 1. WHEN the end date-time is later than the start date-time, THE system SHALL enable event saving.
 2. WHEN the end date-time is equal to or earlier than the start date-time, THE system SHALL show a validation message and disable event saving.
 3. WHEN a cross-day event is edited, THE system SHALL preserve both date values and time values in the form.
+
+### Requirement 5
+
+**User Story:** AS a user, I want scheduled todos to appear with calendar events, so that my planned work has one execution timeline.
+
+#### Acceptance Criteria
+
+1. WHEN the selected date contains an unfinished todo with a scheduled start, THE system SHALL show that todo in the selected date timeline.
+2. WHEN a scheduled todo is shown in the timeline, THE system SHALL show its scheduled time context and distinguish it from a calendar event.
+3. WHEN the user completes a scheduled todo from the timeline, THE system SHALL persist the todo completion and update the timeline count and progress.
+4. WHEN the selected date contains calendar events and scheduled todos, THE system SHALL include both item types in the timeline total.

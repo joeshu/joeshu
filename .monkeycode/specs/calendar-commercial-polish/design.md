@@ -19,9 +19,11 @@ graph TD
     D --> G["selectedDate"]
     E --> G
     A --> H["CalendarEvent Query"]
+    A --> I["Paper Query"]
+    I --> J["Scheduled Todo Timeline Row"]
 ```
 
-`CalendarHomeView` 继续持有唯一的月份、选中日期和表单状态。`CalendarDisplayMode` 只控制内容层级，不改变持久化模型。工具栏通过绑定切换模式，月卡和时间线使用共享的选中日期。
+`CalendarHomeView` 继续持有唯一的月份、选中日期和表单状态。`CalendarDisplayMode` 只控制内容层级，不改变持久化模型。工具栏通过绑定切换模式，月卡和时间线使用共享的选中日期。时间线从 `CalendarEvent` 和 `Paper.todoItems` 派生统一展示数据，待办完成继续复用 SwiftData 保存路径。
 
 ## Components And Interfaces
 
@@ -30,11 +32,13 @@ graph TD
 - `CalendarHomeView`: 在窄屏使用纵向流，在宽屏使用非重叠双列；agenda 模式突出时间线。
 - `MonthCard`: 保留紧凑事件色点和日期选择。
 - `DayTimelineCard`: 作为月视图右侧或 agenda 模式主内容展示。
+- `ScheduledTodoTimelineRow`: 展示已排期未完成待办，支持直接完成和上下文菜单操作。
+- `TimelineStatusStrip`: 将日历事件和已排期待办纳入同一项数和完成进度。
 - `CalendarEventFormView`: 使用完整日期时间比较进行跨日校验。
 
 ## Data Models
 
-继续使用 `CalendarEvent`。本轮只新增视图状态 `CalendarDisplayMode`，不新增 SwiftData 字段。
+继续使用现有 `CalendarEvent` 和 `TodoItem` 排期字段。本轮通过视图层派生统一时间线，不新增 SwiftData 字段。
 
 ## Correctness Properties
 
@@ -42,6 +46,8 @@ graph TD
 - 宽屏月卡和时间线的布局边界不发生重叠。
 - 完整结束日期时间晚于完整开始日期时间时，表单保存校验为真。
 - 事件完成状态、编辑和新增继续使用现有 SwiftData 保存路径。
+- 选中日期的未完成排期待办与日历事件同时进入时间线统计。
+- 待办完成保存失败时回滚待办状态并显示错误提示。
 
 ## Error Handling
 
@@ -54,6 +60,7 @@ graph TD
 - 检查月视图与日程视图切换后日期状态保持。
 - 在 iPhone 和 iPad 宽度检查工具栏、月卡和时间线无重叠。
 - 检查跨日事件新增和编辑的日期时间校验。
+- 检查排期待办显示、直接完成、保存失败回滚和统一进度统计。
 
 ## References
 
