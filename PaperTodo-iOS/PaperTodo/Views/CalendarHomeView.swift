@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import CoreTransferable
+import UniformTypeIdentifiers
 
 private enum CalendarDisplayMode: String, CaseIterable, Identifiable {
     case month = "月视图"
@@ -231,6 +233,39 @@ struct CalendarHomeView: View {
         schedulingTodo = item
     }
 
+    private func moveEvent(_ event: CalendarEvent, to slot: CalendarTimeSlot) {
+        let duration = event.endTime.timeIntervalSince(event.startTime)
+        let oldStart = event.startTime
+        let oldEnd = event.endTime
+        event.startTime = slot.dateValue(using: calendar)
+        event.endTime = event.startTime.addingTimeInterval(max(duration, 60))
+        saveCalendarChange {
+            event.startTime = oldStart
+            event.endTime = oldEnd
+        }
+    }
+
+    private func moveTodo(_ item: TodoItem, to slot: CalendarTimeSlot) {
+        guard let oldStart = item.scheduledStart else { return }
+        let oldEnd = item.scheduledEnd
+        let duration = oldEnd?.timeIntervalSince(oldStart) ?? Double((item.estimatedMinutes ?? 30) * 60)
+        item.scheduledStart = slot.dateValue(using: calendar)
+        item.scheduledEnd = item.scheduledStart?.addingTimeInterval(max(duration, 60))
+        saveCalendarChange {
+            item.scheduledStart = oldStart
+            item.scheduledEnd = oldEnd
+        }
+    }
+
+    private func saveCalendarChange(onFailure: () -> Void) {
+        do {
+            try modelContext.save()
+        } catch {
+            onFailure()
+            saveErrorMessage = error.localizedDescription
+        }
+    }
+
     @ViewBuilder
     private var compactCalendarContent: some View {
         switch displayMode {
@@ -275,7 +310,9 @@ struct CalendarHomeView: View {
                 onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion,
                 onToggleTodo: completeTodo,
-                onEditTodo: editTodoSchedule
+                onEditTodo: editTodoSchedule,
+                onMoveEvent: moveEvent,
+                onMoveTodo: moveTodo
             )
 
         case .agenda:
@@ -343,7 +380,9 @@ struct CalendarHomeView: View {
                 onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion,
                 onToggleTodo: completeTodo,
-                onEditTodo: editTodoSchedule
+                onEditTodo: editTodoSchedule,
+                onMoveEvent: moveEvent,
+                onMoveTodo: moveTodo
             )
             .frame(maxWidth: 920)
 
@@ -535,6 +574,8 @@ private struct WeekCalendarCard: View {
     let onToggleCompletion: (CalendarEvent) -> Void
     let onToggleTodo: (TodoItem) -> Void
     let onEditTodo: (TodoItem) -> Void
+    let onMoveEvent: (CalendarEvent, CalendarTimeSlot) -> Void
+    let onMoveTodo: (TodoItem, CalendarTimeSlot) -> Void
 
     private var weekDates: [Date] {
         guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else { return [] }
@@ -579,6 +620,17 @@ private struct WeekCalendarCard: View {
                 }
                 .padding(.bottom, 2)
             }
+
+            WeekTimeGrid(
+                weekDates: weekDates,
+                events: events,
+                scheduledTodos: scheduledTodos,
+                calendar: calendar,
+                theme: theme,
+                onSelectDate: onSelect,
+                onMoveEvent: onMoveEvent,
+                onMoveTodo: onMoveTodo
+            )
         }
         .padding(16)
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
@@ -663,6 +715,7 @@ private struct WeekCalendarCard: View {
                         }
                     }
                     .buttonStyle(.plain)
+                    .draggable(CalendarDropPayload.event(event.id))
                     .contextMenu {
                         Button { onToggleCompletion(event) } label: {
                             Label(event.isCompleted ? "标记为未完成" : "标记为已完成", systemImage: event.isCompleted ? "arrow.uturn.backward" : "checkmark")
@@ -686,6 +739,7 @@ private struct WeekCalendarCard: View {
                         .background(theme.active.opacity(0.12), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .draggable(CalendarDropPayload.todo(item.id))
                     .contextMenu {
                         Button { onToggleTodo(item) } label: {
                             Label(item.isDone ? "标记为未完成" : "标记为已完成", systemImage: item.isDone ? "arrow.uturn.backward" : "checkmark")
@@ -740,6 +794,127 @@ private struct WeekCalendarCard: View {
 
     private func selectedDateBackground(selected: Bool) -> Color {
         selected ? theme.accent.opacity(0.1) : theme.paper.opacity(0.26)
+    }
+}
+
+private struct CalendarTimeSlot: Identifiable, Hashable {
+    let date: Date
+    let hour: Int
+
+    var id: String { "\(date.timeIntervalSinceReferenceDate)-\(hour)" }
+
+    func dateValue(using calendar: Calendar) -> Date {
+        calendar.date(bySettingHour: hour, minute: 0, second: 0, of: date) ?? date
+    }
+}
+
+private struct CalendarDropPayload: Codable, Transferable {
+    enum Kind: String, Codable {
+        case event
+        case todo
+    }
+
+    let kind: Kind
+    let id: UUID
+
+    static func event(_ id: UUID) -> Self { Self(kind: .event, id: id) }
+    static func todo(_ id: UUID) -> Self { Self(kind: .todo, id: id) }
+
+    static var transferRepresentation: some TransferRepresentation {
+        CodableRepresentation(contentType: .calendarDropPayload)
+    }
+}
+
+private extension UTType {
+    static let calendarDropPayload = UTType(exportedAs: "com.papertodo.calendar-drop")
+}
+
+private struct WeekTimeGrid: View {
+    let weekDates: [Date]
+    let events: [CalendarEvent]
+    let scheduledTodos: [TodoItem]
+    let calendar: Calendar
+    let theme: PaperPalette
+    let onSelectDate: (Date) -> Void
+    let onMoveEvent: (CalendarEvent, CalendarTimeSlot) -> Void
+    let onMoveTodo: (TodoItem, CalendarTimeSlot) -> Void
+
+    private let hours = Array(7..<23)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("时间网格")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.weakText)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 0) {
+                    timeLabels
+                    ForEach(weekDates, id: \.self) { date in
+                        dayColumn(for: date)
+                    }
+                }
+            }
+            .scrollIndicators(.hidden)
+        }
+        .padding(.top, 4)
+    }
+
+    private var timeLabels: some View {
+        VStack(spacing: 0) {
+            Color.clear.frame(width: 42, height: 34)
+            ForEach(hours, id: \.self) { hour in
+                Text(String(format: "%02d:00", hour))
+                    .font(.system(size: 9, weight: .medium).monospacedDigit())
+                    .foregroundStyle(theme.weakText)
+                    .frame(width: 42, height: 42, alignment: .topTrailing)
+                    .padding(.trailing, 5)
+            }
+        }
+    }
+
+    private func dayColumn(for date: Date) -> some View {
+        VStack(spacing: 0) {
+            Button { onSelectDate(date) } label: {
+                VStack(spacing: 2) {
+                    Text(date.formatted(.dateTime.weekday(.abbreviated)))
+                        .font(.system(size: 9, weight: .semibold))
+                    Text(date.formatted(.dateTime.day()))
+                        .font(.system(size: 12, weight: .bold).monospacedDigit())
+                }
+                .foregroundStyle(calendar.isDateInToday(date) ? theme.accent : theme.weakText)
+                .frame(width: 86, height: 34)
+            }
+            .buttonStyle(.plain)
+
+            ForEach(hours, id: \.self) { hour in
+                let slot = CalendarTimeSlot(date: date, hour: hour)
+                Button { onSelectDate(slot.dateValue(using: calendar)) } label: {
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
+                        .fill(theme.paper.opacity(0.22))
+                        .frame(width: 84, height: 40)
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .stroke(theme.paperBorder.opacity(0.42), lineWidth: 0.5)
+                        }
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("\(date.formatted(.dateTime.month().day())) \(hour) 点时间槽")
+                .dropDestination(for: CalendarDropPayload.self) { payloads, _ in
+                    guard let payload = payloads.first else { return false }
+                    switch payload.kind {
+                    case .event:
+                        guard let event = events.first(where: { $0.id == payload.id }) else { return false }
+                        onMoveEvent(event, slot)
+                        return true
+                    case .todo:
+                        guard let todo = scheduledTodos.first(where: { $0.id == payload.id }) else { return false }
+                        onMoveTodo(todo, slot)
+                        return true
+                    }
+                }
+            }
+        }
     }
 }
 
