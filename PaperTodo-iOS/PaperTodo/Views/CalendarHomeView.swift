@@ -98,6 +98,7 @@ struct CalendarHomeView: View {
     @State private var saveErrorMessage: String?
     @State private var displayMode: CalendarDisplayMode = .month
     @State private var filters = CalendarFilterState()
+    @State private var isPresentingNaturalLanguage = false
 
     private let calendar = Calendar.current
     private let weekdayLabels = ["日", "一", "二", "三", "四", "五", "六"]
@@ -202,6 +203,7 @@ struct CalendarHomeView: View {
                                     onToday: { shiftMonth(0) },
                                     onPrevious: { shiftMonth(-1) },
                                     onNext: { shiftMonth(1) },
+                                    onNaturalLanguage: { isPresentingNaturalLanguage = true },
                                     onAdd: addEvent
                                 )
                                 compactCalendarContent
@@ -226,8 +228,9 @@ struct CalendarHomeView: View {
                                  theme: theme,
                                 onToday: { shiftMonth(0) },
                                 onPrevious: { shiftMonth(-1) },
-                                onNext: { shiftMonth(1) },
-                                onAdd: addEvent
+                                 onNext: { shiftMonth(1) },
+                                 onNaturalLanguage: { isPresentingNaturalLanguage = true },
+                                 onAdd: addEvent
                             )
                             .padding(.horizontal, 12)
                             .padding(.top, 16)
@@ -255,6 +258,16 @@ struct CalendarHomeView: View {
             TaskScheduleSheet(item: item, theme: theme) {
                 saveEvents()
             }
+        }
+        .sheet(isPresented: $isPresentingNaturalLanguage) {
+            NaturalLanguageScheduleSheet(
+                input: "",
+                papers: papers,
+                referenceDate: selectedDate,
+                theme: theme,
+                onCreateEvent: createEventFromDraft,
+                onCreateTodo: createTodoFromDraft
+            )
         }
         .alert("保存失败", isPresented: Binding(
             get: { saveErrorMessage != nil },
@@ -303,6 +316,37 @@ struct CalendarHomeView: View {
     private func addEvent() {
         editingEvent = nil
         isPresentingForm = true
+    }
+
+    private func createEventFromDraft(_ draft: NaturalLanguageScheduleDraft) {
+        let event = CalendarEvent(title: draft.title, startTime: draft.start, endTime: draft.end, category: draft.category, isAllDay: draft.isAllDay)
+        event.reminderMinutes = draft.reminderMinutes
+        modelContext.insert(event)
+        do {
+            try modelContext.save()
+            Task { await ReminderNotificationService.requestAuthorization(); await ReminderNotificationService.schedule(event: event) }
+        } catch {
+            saveErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func createTodoFromDraft(_ draft: NaturalLanguageScheduleDraft, _ paper: Paper) {
+        let nextIndex = (paper.todoItems.map(\.sortIndex).max() ?? -1) + 1
+        let item = TodoItem(text: draft.title, sortIndex: nextIndex)
+        item.scheduledStart = draft.start
+        item.scheduledEnd = draft.end
+        item.isAllDay = draft.isAllDay
+        item.estimatedMinutes = draft.isAllDay ? nil : max(1, Int(draft.end.timeIntervalSince(draft.start) / 60))
+        item.reminderMinutes = draft.reminderMinutes
+        item.paper = paper
+        paper.updatedAt = Date()
+        modelContext.insert(item)
+        do {
+            try modelContext.save()
+            Task { await ReminderNotificationService.requestAuthorization(); await ReminderNotificationService.schedule(todo: item) }
+        } catch {
+            saveErrorMessage = error.localizedDescription
+        }
     }
 
     private func toggleEventCompletion(_ event: CalendarEvent) {
@@ -522,6 +566,7 @@ private struct CalendarContextToolbar: View {
     let onPrevious: () -> Void
     let onNext: () -> Void
     let onAdd: () -> Void
+    let onNaturalLanguage: () -> Void
 
     private var selectedDateTitle: String {
         Calendar.current.isDateInToday(selectedDate)
@@ -537,6 +582,7 @@ private struct CalendarContextToolbar: View {
                 navigationControls
                 viewMenu
                 filterMenu
+                naturalLanguageButton
                 addButton
             }
             VStack(alignment: .leading, spacing: 12) {
@@ -545,6 +591,7 @@ private struct CalendarContextToolbar: View {
                     navigationControls
                     viewMenu
                     filterMenu
+                    naturalLanguageButton
                     Spacer()
                     addButton
                 }
@@ -623,6 +670,18 @@ private struct CalendarContextToolbar: View {
                 .shadow(color: theme.accent.opacity(0.25), radius: 8, y: 4)
         }
         .accessibilityLabel("新建日程")
+    }
+
+    private var naturalLanguageButton: some View {
+        Button(action: onNaturalLanguage) {
+            Image(systemName: "text.badge.plus")
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .foregroundStyle(theme.text)
+                .background(theme.paper.opacity(0.58), in: Circle())
+                .overlay(Circle().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
+        }
+        .accessibilityLabel("自然语言快速创建")
     }
 
     private var viewMenu: some View {
