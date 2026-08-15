@@ -1472,8 +1472,10 @@ private struct ScheduledTodoTimelineRow: View {
         guard let start = item.scheduledStart else { return "已安排" }
         let calendar = Calendar.current
         let selectedDay = calendar.startOfDay(for: selectedDate)
-        let startDay = calendar.startOfDay(for: start)
-        let end = item.scheduledEnd ?? start
+        let occurrenceStart = item.scheduledOccurrenceStart(on: selectedDate, calendar: calendar) ?? start
+        let duration = item.scheduledEnd?.timeIntervalSince(start) ?? Double((item.estimatedMinutes ?? 30) * 60)
+        let end = occurrenceStart.addingTimeInterval(duration)
+        let startDay = calendar.startOfDay(for: occurrenceStart)
         let endDay = calendar.startOfDay(for: end)
         if startDay < selectedDay && endDay > selectedDay {
             return "跨日 · 全天"
@@ -1482,17 +1484,17 @@ private struct ScheduledTodoTimelineRow: View {
             return "延续至 \(end.formatted(.dateTime.hour().minute()))"
         }
         guard item.scheduledEnd != nil else {
-            return "从 \(start.formatted(.dateTime.hour().minute())) 开始"
+            return "从 \(occurrenceStart.formatted(.dateTime.hour().minute())) 开始"
         }
         if startDay == selectedDay && endDay > selectedDay {
-            return "从 \(start.formatted(.dateTime.hour().minute())) 开始"
+            return "从 \(occurrenceStart.formatted(.dateTime.hour().minute())) 开始"
         }
-        return "\(start.formatted(.dateTime.hour().minute())) - \(end.formatted(.dateTime.hour().minute()))"
+        return "\(occurrenceStart.formatted(.dateTime.hour().minute())) - \(end.formatted(.dateTime.hour().minute()))"
     }
 
     var body: some View {
         HStack(alignment: .top, spacing: 6) {
-            Text(item.scheduledStart?.formatted(.dateTime.hour().minute()) ?? "")
+            Text((item.scheduledOccurrenceStart(on: selectedDate) ?? item.scheduledStart)?.formatted(.dateTime.hour().minute()) ?? "")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(theme.active)
                 .frame(width: 44, alignment: .trailing)
