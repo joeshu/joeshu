@@ -8,13 +8,39 @@ enum SharedContainer {
         if let url = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroupID) {
             return url.appendingPathComponent("PaperTodo.store")
         }
-        return URL.documentsDirectory.appendingPathComponent("PaperTodo.store")
+        return localStoreURL()
     }
 
     static func makeModelContainer() throws -> ModelContainer {
         let schema = Schema([Paper.self, TodoItem.self, CalendarEvent.self])
-        let configuration = ModelConfiguration(schema: schema, url: storeURL())
-        return try ModelContainer(for: schema, configurations: [configuration])
+        let urls = [storeURL(), localStoreURL()]
+            .reduce(into: [URL]()) { result, url in
+                if !result.contains(url) {
+                    result.append(url)
+                }
+            }
+
+        for url in urls {
+            do {
+                try FileManager.default.createDirectory(
+                    at: url.deletingLastPathComponent(),
+                    withIntermediateDirectories: true
+                )
+                let configuration = ModelConfiguration(schema: schema, url: url)
+                return try ModelContainer(for: schema, configurations: [configuration])
+            } catch {
+                continue
+            }
+        }
+
+        let memoryConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
+        return try ModelContainer(for: schema, configurations: [memoryConfiguration])
+    }
+
+    private static func localStoreURL() -> URL {
+        URL.applicationSupportDirectory
+            .appendingPathComponent("PaperTodo", isDirectory: true)
+            .appendingPathComponent("PaperTodo.store")
     }
 
     static func seedCalendarEvents(in context: ModelContext) {
