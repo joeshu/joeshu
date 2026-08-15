@@ -171,29 +171,14 @@ private struct PaperListHome: View {
                         .padding(.vertical, 30)
                 }
                 ForEach(visiblePapers) { paper in
-                    NavigationLink(value: paper) {
-                        PaperCard(paper: paper, theme: theme) { onTogglePin(paper) }
-                    }
-                    .buttonStyle(PaperPressStyle())
-                    .contextMenu {
-                        Button { onTogglePin(paper) } label: {
-                            Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
-                        }
-                        Button { onToggleCollapse(paper) } label: {
-                            Label(paper.isCollapsed ? "展开纸片" : "折叠纸片", systemImage: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
-                        }
-                        Button { onPreview(paper) } label: {
-                            Label("快速预览", systemImage: "eye")
-                        }
-                        Button(role: .destructive) { onDelete(paper) } label: {
-                            Label("删除纸片", systemImage: "trash")
-                        }
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                        Button(role: .destructive) { onDelete(paper) } label: {
-                            Label("删除", systemImage: "trash")
-                        }
-                    }
+                    PaperSwipeDeleteRow(
+                        paper: paper,
+                        theme: theme,
+                        onTogglePin: { onTogglePin(paper) },
+                        onToggleCollapse: { onToggleCollapse(paper) },
+                        onPreview: { onPreview(paper) },
+                        onDelete: { onDelete(paper) }
+                    )
                 }
             }
             .padding(.horizontal, 16)
@@ -229,5 +214,94 @@ private struct PaperListHome: View {
         }
         .padding(.horizontal, 4)
         .padding(.top, 4)
+    }
+}
+
+private struct PaperSwipeDeleteRow: View {
+    let paper: Paper
+    let theme: PaperPalette
+    let onTogglePin: () -> Void
+    let onToggleCollapse: () -> Void
+    let onPreview: () -> Void
+    let onDelete: () -> Void
+
+    @State private var offset: CGFloat = 0
+    private let deleteWidth: CGFloat = 84
+
+    var body: some View {
+        ZStack(alignment: .trailing) {
+            deleteAction
+
+            NavigationLink(value: paper) {
+                PaperCard(paper: paper, theme: theme) { onTogglePin() }
+            }
+            .buttonStyle(PaperPressStyle())
+            .contextMenu {
+                Button { onTogglePin() } label: {
+                    Label(paper.isPinned ? "取消置顶" : "置顶", systemImage: "pin")
+                }
+                Button { onToggleCollapse() } label: {
+                    Label(paper.isCollapsed ? "展开纸片" : "折叠纸片", systemImage: paper.isCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                }
+                Button { onPreview() } label: {
+                    Label("快速预览", systemImage: "eye")
+                }
+                Button(role: .destructive) { onDelete() } label: {
+                    Label("删除纸片", systemImage: "trash")
+                }
+            }
+            .offset(x: offset)
+            .contentShape(Rectangle())
+        }
+        .clipped()
+        .contentShape(Rectangle())
+        .simultaneousGesture(swipeGesture)
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(named: "删除纸片") {
+            onDelete()
+        }
+    }
+
+    private var deleteAction: some View {
+        Button(role: .destructive) {
+            onDelete()
+            withAnimation(.easeOut(duration: 0.18)) {
+                offset = 0
+            }
+        } label: {
+            VStack(spacing: 4) {
+                Image(systemName: "trash.fill")
+                    .font(.system(size: PaperIconSize.medium, weight: .semibold))
+                Text("删除")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(theme.onAccent)
+            .frame(width: deleteWidth)
+            .frame(maxHeight: .infinity)
+            .background(theme.danger, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("删除纸片")
+        .opacity(offset == 0 ? 0 : 1)
+        .allowsHitTesting(offset != 0)
+    }
+
+    private var swipeGesture: some Gesture {
+        DragGesture(minimumDistance: 16)
+            .onChanged { value in
+                let translation = value.translation.width
+                if translation < 0 {
+                    offset = max(-deleteWidth, translation)
+                } else if offset < 0 {
+                    offset = min(0, -deleteWidth + translation)
+                }
+            }
+            .onEnded { value in
+                let shouldReveal = value.translation.width < -(deleteWidth * 0.45)
+                    || value.predictedEndTranslation.width < -(deleteWidth * 0.8)
+                withAnimation(.easeOut(duration: 0.18)) {
+                    offset = shouldReveal ? -deleteWidth : 0
+                }
+            }
     }
 }
