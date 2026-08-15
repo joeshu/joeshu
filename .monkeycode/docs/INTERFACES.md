@@ -51,3 +51,5 @@
 ## Widget 接口
 
 `PaperTodoEntry` 暴露 `date`、`pendingCount` 和 `doneCount`。`Provider` 实现 `placeholder`、`getSnapshot` 和 `getTimeline`，时间线默认每 30 分钟刷新一次。
+
+Widget 同时暴露 `todayPendingCount`、`scheduledMinutes` 和 `nextTask`，用于展示今日剩余任务、今日排期时长和下一项安排。

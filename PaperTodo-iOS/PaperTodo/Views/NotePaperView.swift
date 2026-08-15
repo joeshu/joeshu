@@ -17,6 +17,7 @@ struct NotePaperView: View {
     @State private var importError: String?
     @State private var exportError: String?
     @State private var saveErrorMessage: String?
+    @State private var taskImportMessage: String?
     @State private var saveTask: Task<Void, Never>?
     @State private var importGeneration = UUID()
 
@@ -170,6 +171,15 @@ struct NotePaperView: View {
                     Image(systemName: previewing ? "pencil" : "eye")
                 }
                 .accessibilityLabel(previewing ? "编辑笔记" : "预览笔记")
+
+                if !markdownTasks.isEmpty {
+                    Button {
+                        importMarkdownTasks()
+                    } label: {
+                        Image(systemName: "checklist")
+                    }
+                    .accessibilityLabel("导入 Markdown 任务")
+                }
             }
         }
         .navigationTitle(paper.title.isEmpty ? "笔记" : paper.title)
@@ -206,6 +216,14 @@ struct NotePaperView: View {
             Button("好", role: .cancel) { }
         } message: {
             Text(saveErrorMessage ?? "无法保存更改。")
+        }
+        .alert("任务导入", isPresented: Binding(
+            get: { taskImportMessage != nil },
+            set: { if !$0 { taskImportMessage = nil } }
+        )) {
+            Button("好", role: .cancel) { }
+        } message: {
+            Text(taskImportMessage ?? "")
         }
         .onDisappear {
             importGeneration = UUID()
@@ -315,6 +333,38 @@ struct NotePaperView: View {
             try? await Task.sleep(for: .milliseconds(350))
             guard !Task.isCancelled else { return }
             saveContext()
+        }
+    }
+
+    private var markdownTasks: [String] {
+        paper.body.components(separatedBy: .newlines).compactMap { line in
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("- [ ]") else { return nil }
+            let task = String(trimmed.dropFirst(5)).trimmingCharacters(in: .whitespaces)
+            return task.isEmpty ? nil : task
+        }
+    }
+
+    private func importMarkdownTasks() {
+        let tasks = markdownTasks
+        guard !tasks.isEmpty else { return }
+        do {
+            let papers = try modelContext.fetch(FetchDescriptor<Paper>())
+            let inbox = papers.first(where: { $0.kind == .todo && $0.title == "收件箱" }) ?? Paper(kind: .todo, title: "收件箱")
+            if !papers.contains(where: { $0.id == inbox.id }) {
+                modelContext.insert(inbox)
+            }
+            let existing = Set(inbox.todoItems.map { $0.text.trimmingCharacters(in: .whitespacesAndNewlines) })
+            var imported = 0
+            for task in tasks where !existing.contains(task) {
+                inbox.todoItems.append(TodoItem(text: task, sortIndex: inbox.todoItems.count))
+                imported += 1
+            }
+            inbox.updatedAt = Date()
+            try modelContext.save()
+            taskImportMessage = imported == 0 ? "收件箱中已经有这些任务。" : "已导入 \(imported) 项任务到收件箱。"
+        } catch {
+            taskImportMessage = "导入失败：\(error.localizedDescription)"
         }
     }
 

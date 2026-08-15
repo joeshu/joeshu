@@ -6,12 +6,15 @@ struct PaperTodoEntry: TimelineEntry {
     let date: Date
     let pendingCount: Int
     let doneCount: Int
+    let todayPendingCount: Int
+    let scheduledMinutes: Int
+    let nextTask: String?
 }
 
 struct Provider: TimelineProvider {
     @MainActor
     func placeholder(in context: Context) -> PaperTodoEntry {
-        PaperTodoEntry(date: Date(), pendingCount: 3, doneCount: 1)
+        PaperTodoEntry(date: Date(), pendingCount: 3, doneCount: 1, todayPendingCount: 2, scheduledMinutes: 60, nextTask: "整理项目文档")
     }
 
     @MainActor
@@ -29,13 +32,28 @@ struct Provider: TimelineProvider {
     @MainActor
     private func loadEntry() -> PaperTodoEntry {
         guard let container = try? SharedContainer.makeModelContainer() else {
-            return PaperTodoEntry(date: Date(), pendingCount: 0, doneCount: 0)
+            return PaperTodoEntry(date: Date(), pendingCount: 0, doneCount: 0, todayPendingCount: 0, scheduledMinutes: 0, nextTask: nil)
         }
         let descriptor = FetchDescriptor<TodoItem>()
         let items = (try? container.mainContext.fetch(descriptor)) ?? []
         let pending = items.filter { !$0.isDone }.count
         let done = items.count - pending
-        return PaperTodoEntry(date: Date(), pendingCount: pending, doneCount: done)
+        let todayPending = items.filter { item in
+            guard !$0.isDone, let start = item.scheduledStart else { return false }
+            return Calendar.current.isDateInToday(start)
+        }
+        let scheduledMinutes = todayPending.reduce(0) { $0 + ($1.estimatedMinutes ?? 0) }
+        let nextTask = todayPending
+            .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+            .first?.text
+        return PaperTodoEntry(
+            date: Date(),
+            pendingCount: pending,
+            doneCount: done,
+            todayPendingCount: todayPending.count,
+            scheduledMinutes: scheduledMinutes,
+            nextTask: nextTask
+        )
     }
 }
 
@@ -102,10 +120,10 @@ struct PaperTodoWidgetView: View {
                         }
                         .frame(width: 56, height: 56)
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(entry.pendingCount == 0 ? "全部完成" : "件待办")
+                            Text(entry.todayPendingCount == 0 ? "今日完成" : "今日待办")
                                 .font(.system(.subheadline, design: .rounded).weight(.semibold))
                                 .foregroundStyle(textColor)
-                            Text("\(entry.doneCount) 已完成")
+                            Text(entry.scheduledMinutes == 0 ? "暂无排期" : "已排 \(entry.scheduledMinutes) 分钟")
                                 .font(.system(.caption2, design: .rounded))
                                 .foregroundStyle(weakColor)
                         }
@@ -134,6 +152,12 @@ struct PaperTodoWidgetView: View {
                     }
                     ProgressView(value: progress)
                         .tint(tint)
+                    if let nextTask = entry.nextTask {
+                        Label(nextTask, systemImage: "arrow.right.circle")
+                            .font(.system(.caption2, design: .rounded).weight(.medium))
+                            .foregroundStyle(textColor)
+                            .lineLimit(1)
+                    }
                 }
             }
         }
