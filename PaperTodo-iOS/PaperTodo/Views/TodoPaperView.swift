@@ -233,6 +233,7 @@ struct TodoPaperView: View {
             TaskScheduleSheet(item: item, theme: theme) {
                 paper.updatedAt = Date()
                 saveContext()
+                refreshWidget()
             }
         }
     }

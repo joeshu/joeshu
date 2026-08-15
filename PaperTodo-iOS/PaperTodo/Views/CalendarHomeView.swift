@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import WidgetKit
 import CoreTransferable
 import UniformTypeIdentifiers
 
@@ -163,7 +164,11 @@ struct CalendarHomeView: View {
             .filter { item in
                 scheduledTodoCoversDate(item, selectedDate)
             }
-            .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+            .sorted { scheduleStart(for: $0, on: selectedDate) < scheduleStart(for: $1, on: selectedDate) }
+    }
+
+    private func scheduleStart(for item: TodoItem, on date: Date) -> Date {
+        item.scheduledOccurrenceStart(on: date, calendar: calendar) ?? item.scheduledStart ?? .distantFuture
     }
 
     private func scheduledTodoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
@@ -285,6 +290,7 @@ struct CalendarHomeView: View {
     private func saveEvents() {
         do {
             try modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
         } catch {
             saveErrorMessage = error.localizedDescription
         }
@@ -324,6 +330,7 @@ struct CalendarHomeView: View {
         modelContext.insert(event)
         do {
             try modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
             Task { await ReminderNotificationService.requestAuthorization(); await ReminderNotificationService.schedule(event: event) }
         } catch {
             saveErrorMessage = error.localizedDescription
@@ -343,6 +350,7 @@ struct CalendarHomeView: View {
         modelContext.insert(item)
         do {
             try modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
             Task { await ReminderNotificationService.requestAuthorization(); await ReminderNotificationService.schedule(todo: item) }
         } catch {
             saveErrorMessage = error.localizedDescription
@@ -353,6 +361,7 @@ struct CalendarHomeView: View {
         event.isCompleted.toggle()
         do {
             try modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
             Task { await ReminderNotificationService.schedule(event: event) }
         } catch {
             event.isCompleted.toggle()
@@ -365,6 +374,7 @@ struct CalendarHomeView: View {
         item.paper?.updatedAt = Date()
         do {
             try modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
             Task { await ReminderNotificationService.schedule(todo: item) }
         } catch {
             item.isDone.toggle()
@@ -407,6 +417,7 @@ struct CalendarHomeView: View {
     private func saveCalendarChange(onFailure: () -> Void, onSuccess: () -> Void = {}) {
         do {
             try modelContext.save()
+            WidgetCenter.shared.reloadAllTimelines()
             onSuccess()
         } catch {
             onFailure()

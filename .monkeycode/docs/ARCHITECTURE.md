@@ -47,6 +47,7 @@ graph TD
 - `CalendarHomeView` 管理月份网格、日期选择、彩色事件标签、周标尺和日时间线。
 - `CalendarFilterState` 管理事件分类、待办来源、完成状态和全天状态筛选；`CalendarConflictSummary` 计算选中日期的时间重叠与计划容量提示。
 - `NaturalLanguageScheduleParser` 将本地自然语言输入转换为可编辑的日程草稿，`NaturalLanguageScheduleSheet` 负责结构化确认并复用事件和待办保存路径。
+- 日历页、今日页和待办纸片在排期保存成功后调用 `WidgetCenter.shared.reloadAllTimelines()`；今日排期筛选统一通过 `TodoItem.covers(_:calendar:)` 处理跨日和重复实例。
 - `CalendarRecurrenceRule` 与模型 occurrence 查询负责生成指定日期范围内的每日或每周重复展示实例，并过滤例外日期。
 - `QuadrantHomeView` 从 `TodoItem` 派生四象限任务并提供移动、编辑、完成和打开纸片。
 - `SettingsView` 管理外观、配色、待办字号、自动清除和 Markdown 渲染强度。

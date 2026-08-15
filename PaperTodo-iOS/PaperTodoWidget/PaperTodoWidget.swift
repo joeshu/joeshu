@@ -38,13 +38,15 @@ struct Provider: TimelineProvider {
         let items = (try? container.mainContext.fetch(descriptor)) ?? []
         let pending = items.filter { !$0.isDone }.count
         let done = items.count - pending
-        let todayPending = items.filter { item in
-            guard !item.isDone, let start = item.scheduledStart else { return false }
-            return Calendar.current.isDateInToday(start)
-        }
+        let now = Date()
+        let todayPending = items.filter { !$0.isDone && $0.covers(now, calendar: .current) }
         let scheduledMinutes = todayPending.reduce(0) { $0 + ($1.estimatedMinutes ?? 0) }
         let nextTask = todayPending
-            .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+            .sorted {
+                let left = $0.scheduledOccurrenceStart(on: now, calendar: .current) ?? $0.scheduledStart ?? .distantFuture
+                let right = $1.scheduledOccurrenceStart(on: now, calendar: .current) ?? $1.scheduledStart ?? .distantFuture
+                return left < right
+            }
             .first?.text
         return PaperTodoEntry(
             date: Date(),

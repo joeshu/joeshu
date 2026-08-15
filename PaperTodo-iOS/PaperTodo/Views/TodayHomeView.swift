@@ -25,10 +25,13 @@ struct TodayHomeView: View {
 
     private var scheduledTodos: [TodoItem] {
         pendingTodos.filter { item in
-            guard let start = item.scheduledStart else { return false }
-            return calendar.isDate(start, inSameDayAs: today)
+            item.covers(today, calendar: calendar)
         }
-            .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+            .sorted { scheduleStart(for: $0) < scheduleStart(for: $1) }
+    }
+
+    private func scheduleStart(for item: TodoItem) -> Date {
+        item.scheduledOccurrenceStart(on: today, calendar: calendar) ?? item.scheduledStart ?? .distantFuture
     }
 
     private var unscheduledTodos: [TodoItem] {
@@ -236,9 +239,12 @@ struct TodayHomeView: View {
             } else {
                 ForEach(unscheduledTodos) { item in
                     Button {
-                        item.isDone = true
-                        item.paper?.updatedAt = Date()
-                        try? modelContext.save()
+                         item.isDone = true
+                         item.paper?.updatedAt = Date()
+                         do {
+                             try modelContext.save()
+                             WidgetCenter.shared.reloadAllTimelines()
+                         } catch { }
                     } label: {
                         HStack(spacing: 12) {
                             AnimatedCheckCircle(isDone: false, tint: theme.active)
@@ -269,7 +275,10 @@ struct TodayHomeView: View {
         }
         .sheet(item: $schedulingItem) { item in
             TaskScheduleSheet(item: item, theme: theme) {
-                try? modelContext.save()
+                do {
+                    try modelContext.save()
+                    WidgetCenter.shared.reloadAllTimelines()
+                } catch { }
             }
         }
     }
@@ -281,7 +290,7 @@ struct TodayHomeView: View {
     }
 
     private func scheduleText(for item: TodoItem) -> String {
-        guard let start = item.scheduledStart else { return "未安排时间" }
+        guard let start = item.scheduledOccurrenceStart(on: today, calendar: calendar) ?? item.scheduledStart else { return "未安排时间" }
         let time = start.formatted(date: .omitted, time: .shortened)
         if let minutes = item.estimatedMinutes, minutes > 0 {
             return "今天 \(time) · 预计 \(minutes) 分钟"
@@ -293,8 +302,10 @@ struct TodayHomeView: View {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
             item.isDone = true
             item.paper?.updatedAt = Date()
-            try? modelContext.save()
-            WidgetCenter.shared.reloadAllTimelines()
+            do {
+                try modelContext.save()
+                WidgetCenter.shared.reloadAllTimelines()
+            } catch { }
         }
     }
 
