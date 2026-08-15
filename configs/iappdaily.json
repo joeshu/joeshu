@@ -1,0 +1,1 @@
+{"urlPattern":"^https:\\/\\/api\\.iappdaily\\.com\\/my\\/balance","id":"iappdaily","name":"iAppDaily","mode":"json","processor":{"processor":"setFields","params":{"fields":{"data.is_vip":1,"data.is_paid":1,"data.vip_expired":4102444799,"data.remain_coins":999999,"data.total_coins":999999}}}}
