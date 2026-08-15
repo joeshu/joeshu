@@ -142,7 +142,7 @@
 - [ ] 12.2* 执行跨设备视觉回归
   - 对应 Requirements 8.1-8.3；覆盖 iPhone portrait、iPhone landscape、iPad portrait、iPad landscape、Light/Dark、四种主题和空/满数据。
 
-- [ ] 13. 完成代码质量与构建验证
+- [x] 13. 完成代码质量与构建验证
   - 对应 Requirement 8；执行 `git diff --check`，清理调试输出和重复样式。
   - 通过 GitHub Actions `PaperTodo iOS Build` 验证 XcodeGen、无签名构建和 Release 构建。
   - 检查新增组件只使用语义 token，避免回退到页面级 raw color、shadow 和任意间距。
