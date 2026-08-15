@@ -39,7 +39,7 @@ struct Provider: TimelineProvider {
         let pending = items.filter { !$0.isDone }.count
         let done = items.count - pending
         let todayPending = items.filter { item in
-            guard !$0.isDone, let start = item.scheduledStart else { return false }
+            guard !item.isDone, let start = item.scheduledStart else { return false }
             return Calendar.current.isDateInToday(start)
         }
         let scheduledMinutes = todayPending.reduce(0) { $0 + ($1.estimatedMinutes ?? 0) }
