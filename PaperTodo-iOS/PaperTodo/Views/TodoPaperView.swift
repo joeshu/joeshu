@@ -20,6 +20,7 @@ struct TodoPaperView: View {
     @State private var saveTask: Task<Void, Never>?
     @State private var autoClearTasks: [UUID: Task<Void, Never>] = [:]
     @State private var saveErrorMessage: String?
+    @State private var schedulingItem: TodoItem?
 
     private var sortedTodos: [TodoItem] {
         paper.todoItems.sorted { $0.sortIndex < $1.sortIndex }
@@ -228,6 +229,12 @@ struct TodoPaperView: View {
             autoClearTasks.removeAll()
             saveContext()
         }
+        .sheet(item: $schedulingItem) { item in
+            TaskScheduleSheet(item: item, theme: theme) {
+                paper.updatedAt = Date()
+                saveContext()
+            }
+        }
     }
 
     private var clearCardBackground: some View {
@@ -301,11 +308,16 @@ struct TodoPaperView: View {
                  Label("编辑", systemImage: "pencil")
              }
              Button {
-                  toggle(item)
+                   toggle(item)
+              } label: {
+                 Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
+             }
+             Button {
+                 schedulingItem = item
              } label: {
-                Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
-            }
-        }
+                 Label("安排时间", systemImage: "clock.badge.plus")
+             }
+         }
     }
 
     private var dropZone: some View {
@@ -387,7 +399,15 @@ struct TodoPaperView: View {
 
     private func snapshot() -> [TodoSnapshot] {
         sortedTodos.map {
-            TodoSnapshot(id: $0.id, text: $0.text, isDone: $0.isDone, sortIndex: $0.sortIndex)
+            TodoSnapshot(
+                id: $0.id,
+                text: $0.text,
+                isDone: $0.isDone,
+                sortIndex: $0.sortIndex,
+                estimatedMinutes: $0.estimatedMinutes,
+                scheduledStart: $0.scheduledStart,
+                scheduledEnd: $0.scheduledEnd
+            )
         }
     }
 
@@ -401,6 +421,9 @@ struct TodoPaperView: View {
                 item.text = match.text
                 item.isDone = match.isDone
                 item.sortIndex = match.sortIndex
+                item.estimatedMinutes = match.estimatedMinutes
+                item.scheduledStart = match.scheduledStart
+                item.scheduledEnd = match.scheduledEnd
                 remainingIDs.remove(item.id)
             } else {
                 modelContext.delete(item)
@@ -409,6 +432,9 @@ struct TodoPaperView: View {
         for id in remainingIDs {
             guard let s = snapByID[id] else { continue }
             let item = TodoItem(id: id, text: s.text, isDone: s.isDone, sortIndex: s.sortIndex)
+            item.estimatedMinutes = s.estimatedMinutes
+            item.scheduledStart = s.scheduledStart
+            item.scheduledEnd = s.scheduledEnd
             item.paper = paper
             modelContext.insert(item)
         }
@@ -571,4 +597,7 @@ struct TodoSnapshot {
     let text: String
     let isDone: Bool
     let sortIndex: Int
+    let estimatedMinutes: Int?
+    let scheduledStart: Date?
+    let scheduledEnd: Date?
 }

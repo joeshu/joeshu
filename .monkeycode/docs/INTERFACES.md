@@ -18,7 +18,7 @@
 
 ### `TodoItem`
 
-包含 `id`、`text`、`isDone`、`sortIndex`、`createdAt`、`quadrantRaw` 和可选的 `paper` 关系。`quadrant` 计算属性将 `quadrantRaw` 映射为四象限枚举。
+包含 `id`、`text`、`isDone`、`sortIndex`、`createdAt`、可选的 `estimatedMinutes`、`scheduledStart`、`scheduledEnd`、`quadrantRaw` 和可选的 `paper` 关系。`quadrant` 计算属性将 `quadrantRaw` 映射为四象限枚举。
 
 ### `CalendarEvent`
 

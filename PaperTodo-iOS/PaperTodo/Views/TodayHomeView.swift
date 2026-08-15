@@ -4,6 +4,7 @@ import SwiftData
 struct TodayHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CalendarEvent.startTime) private var events: [CalendarEvent]
+    @State private var schedulingItem: TodoItem?
     let papers: [Paper]
     let theme: PaperPalette
     let onQuickCapture: () -> Void
@@ -18,6 +19,18 @@ struct TodayHomeView: View {
         papers.flatMap(\.todoItems)
             .filter { !$0.isDone }
             .sorted { $0.createdAt < $1.createdAt }
+    }
+
+    private var scheduledTodos: [TodoItem] {
+        pendingTodos.filter { item in
+            guard let start = item.scheduledStart else { return false }
+            return calendar.isDate(start, inSameDayAs: today)
+        }
+            .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+    }
+
+    private var unscheduledTodos: [TodoItem] {
+        pendingTodos.filter { $0.scheduledStart == nil }
     }
 
     private var todayEvents: [CalendarEvent] {
@@ -46,7 +59,7 @@ struct TodayHomeView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 planningCard
-                if !todayEvents.isEmpty {
+                if !todayEvents.isEmpty || !scheduledTodos.isEmpty {
                     timelineSection
                 }
                 taskSection
@@ -145,6 +158,33 @@ struct TodayHomeView: View {
                 .padding(.vertical, 10)
                 .background(theme.paper.opacity(0.52), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
             }
+            ForEach(scheduledTodos) { item in
+                Button {
+                    schedulingItem = item
+                } label: {
+                    HStack(spacing: 12) {
+                        Image(systemName: "checklist")
+                            .foregroundStyle(theme.active)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(item.text)
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(theme.text)
+                                .multilineTextAlignment(.leading)
+                            Text(scheduleText(for: item))
+                                .font(.caption)
+                                .foregroundStyle(theme.weakText)
+                        }
+                        Spacer()
+                        Image(systemName: "clock")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(theme.active)
+                    }
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
+                .background(theme.active.opacity(0.1), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+            }
         }
     }
 
@@ -157,7 +197,7 @@ struct TodayHomeView: View {
                     .foregroundStyle(theme.weakText)
                     .padding(.vertical, 12)
             } else {
-                ForEach(pendingTodos) { item in
+                ForEach(unscheduledTodos) { item in
                     Button {
                         item.isDone = true
                         item.paper?.updatedAt = Date()
@@ -180,7 +220,19 @@ struct TodayHomeView: View {
                     .padding(.horizontal, 12)
                     .padding(.vertical, 11)
                     .background(theme.paper.opacity(0.52), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                    .contextMenu {
+                        Button {
+                            schedulingItem = item
+                        } label: {
+                            Label("安排时间", systemImage: "clock.badge.plus")
+                        }
+                    }
                 }
+            }
+        }
+        .sheet(item: $schedulingItem) { item in
+            TaskScheduleSheet(item: item, theme: theme) {
+                try? modelContext.save()
             }
         }
     }
@@ -189,6 +241,15 @@ struct TodayHomeView: View {
         Label(title, systemImage: symbol)
             .font(.headline.weight(.semibold))
             .foregroundStyle(theme.text)
+    }
+
+    private func scheduleText(for item: TodoItem) -> String {
+        guard let start = item.scheduledStart else { return "未安排时间" }
+        let time = start.formatted(date: .omitted, time: .shortened)
+        if let minutes = item.estimatedMinutes, minutes > 0 {
+            return "今天 \(time) · 预计 \(minutes) 分钟"
+        }
+        return "今天 \(time)"
     }
 
 }

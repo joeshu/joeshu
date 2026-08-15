@@ -30,7 +30,8 @@ graph TD
 ## 展示层
 
 - `HomeModeContent` 根据 `HomeMode` 切换今日、纸片、日历和四象限。
-- `TodayHomeView` 聚合当天的未完成待办、日历事件和完成进度。
+- `TodayHomeView` 聚合当天的未完成待办、已安排任务、日历事件和完成进度。
+- `TaskScheduleSheet` 编辑任务的计划开始时间和预计时长，并保存派生结束时间。
 - `QuickCaptureSheet` 将输入保存为收件箱任务或新笔记纸片。
 - `TodoPaperView` 管理待办排序、完成、删除、拖放、撤销/重做、自动清除和 Widget 刷新。
 - `NotePaperView` 管理 Markdown 编辑、预览、图片导入、导出和标题。

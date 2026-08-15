@@ -148,6 +148,9 @@ final class TodoItem {
     var isDone: Bool
     var sortIndex: Int
     var createdAt: Date
+    var estimatedMinutes: Int?
+    var scheduledStart: Date?
+    var scheduledEnd: Date?
     var quadrantRaw: String = ""
     var paper: Paper?
 
@@ -162,6 +165,9 @@ final class TodoItem {
         self.isDone = isDone
         self.sortIndex = sortIndex
         self.createdAt = Date()
+        self.estimatedMinutes = nil
+        self.scheduledStart = nil
+        self.scheduledEnd = nil
     }
 }
 
