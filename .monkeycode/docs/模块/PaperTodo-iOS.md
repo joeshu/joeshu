@@ -11,6 +11,7 @@ PaperTodo 是一个 SwiftUI 个人工作台。首页通过 `HomeMode` 在纸片�
 - `TodayHomeView`：当天待办、日历事件、完成进度和快速记录入口。
 - `QuickCaptureSheet`：将输入快速保存为收件箱任务或新笔记纸片。
 - `TaskScheduleSheet`：为待办设置开始时间和预计时长，并显示在今日时间线。
+- `PaperCard`：在纸片索引中展示类型、进度、下一项任务和今日排期信息。
 - `TodoPaperView`：待办编辑、拖放删除、排序、撤销重做、自动清除和 Widget 刷新。
 - `NotePaperView`：标题、Markdown 编辑器、预览、图片导入、导出和主题设置。
 - `CalendarHomeView`：月历网格、事件标签、周标尺和日时间线。

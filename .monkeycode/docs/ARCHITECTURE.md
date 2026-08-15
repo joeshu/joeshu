@@ -34,6 +34,7 @@ graph TD
 - `TaskScheduleSheet` 编辑任务的计划开始时间和预计时长，并保存派生结束时间。
 - `QuickCaptureSheet` 将输入保存为收件箱任务或新笔记纸片。
 - `TodoPaperView` 管理待办排序、完成、删除、拖放、撤销/重做、自动清除和 Widget 刷新。
+- `PaperCard` 在纸片索引中展示待办进度、今日安排数量和下一项未完成任务。
 - `NotePaperView` 管理 Markdown 编辑、预览、图片导入、导出和标题。
 - `CalendarHomeView` 管理月份网格、日期选择、彩色事件标签、周标尺和日时间线。
 - `QuadrantHomeView` 从 `TodoItem` 派生四象限任务并提供移动、编辑、完成和打开纸片。

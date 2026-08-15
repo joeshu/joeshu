@@ -556,7 +556,12 @@ struct PaperCard: View {
     private var detailText: String {
         switch paper.kind {
         case .todo:
-            return paper.todoItems.isEmpty ? "还没有任务" : "\(paper.todoItems.count) 项任务"
+            if paper.todoItems.isEmpty { return "还没有任务" }
+            let scheduledCount = paper.todoItems.filter { item in
+                guard let start = item.scheduledStart else { return false }
+                return Calendar.current.isDateInToday(start)
+            }.count
+            return scheduledCount == 0 ? "\(paper.todoItems.count) 项任务" : "\(paper.todoItems.count) 项任务 · 今日已排 \(scheduledCount)"
         case .note:
             let prefix = String(paper.body.prefix(Self.previewLimit * 2))
             let count = prefix.split { $0.isWhitespace || $0.isNewline }.count
@@ -583,6 +588,10 @@ struct PaperCard: View {
         return paper.kind == .todo ? "进行中" : "可编辑"
     }
 
+    private var nextTaskText: String? {
+        paper.pendingTodos.first?.text.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
     var body: some View {
         HStack(spacing: 12) {
             RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous)
@@ -607,6 +616,17 @@ struct PaperCard: View {
                     .foregroundStyle(theme.weakText)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                if paper.kind == .todo, let nextTaskText, !nextTaskText.isEmpty {
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.right.circle")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(theme.active)
+                        Text("下一项：\(nextTaskText)")
+                            .font(.caption)
+                            .foregroundStyle(theme.text)
+                            .lineLimit(1)
+                    }
+                }
                 Text(paper.updatedAt, style: .relative)
                     .font(.caption2)
                     .foregroundStyle(theme.weakText.opacity(0.82))
