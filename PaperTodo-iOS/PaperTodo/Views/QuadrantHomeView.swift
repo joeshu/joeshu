@@ -36,17 +36,7 @@ struct QuadrantHomeView: View {
 
                 summaryStrip
 
-                HStack(spacing: PaperSpacing.compact) {
-                    Label("重要", systemImage: "star")
-                    Label("紧急", systemImage: "bolt")
-                    Spacer()
-                    Text("未完成优先")
-                }
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(theme.weakText)
-                .padding(.horizontal, PaperSpacing.control)
-                .frame(minHeight: 36)
-                .background(theme.paper.opacity(0.46), in: Capsule())
+                quadrantAxisGuide
 
                 LazyVGrid(columns: quadrantColumns, spacing: 12) {
                     ForEach(Quadrant.allCases) { quadrant in
@@ -118,6 +108,26 @@ struct QuadrantHomeView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel("共 \(allItems.count) 项任务，待处理 \(activeItems.count) 项，已完成 \(completedItems.count) 项")
+    }
+
+    private var quadrantAxisGuide: some View {
+        HStack(spacing: PaperSpacing.compact) {
+            Label("重要", systemImage: "star.fill")
+            Text("↑")
+                .foregroundStyle(theme.accent)
+            Text("紧急 →")
+                .foregroundStyle(theme.weakText)
+            Spacer(minLength: PaperSpacing.compact)
+            Text("先处理左上")
+                .foregroundStyle(theme.weakText)
+        }
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(theme.text)
+        .padding(.horizontal, PaperSpacing.control)
+        .frame(minHeight: 34)
+        .background(theme.paper.opacity(0.46), in: Capsule())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("重要性从下到上增加，紧急性从左到右增加，优先处理左上象限")
     }
 
     private func summaryMetric(value: Int, label: String, color: Color) -> some View {

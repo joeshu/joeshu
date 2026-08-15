@@ -1317,8 +1317,8 @@ private struct MonthCard: View {
                     Text(day)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(theme.weakText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.bottom, 8)
+                        .frame(maxWidth: .infinity, minHeight: 28)
+                        .background(theme.paper.opacity(0.3))
                 }
                 ForEach(days, id: \.self) { date in
                     monthDay(date)
@@ -1351,11 +1351,11 @@ private struct MonthCard: View {
         let visibleItems = Array(items.prefix(2))
         let itemCount = items.count
         return Button { onSelect(date) } label: {
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 5) {
                 Text("\(calendar.component(.day, from: date))")
                     .font(.system(size: selected ? 15 : (inMonth ? 14 : 13), weight: selected ? .bold : .semibold))
                     .foregroundStyle(selected ? theme.paper : (inMonth ? theme.text : theme.weakText.opacity(0.5)))
-                    .frame(width: 30, height: 30)
+                    .frame(width: 30, height: 30, alignment: .center)
                     .background(selected ? theme.accent : .clear, in: Circle())
                     .overlay {
                         if calendar.isDateInToday(date) && !selected {
@@ -1381,7 +1381,7 @@ private struct MonthCard: View {
                         .foregroundStyle(theme.weakText)
                 }
             }
-            .frame(minHeight: 116, alignment: .top)
+            .frame(minHeight: 116, alignment: .topLeading)
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 3)
             .padding(.top, 5)
