@@ -46,6 +46,27 @@ struct QuadrantHomeView: View {
             .frame(maxWidth: .infinity)
         }
         .scrollIndicators(.hidden)
+        .overlay(alignment: .bottomTrailing) {
+            Menu {
+                ForEach(Quadrant.allCases) { quadrant in
+                    Button {
+                        presentAddTask(in: quadrant)
+                    } label: {
+                        Label("新增到\(quadrant.displayName)", systemImage: symbolName(for: quadrant))
+                    }
+                }
+            } label: {
+                Image(systemName: "plus")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(theme.onAccent)
+                    .frame(width: 52, height: 52)
+                    .background(theme.brandAction, in: Circle())
+                    .shadow(color: theme.shadow.opacity(0.22), radius: 12, y: 6)
+            }
+            .accessibilityLabel("新增四象限任务")
+            .padding(.trailing, PaperSpacing.content)
+            .padding(.bottom, PaperSpacing.content)
+        }
         .sheet(item: $editorConfig) { config in
             QuadrantTaskEditorSheet(title: config.title, initialText: config.initialText, onSubmit: config.handler)
         }
@@ -115,6 +136,15 @@ struct QuadrantHomeView: View {
         .shadow(color: theme.shadow.opacity(0.1), radius: PaperElevation.raised.shadowRadius, y: PaperElevation.raised.shadowY)
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(quadrant.displayName)，\(tasks.count) 项任务")
+    }
+
+    private func symbolName(for quadrant: Quadrant) -> String {
+        switch quadrant {
+        case .urgentImportant: return "bolt.fill"
+        case .importantNotUrgent: return "star.fill"
+        case .urgentNotImportant: return "clock.fill"
+        case .notUrgentNotImportant: return "leaf.fill"
+        }
     }
 
     private func taskRow(_ item: TodoItem, quadrant: Quadrant) -> some View {

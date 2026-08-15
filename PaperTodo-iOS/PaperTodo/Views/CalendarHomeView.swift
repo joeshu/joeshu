@@ -3,17 +3,23 @@ import SwiftData
 import WidgetKit
 
 private enum CalendarDisplayMode: String, CaseIterable, Identifiable {
-    case month = "月视图"
-    case week = "周视图"
-    case agenda = "日程"
+    case list = "列表"
+    case year = "年"
+    case month = "月"
+    case week = "周"
+    case threeDay = "3日"
+    case day = "日"
 
     var id: String { rawValue }
 
     var symbolName: String {
         switch self {
+        case .list: return "list.bullet"
+        case .year: return "calendar.circle"
         case .month: return "calendar"
         case .week: return "calendar.badge.clock"
-        case .agenda: return "list.bullet"
+        case .threeDay: return "calendar.badge.clock"
+        case .day: return "calendar.day.timeline.left"
         }
     }
 }
@@ -428,6 +434,22 @@ struct CalendarHomeView: View {
     @ViewBuilder
     private var compactCalendarContent: some View {
         switch displayMode {
+        case .list, .threeDay, .day:
+            DayTimelineCard(
+                monthTitle: monthTitle,
+                selectedDate: selectedDate,
+                events: selectedEvents,
+                calendar: calendar,
+                theme: theme,
+                onSelect: selectDate,
+                onOpen: openEvent,
+                onAdd: addEvent,
+                onToggleCompletion: toggleEventCompletion,
+                scheduledTodos: selectedScheduledTodos,
+                onCompleteTodo: completeTodo,
+                onEditTodo: editTodoSchedule
+            )
+
         case .month:
             MonthCard(
                 month: month,
@@ -474,20 +496,12 @@ struct CalendarHomeView: View {
                 onMoveTodo: moveTodo
             )
 
-        case .agenda:
-            DayTimelineCard(
-                monthTitle: monthTitle,
+        case .year:
+            YearCalendarCard(
+                year: calendar.component(.year, from: month),
                 selectedDate: selectedDate,
-                events: selectedEvents,
-                calendar: calendar,
                 theme: theme,
-                onSelect: selectDate,
-                onOpen: openEvent,
-                onAdd: addEvent,
-                onToggleCompletion: toggleEventCompletion,
-                scheduledTodos: selectedScheduledTodos,
-                onCompleteTodo: completeTodo,
-                onEditTodo: editTodoSchedule
+                onSelect: selectDate
             )
         }
     }
@@ -545,7 +559,7 @@ struct CalendarHomeView: View {
             )
             .frame(maxWidth: 920)
 
-        case .agenda:
+        case .list, .threeDay, .day:
             DayTimelineCard(
                 monthTitle: monthTitle,
                 selectedDate: selectedDate,
@@ -561,6 +575,70 @@ struct CalendarHomeView: View {
                 onEditTodo: editTodoSchedule
             )
             .frame(maxWidth: 620)
+        case .year:
+            YearCalendarCard(
+                year: calendar.component(.year, from: month),
+                selectedDate: selectedDate,
+                theme: theme,
+                onSelect: selectDate
+            )
+        }
+    }
+}
+
+private struct YearCalendarCard: View {
+    let year: Int
+    let selectedDate: Date
+    let theme: PaperPalette
+    let onSelect: (Date) -> Void
+
+    private let calendar = Calendar.current
+
+    var body: some View {
+        LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12) {
+            ForEach(1...12, id: \.self) { monthNumber in
+                Button {
+                    var components = DateComponents()
+                    components.year = year
+                    components.month = monthNumber
+                    components.day = 1
+                    if let date = calendar.date(from: components) {
+                        onSelect(date)
+                    }
+                } label: {
+                    monthPreview(monthNumber)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(PaperSpacing.content)
+        .paperCard(theme, elevation: .raised)
+    }
+
+    private func monthPreview(_ monthNumber: Int) -> some View {
+        let isSelectedMonth = calendar.component(.year, from: selectedDate) == year
+            && calendar.component(.month, from: selectedDate) == monthNumber
+        return VStack(alignment: .leading, spacing: 8) {
+            Text("\(monthNumber)月")
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(isSelectedMonth ? theme.accent : theme.text)
+            HStack(spacing: 4) {
+                ForEach(0..<7, id: \.self) { weekday in
+                    Text(["日", "一", "二", "三", "四", "五", "六"][weekday])
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(theme.weakText)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                .fill(isSelectedMonth ? theme.accent.opacity(0.2) : theme.paperBorder.opacity(0.35))
+                .frame(height: 4)
+        }
+        .padding(12)
+        .background(isSelectedMonth ? theme.accent.opacity(0.08) : theme.paper.opacity(0.34), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous)
+                .stroke(isSelectedMonth ? theme.accent.opacity(0.35) : theme.paperBorder.opacity(0.4), lineWidth: 1)
         }
     }
 }
