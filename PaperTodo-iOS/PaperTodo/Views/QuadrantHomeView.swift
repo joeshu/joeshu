@@ -5,7 +5,6 @@ struct QuadrantHomeView: View {
     let papers: [Paper]
     let theme: PaperPalette
     @Environment(\.modelContext) private var modelContext
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
 
     @State private var editorConfig: QuadrantEditorConfig?
     @State private var saveErrorMessage: String?
@@ -95,9 +94,7 @@ struct QuadrantHomeView: View {
     }
 
     private var quadrantColumns: [GridItem] {
-        horizontalSizeClass == .regular
-            ? [GridItem(.flexible(minimum: 0), spacing: 12), GridItem(.flexible(minimum: 0), spacing: 12)]
-            : [GridItem(.flexible(minimum: 0))]
+        [GridItem(.flexible(minimum: 0), spacing: 10), GridItem(.flexible(minimum: 0), spacing: 10)]
     }
 
     private var summaryStrip: some View {
@@ -142,41 +139,41 @@ struct QuadrantHomeView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: PaperSpacing.compact) {
                 Image(systemName: symbolName(for: quadrant))
-                    .font(.system(size: PaperIconSize.medium, weight: .semibold))
+                    .font(.system(size: PaperIconSize.small, weight: .semibold))
                     .foregroundStyle(quadrant.color)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 30, height: 30)
                     .background(quadrant.color.opacity(0.12), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(quadrant.displayName)
-                        .font(.subheadline.weight(.bold))
+                        .font(.caption.weight(.bold))
                         .lineLimit(2)
                         .fixedSize(horizontal: false, vertical: true)
                     Text(quadrant.subtitle)
-                        .font(PaperTypography.metadata)
+                        .font(.caption2)
                         .foregroundStyle(theme.weakText)
                 }
                 Spacer()
                 Text("\(tasks.count)")
-                    .font(.caption.weight(.bold).monospacedDigit())
+                    .font(.caption2.weight(.bold).monospacedDigit())
                     .foregroundStyle(quadrant.color)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 4)
                     .background(quadrant.color.opacity(0.12), in: Capsule())
             }
             .foregroundStyle(theme.text)
             if tasks.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
                     Image(systemName: completedCount > 0 ? "checkmark.circle" : "tray")
-                        .font(.system(size: PaperIconSize.medium))
+                        .font(.system(size: PaperIconSize.small))
                         .foregroundStyle(completedCount > 0 ? theme.active : theme.weakText)
                     Text(completedCount > 0 ? "本象限已清空" : "从这里开始整理")
-                        .font(.caption.weight(.medium))
+                        .font(.caption2.weight(.medium))
                         .foregroundStyle(theme.weakText)
                     Button {
                         presentAddTask(in: quadrant)
                     } label: {
                         Label("新增任务", systemImage: "plus")
-                            .font(.caption.weight(.semibold))
+                            .font(.caption2.weight(.semibold))
                     }
                     .buttonStyle(PaperSecondaryButtonStyle(palette: theme))
                     .tint(quadrant.color)
@@ -198,8 +195,8 @@ struct QuadrantHomeView: View {
                     .foregroundStyle(theme.active)
             }
         }
-        .padding(PaperSpacing.content)
-        .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+        .padding(PaperSpacing.control)
+        .frame(maxWidth: .infinity, minHeight: 176, alignment: .topLeading)
         .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
@@ -235,9 +232,9 @@ struct QuadrantHomeView: View {
             if let paper = item.paper {
                 NavigationLink(value: paper) {
                     VStack(alignment: .leading, spacing: 2) {
-                            Text(item.text)
-                                .lineLimit(4)
-                                .font(.caption.weight(.medium))
+                        Text(item.text)
+                            .lineLimit(3)
+                            .font(.caption2.weight(.medium))
                             .foregroundStyle(theme.text)
                             .fixedSize(horizontal: false, vertical: true)
                         Text(paper.title.isEmpty ? "待办纸片" : paper.title)
@@ -251,8 +248,8 @@ struct QuadrantHomeView: View {
                 .accessibilityLabel("打开\(item.text)")
             } else {
                 Text(item.text)
-                    .lineLimit(2)
-                    .font(.caption.weight(.medium))
+                    .lineLimit(3)
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(theme.text)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -278,7 +275,7 @@ struct QuadrantHomeView: View {
             .buttonStyle(.plain)
             .accessibilityLabel("\(item.text)的操作")
         }
-        .padding(.horizontal, PaperSpacing.compact)
+        .padding(.horizontal, PaperSpacing.micro)
         .padding(.vertical, 2)
         .background(theme.paper.opacity(0.28), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
         .accessibilityElement(children: .contain)
