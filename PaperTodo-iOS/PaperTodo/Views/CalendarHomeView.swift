@@ -165,33 +165,6 @@ struct CalendarHomeView: View {
             .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
     }
 
-    private var filteredEvents: [CalendarEvent] {
-        events.filter { event in
-            filters.eventCategories.contains(event.category) && matchesCompletion(event.isCompleted) && matchesAllDay(event.isAllDay)
-        }
-    }
-
-    private var filteredTodos: [TodoItem] {
-        guard filters.showTodos else { return [] }
-        return papers.flatMap(\.todoItems).filter { matchesCompletion($0.isDone) && matchesAllDay($0.isAllDay) }
-    }
-
-    private func matchesCompletion(_ completed: Bool) -> Bool {
-        switch filters.completion {
-        case .all: return true
-        case .pending: return !completed
-        case .completed: return completed
-        }
-    }
-
-    private func matchesAllDay(_ isAllDay: Bool) -> Bool {
-        switch filters.allDay {
-        case .all: return true
-        case .timed: return !isAllDay
-        case .allDay: return isAllDay
-        }
-    }
-
     private func scheduledTodoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
         item.covers(date, calendar: calendar)
     }
