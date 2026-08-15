@@ -19,6 +19,71 @@ private enum CalendarDisplayMode: String, CaseIterable, Identifiable {
     }
 }
 
+private enum CalendarCompletionFilter: String, CaseIterable, Identifiable {
+    case all = "全部状态"
+    case pending = "未完成"
+    case completed = "已完成"
+
+    var id: String { rawValue }
+}
+
+private enum CalendarAllDayFilter: String, CaseIterable, Identifiable {
+    case all = "全天与定时"
+    case timed = "仅定时"
+    case allDay = "仅全天"
+
+    var id: String { rawValue }
+}
+
+private struct CalendarFilterState {
+    var eventCategories = Set(EventCategory.allCases)
+    var showTodos = true
+    var completion: CalendarCompletionFilter = .all
+    var allDay: CalendarAllDayFilter = .all
+
+    var isActive: Bool {
+        eventCategories.count != EventCategory.allCases.count || !showTodos || completion != .all || allDay != .all
+    }
+}
+
+private struct CalendarConflictSummary {
+    let overlapCount: Int
+    let plannedMinutes: Int
+
+    var hasWarning: Bool { overlapCount > 0 || plannedMinutes > 480 }
+    var message: String {
+        if overlapCount > 0 && plannedMinutes > 480 { return "有 \(overlapCount) 处时间冲突，计划时长超过 8 小时" }
+        if overlapCount > 0 { return "有 \(overlapCount) 处时间冲突" }
+        return "计划时长超过 8 小时"
+    }
+
+    static func forDate(_ date: Date, events: [CalendarEvent], todos: [TodoItem], calendar: Calendar) -> Self {
+        guard let day = calendar.dateInterval(of: .day, for: date) else { return Self(overlapCount: 0, plannedMinutes: 0) }
+        var intervals: [(Date, Date)] = []
+        for event in events where !event.isAllDay && event.covers(date, calendar: calendar) {
+            let start = event.occurrenceStart(on: date, calendar: calendar) ?? event.startTime
+            let end = start.addingTimeInterval(event.endTime.timeIntervalSince(event.startTime))
+            intervals.append((max(start, day.start), min(end, day.end)))
+        }
+        for item in todos where !item.isAllDay && item.covers(date, calendar: calendar) {
+            guard let originalStart = item.scheduledStart else { continue }
+            let start = item.scheduledOccurrenceStart(on: date, calendar: calendar) ?? originalStart
+            let duration = item.scheduledEnd?.timeIntervalSince(originalStart) ?? Double((item.estimatedMinutes ?? 30) * 60)
+            intervals.append((max(start, day.start), min(start.addingTimeInterval(duration), day.end)))
+        }
+        let sorted = intervals.filter { $0.1 > $0.0 }.sorted { $0.0 < $1.0 }
+        var activeEnd: Date?
+        var overlapCount = 0
+        var plannedMinutes = 0
+        for interval in sorted {
+            plannedMinutes += max(1, Int(interval.1.timeIntervalSince(interval.0) / 60))
+            if let activeEnd, interval.0 < activeEnd { overlapCount += 1 }
+            if activeEnd == nil || interval.1 > activeEnd! { activeEnd = interval.1 }
+        }
+        return Self(overlapCount: overlapCount, plannedMinutes: plannedMinutes)
+    }
+}
+
 struct CalendarHomeView: View {
     @Environment(\.modelContext) private var modelContext
     let theme: PaperPalette
@@ -32,6 +97,7 @@ struct CalendarHomeView: View {
     @State private var schedulingTodo: TodoItem?
     @State private var saveErrorMessage: String?
     @State private var displayMode: CalendarDisplayMode = .month
+    @State private var filters = CalendarFilterState()
 
     private let calendar = Calendar.current
     private let weekdayLabels = ["日", "一", "二", "三", "四", "五", "六"]
@@ -60,16 +126,70 @@ struct CalendarHomeView: View {
     }
 
     private var selectedEvents: [CalendarEvent] {
-        events.filter { eventCoversDate($0, selectedDate) }
+        filteredEvents.filter { eventCoversDate($0, selectedDate) }
             .sorted { $0.startTime < $1.startTime }
     }
 
+    private var filteredEvents: [CalendarEvent] {
+        events.filter { event in
+            filters.eventCategories.contains(event.category) && matchesCompletion(event.isCompleted) && matchesAllDay(event.isAllDay)
+        }
+    }
+
+    private var filteredTodos: [TodoItem] {
+        guard filters.showTodos else { return [] }
+        return papers.flatMap(\.todoItems).filter { matchesCompletion($0.isDone) && matchesAllDay($0.isAllDay) }
+    }
+
+    private func matchesCompletion(_ completed: Bool) -> Bool {
+        switch filters.completion {
+        case .all: return true
+        case .pending: return !completed
+        case .completed: return completed
+        }
+    }
+
+    private func matchesAllDay(_ isAllDay: Bool) -> Bool {
+        switch filters.allDay {
+        case .all: return true
+        case .timed: return !isAllDay
+        case .allDay: return isAllDay
+        }
+    }
+
     private var selectedScheduledTodos: [TodoItem] {
-        papers.flatMap(\.todoItems)
+        filteredTodos
             .filter { item in
                 scheduledTodoCoversDate(item, selectedDate)
             }
             .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+    }
+
+    private var filteredEvents: [CalendarEvent] {
+        events.filter { event in
+            filters.eventCategories.contains(event.category) && matchesCompletion(event.isCompleted) && matchesAllDay(event.isAllDay)
+        }
+    }
+
+    private var filteredTodos: [TodoItem] {
+        guard filters.showTodos else { return [] }
+        return papers.flatMap(\.todoItems).filter { matchesCompletion($0.isDone) && matchesAllDay($0.isAllDay) }
+    }
+
+    private func matchesCompletion(_ completed: Bool) -> Bool {
+        switch filters.completion {
+        case .all: return true
+        case .pending: return !completed
+        case .completed: return completed
+        }
+    }
+
+    private func matchesAllDay(_ isAllDay: Bool) -> Bool {
+        switch filters.allDay {
+        case .all: return true
+        case .timed: return !isAllDay
+        case .allDay: return isAllDay
+        }
     }
 
     private func scheduledTodoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
@@ -104,6 +224,7 @@ struct CalendarHomeView: View {
                                      eventCount: selectedEvents.count + selectedScheduledTodos.count,
                                     isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
                                     displayMode: $displayMode,
+                                    filters: $filters,
                                     theme: theme,
                                     onToday: { shiftMonth(0) },
                                     onPrevious: { shiftMonth(-1) },
@@ -125,10 +246,11 @@ struct CalendarHomeView: View {
                             CalendarContextToolbar(
                                 monthTitle: monthTitle,
                                 selectedDate: selectedDate,
-                                 eventCount: selectedEvents.count + selectedScheduledTodos.count,
-                                isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
-                                displayMode: $displayMode,
-                                theme: theme,
+                                    eventCount: selectedEvents.count + selectedScheduledTodos.count,
+                                 isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
+                                 displayMode: $displayMode,
+                                 filters: $filters,
+                                 theme: theme,
                                 onToday: { shiftMonth(0) },
                                 onPrevious: { shiftMonth(-1) },
                                 onNext: { shiftMonth(1) },
@@ -284,8 +406,8 @@ struct CalendarHomeView: View {
                 title: monthTitle,
                 days: days,
                 weekdays: weekdays,
-                events: events,
-                scheduledTodos: papers.flatMap(\.todoItems),
+                events: filteredEvents,
+                scheduledTodos: filteredTodos,
                 selectedDate: selectedDate,
                 calendar: calendar,
                 theme: theme,
@@ -310,8 +432,8 @@ struct CalendarHomeView: View {
         case .week:
             WeekCalendarCard(
                 selectedDate: selectedDate,
-                events: events,
-                scheduledTodos: papers.flatMap(\.todoItems),
+                events: filteredEvents,
+                scheduledTodos: filteredTodos,
                 calendar: calendar,
                 theme: theme,
                 onSelect: selectDate,
@@ -352,8 +474,8 @@ struct CalendarHomeView: View {
                     title: monthTitle,
                     days: days,
                     weekdays: weekdays,
-                    events: events,
-                    scheduledTodos: papers.flatMap(\.todoItems),
+                    events: filteredEvents,
+                    scheduledTodos: filteredTodos,
                     selectedDate: selectedDate,
                     calendar: calendar,
                     theme: theme,
@@ -380,8 +502,8 @@ struct CalendarHomeView: View {
         case .week:
             WeekCalendarCard(
                 selectedDate: selectedDate,
-                events: events,
-                scheduledTodos: papers.flatMap(\.todoItems),
+                events: filteredEvents,
+                scheduledTodos: filteredTodos,
                 calendar: calendar,
                 theme: theme,
                 onSelect: selectDate,
@@ -421,6 +543,7 @@ private struct CalendarContextToolbar: View {
     let eventCount: Int
     let isCurrentMonth: Bool
     @Binding var displayMode: CalendarDisplayMode
+    @Binding var filters: CalendarFilterState
     let theme: PaperPalette
     let onToday: () -> Void
     let onPrevious: () -> Void
@@ -440,6 +563,7 @@ private struct CalendarContextToolbar: View {
                 Spacer(minLength: 8)
                 navigationControls
                 viewMenu
+                filterMenu
                 addButton
             }
             VStack(alignment: .leading, spacing: 12) {
@@ -447,6 +571,7 @@ private struct CalendarContextToolbar: View {
                 HStack {
                     navigationControls
                     viewMenu
+                    filterMenu
                     Spacer()
                     addButton
                 }
@@ -546,6 +671,46 @@ private struct CalendarContextToolbar: View {
         }
         .accessibilityLabel("切换日历视图")
     }
+
+    private var filterMenu: some View {
+        Menu {
+            Section("事件分类") {
+                ForEach(EventCategory.allCases) { category in
+                    Button {
+                        if filters.eventCategories.contains(category) {
+                            filters.eventCategories.remove(category)
+                        } else {
+                            filters.eventCategories.insert(category)
+                        }
+                    } label: {
+                        Label(category.displayName, systemImage: filters.eventCategories.contains(category) ? "checkmark" : "circle")
+                    }
+                }
+            }
+            Toggle("显示待办", isOn: $filters.showTodos)
+            Picker("完成状态", selection: $filters.completion) {
+                ForEach(CalendarCompletionFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            Picker("时间类型", selection: $filters.allDay) {
+                ForEach(CalendarAllDayFilter.allCases) { filter in
+                    Text(filter.rawValue).tag(filter)
+                }
+            }
+            Button("重置筛选") {
+                filters = CalendarFilterState()
+            }
+        } label: {
+            Image(systemName: filters.isActive ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
+                .font(.system(size: 15, weight: .semibold))
+                .frame(width: 44, height: 44)
+                .foregroundStyle(theme.text)
+                .background(theme.paper.opacity(0.58), in: Circle())
+                .overlay(Circle().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
+        }
+        .accessibilityLabel("筛选日历")
+    }
 }
 
 private struct CalendarBackdrop: View {
@@ -568,6 +733,28 @@ private struct CalendarBackdrop: View {
                 context.stroke(path, with: .color(theme.paperBorder.opacity(0.12)), lineWidth: 1)
             }
         }
+    }
+}
+
+private struct CalendarConflictBanner: View {
+    let summary: CalendarConflictSummary
+    let theme: PaperPalette
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: summary.overlapCount > 0 ? "exclamationmark.triangle.fill" : "clock.badge.exclamationmark")
+                .foregroundStyle(theme.accent)
+            Text(summary.message)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.text)
+            Spacer(minLength: 0)
+            Text("\(summary.plannedMinutes) 分钟")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(theme.weakText)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 9)
+        .background(theme.accent.opacity(0.1), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
     }
 }
 
@@ -630,6 +817,11 @@ private struct WeekCalendarCard: View {
                 onToggleEvent: onToggleCompletion,
                 onToggleTodo: onToggleTodo
             )
+
+            let conflict = CalendarConflictSummary.forDate(selectedDate, events: events, todos: scheduledTodos, calendar: calendar)
+            if conflict.hasWarning {
+                CalendarConflictBanner(summary: conflict, theme: theme)
+            }
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 8) {
@@ -1224,6 +1416,10 @@ private struct DayTimelineCard: View {
                 scheduledTodos: scheduledTodos,
                 theme: theme
             )
+            let conflict = CalendarConflictSummary.forDate(selectedDate, events: events, todos: scheduledTodos, calendar: calendar)
+            if conflict.hasWarning {
+                CalendarConflictBanner(summary: conflict, theme: theme)
+            }
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 10) {
