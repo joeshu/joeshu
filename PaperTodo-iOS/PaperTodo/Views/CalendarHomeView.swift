@@ -230,6 +230,7 @@ struct CalendarHomeView: View {
                 theme: theme,
                 onSelect: selectDate,
                 onOpen: openEvent,
+                onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion
             )
 
@@ -287,6 +288,7 @@ struct CalendarHomeView: View {
                 theme: theme,
                 onSelect: selectDate,
                 onOpen: openEvent,
+                onAdd: addEvent,
                 onToggleCompletion: toggleEventCompletion
             )
             .frame(maxWidth: 920)
@@ -471,6 +473,7 @@ private struct WeekCalendarCard: View {
     let theme: PaperPalette
     let onSelect: (Date) -> Void
     let onOpen: (CalendarEvent) -> Void
+    let onAdd: () -> Void
     let onToggleCompletion: (CalendarEvent) -> Void
 
     private var weekDates: [Date] {
@@ -485,14 +488,27 @@ private struct WeekCalendarCard: View {
                     Text("本周安排")
                         .font(.system(.title3, design: .rounded).weight(.bold))
                         .foregroundStyle(theme.text)
-                    Text(weekDates.first?.formatted(.dateTime.month().day()) ?? "")
+                    Text(weekRangeTitle)
                         .font(.caption.weight(.medium))
                         .foregroundStyle(theme.weakText)
                 }
                 Spacer()
-                Text("\(weekDates.reduce(0) { $0 + events(on: $1).count }) 项")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(theme.accent)
+                VStack(alignment: .trailing, spacing: 5) {
+                    Text("\(weekEventCount) 项")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.accent)
+                    Text("完成 \(completedEventCount)/\(weekEventCount)")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(theme.weakText)
+                }
+                Button(action: onAdd) {
+                    Image(systemName: "plus")
+                        .font(.caption.weight(.bold))
+                        .frame(width: 36, height: 36)
+                        .foregroundStyle(theme.paper)
+                        .background(theme.accent, in: Circle())
+                }
+                .accessibilityLabel("新建本周日程")
             }
 
             ScrollView(.horizontal, showsIndicators: false) {
@@ -512,6 +528,21 @@ private struct WeekCalendarCard: View {
                 .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
         )
         .shadow(color: theme.shadow.opacity(0.28), radius: 18, y: 9)
+    }
+
+    private var weekEventCount: Int {
+        weekDates.reduce(0) { $0 + events(on: $1).count }
+    }
+
+    private var completedEventCount: Int {
+        weekDates.reduce(0) { total, date in
+            total + events(on: date).filter(\.isCompleted).count
+        }
+    }
+
+    private var weekRangeTitle: String {
+        guard let first = weekDates.first, let last = weekDates.last else { return "" }
+        return "\(first.formatted(.dateTime.month().day())) - \(last.formatted(.dateTime.month().day()))"
     }
 
     private func weekColumn(for date: Date) -> some View {
@@ -537,15 +568,22 @@ private struct WeekCalendarCard: View {
             .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(dayEvents.count) 个事件")
 
             if dayEvents.isEmpty {
-                Text("空闲")
-                    .font(.caption2.weight(.medium))
-                    .foregroundStyle(theme.weakText)
-                    .frame(maxWidth: .infinity, minHeight: 48, alignment: .topLeading)
+                Button {
+                    onSelect(date)
+                    onAdd()
+                } label: {
+                    Label("空闲", systemImage: "plus")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(theme.accent)
+                        .frame(maxWidth: .infinity, minHeight: 48, alignment: .topLeading)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("在此日期新建日程")
             } else {
                 ForEach(dayEvents) { event in
                     Button { onOpen(event) } label: {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(event.startTime.formatted(.dateTime.hour().minute()))
+                            Text(timeSummary(for: event, on: date))
                                 .font(.system(size: 10, weight: .semibold))
                                 .foregroundStyle(event.category.ringColor)
                             Text(event.title)
@@ -583,6 +621,18 @@ private struct WeekCalendarCard: View {
             day >= calendar.startOfDay(for: event.startTime) && day <= calendar.startOfDay(for: event.endTime)
         }
         .sorted { $0.startTime < $1.startTime }
+    }
+
+    private func timeSummary(for event: CalendarEvent, on date: Date) -> String {
+        let day = calendar.startOfDay(for: date)
+        let startDay = calendar.startOfDay(for: event.startTime)
+        let endDay = calendar.startOfDay(for: event.endTime)
+        if startDay == day && endDay == day {
+            return "\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))"
+        }
+        if startDay < day && endDay > day { return "跨日 · 全天" }
+        if startDay < day { return "延续至 \(event.endTime.formatted(.dateTime.hour().minute()))" }
+        return "从 \(event.startTime.formatted(.dateTime.hour().minute())) 开始"
     }
 
     private func selectedDateBackground(selected: Bool) -> Color {

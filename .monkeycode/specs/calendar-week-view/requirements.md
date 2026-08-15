@@ -1,3 +1,4 @@
+
 # Requirements Document
 
 ## Introduction
@@ -14,7 +15,7 @@
 
 1. WHEN the user selects week view, THE system SHALL show seven dates belonging to the selected date's calendar week.
 2. WHEN a week column contains events, THE system SHALL show event time, title, category color, and completion state.
-3. WHEN a week column contains no events, THE system SHALL show an empty-day indicator.
+3. WHEN a week column contains no events, THE system SHALL show an empty-day indicator and a quick add action.
 
 ### Requirement 2
 
@@ -24,7 +25,7 @@
 
 1. WHEN the user selects a week date, THE system SHALL update the selected date and preserve the existing event editing flow.
 2. WHEN the selected date is today, THE system SHALL show a distinct today state.
-3. WHEN the selected date changes, THE system SHALL update the week summary event count.
+3. WHEN the selected date changes, THE system SHALL update the week summary event count and completion progress.
 
 ### Requirement 3
 
@@ -33,4 +34,4 @@
 #### Acceptance Criteria
 
 1. WHEN the user opens an event context menu, THE system SHALL provide an action matching the event completion state.
-2. WHEN the completion action succeeds, THE system SHALL update the event appearance and week count state.
+2. WHEN the completion action succeeds, THE system SHALL update the event appearance and week progress state.

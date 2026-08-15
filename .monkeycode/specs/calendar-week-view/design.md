@@ -10,7 +10,7 @@ Updated: 2026-08-15
 ## Components And Interfaces
 
 - `CalendarDisplayMode.week`: 新增周视图模式，复用现有工具栏菜单。
-- `WeekCalendarCard`: 计算选中日期所在周，渲染七个日期列并处理日期选择。
+- `WeekCalendarCard`: 计算选中日期所在周，渲染七个日期列、周总量、完成进度和空闲日期快速新增。
 - `CalendarHomeView`: 传递事件编辑和完成状态回调，保持现有 SwiftData 保存路径。
 
 ## Correctness Properties
@@ -18,6 +18,7 @@ Updated: 2026-08-15
 - 周视图始终展示七个连续日期。
 - 每个日期列只展示覆盖该日期的事件。
 - 选中日期状态与顶部工具栏和其他视图共享。
+- 空闲日期快速新增会先更新选中日期，再打开事件表单。
 
 ## Test Strategy
 
