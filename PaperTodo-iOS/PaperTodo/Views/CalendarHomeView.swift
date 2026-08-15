@@ -73,17 +73,19 @@ struct CalendarHomeView: View {
     }
 
     private func scheduledTodoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
-        guard let start = item.scheduledStart else { return false }
-        let end = item.scheduledEnd ?? start
-        let day = calendar.startOfDay(for: date)
-        return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
+        item.covers(date, calendar: calendar)
     }
 
     private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
-        let day = calendar.startOfDay(for: date)
-        let startDay = calendar.startOfDay(for: event.startTime)
-        let endDay = calendar.startOfDay(for: event.endTime)
-        return day >= startDay && day <= endDay
+        event.covers(date, calendar: calendar)
+    }
+
+    private func eventOccurrenceStart(_ event: CalendarEvent, on date: Date) -> Date {
+        event.occurrenceStart(on: date, calendar: calendar) ?? event.startTime
+    }
+
+    private func todoOccurrenceStart(_ item: TodoItem, on date: Date) -> Date {
+        item.scheduledOccurrenceStart(on: date, calendar: calendar) ?? item.scheduledStart ?? date
     }
 
     var body: some View {
@@ -767,20 +769,12 @@ private struct WeekCalendarCard: View {
     }
 
     private func events(on date: Date) -> [CalendarEvent] {
-        let day = calendar.startOfDay(for: date)
-        return events.filter { event in
-            !event.isAllDay && day >= calendar.startOfDay(for: event.startTime) && day <= calendar.startOfDay(for: event.endTime)
-        }
+        return events.filter { !$0.isAllDay && $0.covers(date, calendar: calendar) }
         .sorted { $0.startTime < $1.startTime }
     }
 
     private func todos(on date: Date) -> [TodoItem] {
-        let day = calendar.startOfDay(for: date)
-        return scheduledTodos.filter { item in
-            guard !item.isAllDay, let start = item.scheduledStart else { return false }
-            let end = item.scheduledEnd ?? start
-            return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
-        }
+        return scheduledTodos.filter { !$0.isAllDay && $0.covers(date, calendar: calendar) }
         .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
     }
 
@@ -856,18 +850,11 @@ private struct WeekAllDayStrip: View {
     }
 
     private func allDayEvents(on date: Date) -> [CalendarEvent] {
-        let day = calendar.startOfDay(for: date)
-        return events.filter { event in
-            event.isAllDay && day >= calendar.startOfDay(for: event.startTime) && day < calendar.startOfDay(for: event.endTime)
-        }
+        events.filter { $0.isAllDay && $0.covers(date, calendar: calendar) }
     }
 
     private func allDayTodos(on date: Date) -> [TodoItem] {
-        let day = calendar.startOfDay(for: date)
-        return scheduledTodos.filter { item in
-            guard item.isAllDay, let start = item.scheduledStart, let end = item.scheduledEnd else { return false }
-            return day >= calendar.startOfDay(for: start) && day < calendar.startOfDay(for: end)
-        }
+        scheduledTodos.filter { $0.isAllDay && $0.covers(date, calendar: calendar) }
     }
 
     private func allDayChip(_ title: String, tint: Color, isDone: Bool, action: @escaping () -> Void) -> some View {
@@ -1128,19 +1115,11 @@ private struct MonthCard: View {
     }
 
     private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
-        let day = calendar.startOfDay(for: date)
-        let startDay = calendar.startOfDay(for: event.startTime)
-        let endDay = calendar.startOfDay(for: event.endTime)
-        return event.isAllDay ? day >= startDay && day < endDay : day >= startDay && day <= endDay
+        event.covers(date, calendar: calendar)
     }
 
     private func todoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
-        guard let start = item.scheduledStart else { return false }
-        let end = item.scheduledEnd ?? start
-        let day = calendar.startOfDay(for: date)
-        return item.isAllDay
-            ? day >= calendar.startOfDay(for: start) && day < calendar.startOfDay(for: end)
-            : day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
+        item.covers(date, calendar: calendar)
     }
 }
 
@@ -1397,24 +1376,26 @@ private struct TimelineEventRow: View {
     private var timeSummary: String {
         let calendar = Calendar.current
         let selectedDay = calendar.startOfDay(for: selectedDate)
-        let startDay = calendar.startOfDay(for: event.startTime)
-        let endDay = calendar.startOfDay(for: event.endTime)
+        let occurrenceStart = event.occurrenceStart(on: selectedDate, calendar: calendar) ?? event.startTime
+        let occurrenceEnd = occurrenceStart.addingTimeInterval(event.endTime.timeIntervalSince(event.startTime))
+        let startDay = calendar.startOfDay(for: occurrenceStart)
+        let endDay = calendar.startOfDay(for: occurrenceEnd)
         if startDay == selectedDay && endDay == selectedDay {
-            return "\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))"
+            return "\(occurrenceStart.formatted(.dateTime.hour().minute())) - \(occurrenceEnd.formatted(.dateTime.hour().minute()))"
         }
         if startDay < selectedDay && endDay > selectedDay {
             return "跨日 · 全天"
         }
         if startDay < selectedDay {
-            return "延续至 \(event.endTime.formatted(.dateTime.hour().minute()))"
+            return "延续至 \(occurrenceEnd.formatted(.dateTime.hour().minute()))"
         }
-        return "从 \(event.startTime.formatted(.dateTime.hour().minute())) 开始"
+        return "从 \(occurrenceStart.formatted(.dateTime.hour().minute())) 开始"
     }
 
     var body: some View {
         PressableScaleButton(action: onOpen) { pressed in
             HStack(alignment: .top, spacing: 6) {
-                Text(event.startTime.formatted(.dateTime.hour().minute()))
+                Text((event.occurrenceStart(on: selectedDate) ?? event.startTime).formatted(.dateTime.hour().minute()))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(event.category.ringColor)
                     .frame(width: 44, alignment: .trailing)

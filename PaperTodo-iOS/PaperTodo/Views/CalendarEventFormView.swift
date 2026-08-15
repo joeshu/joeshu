@@ -14,6 +14,11 @@ struct CalendarEventFormView: View {
     @State private var startTime: Date
     @State private var endTime: Date
     @State private var isAllDay: Bool
+    @State private var recurrenceEnabled: Bool
+    @State private var recurrenceFrequency: CalendarRecurrenceFrequency
+    @State private var recurrenceInterval: Int
+    @State private var recurrenceEndDate: Date
+    @State private var hasRecurrenceEnd: Bool
     @State private var category: EventCategory
     @State private var isCompleted: Bool
     @State private var note: String
@@ -32,6 +37,12 @@ struct CalendarEventFormView: View {
         _startTime = State(initialValue: event?.startTime ?? startDay.addingTimeInterval(7 * 3600))
         _endTime = State(initialValue: event?.endTime ?? startDay.addingTimeInterval(8 * 3600))
         _isAllDay = State(initialValue: event?.isAllDay ?? false)
+        let rule = event?.recurrenceRule
+        _recurrenceEnabled = State(initialValue: rule != nil)
+        _recurrenceFrequency = State(initialValue: rule?.frequency ?? .daily)
+        _recurrenceInterval = State(initialValue: rule?.interval ?? 1)
+        _hasRecurrenceEnd = State(initialValue: rule?.endDate != nil)
+        _recurrenceEndDate = State(initialValue: rule?.endDate ?? startDay.addingTimeInterval(30 * 86400))
         _category = State(initialValue: event?.category ?? .daily)
         _isCompleted = State(initialValue: event?.isCompleted ?? false)
         _note = State(initialValue: event?.note ?? "")
@@ -58,6 +69,21 @@ struct CalendarEventFormView: View {
                             Label(item.displayName, systemImage: "circle.fill")
                                 .foregroundStyle(item.tagText)
                                 .tag(item)
+                        }
+                    }
+                }
+                Section("重复") {
+                    Toggle("重复日程", isOn: $recurrenceEnabled)
+                    if recurrenceEnabled {
+                        Picker("频率", selection: $recurrenceFrequency) {
+                            ForEach(CalendarRecurrenceFrequency.allCases) { frequency in
+                                Text(frequency.displayName).tag(frequency)
+                            }
+                        }
+                        Stepper("每隔 \(recurrenceInterval) 个周期", value: $recurrenceInterval, in: 1...30)
+                        Toggle("设置结束日期", isOn: $hasRecurrenceEnd)
+                        if hasRecurrenceEnd {
+                            DatePicker("结束日期", selection: $recurrenceEndDate, displayedComponents: .date)
                         }
                     }
                 }
@@ -126,6 +152,14 @@ struct CalendarEventFormView: View {
         target.startTime = start
         target.endTime = end
         target.isAllDay = isAllDay
+        target.recurrenceRule = recurrenceEnabled
+            ? CalendarRecurrenceRule(
+                frequency: recurrenceFrequency,
+                interval: recurrenceInterval,
+                endDate: hasRecurrenceEnd ? calendar.startOfDay(for: recurrenceEndDate) : nil,
+                exceptionDates: event?.recurrenceRule?.exceptionDates ?? []
+            )
+            : nil
         target.category = category
         let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
         target.note = trimmedNote.isEmpty ? nil : trimmedNote

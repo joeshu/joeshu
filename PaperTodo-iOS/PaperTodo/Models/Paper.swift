@@ -63,6 +63,74 @@ enum EventCategory: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+enum CalendarRecurrenceFrequency: String, Codable, CaseIterable, Identifiable {
+    case daily
+    case weekly
+
+    var id: String { rawValue }
+
+    var displayName: String {
+        switch self {
+        case .daily: return "每天"
+        case .weekly: return "每周"
+        }
+    }
+}
+
+struct CalendarRecurrenceRule: Codable, Equatable {
+    var frequency: CalendarRecurrenceFrequency
+    var interval: Int
+    var endDate: Date?
+    var exceptionDates: [Date]
+
+    init(frequency: CalendarRecurrenceFrequency = .daily, interval: Int = 1, endDate: Date? = nil, exceptionDates: [Date] = []) {
+        self.frequency = frequency
+        self.interval = max(interval, 1)
+        self.endDate = endDate
+        self.exceptionDates = exceptionDates
+    }
+}
+
+private let recurrenceEncoder = JSONEncoder()
+private let recurrenceDecoder = JSONDecoder()
+
+private func encodedRecurrenceRule(_ rule: CalendarRecurrenceRule?) -> String? {
+    guard let rule, let data = try? recurrenceEncoder.encode(rule) else { return nil }
+    return String(data: data, encoding: .utf8)
+}
+
+private func decodedRecurrenceRule(from value: String?) -> CalendarRecurrenceRule? {
+    guard let value, let data = value.data(using: .utf8) else { return nil }
+    return try? recurrenceDecoder.decode(CalendarRecurrenceRule.self, from: data)
+}
+
+private func recurrenceDates(start: Date, rule: CalendarRecurrenceRule, in interval: DateInterval, calendar: Calendar) -> [Date] {
+    let startDay = calendar.startOfDay(for: start)
+    let rangeStart = calendar.startOfDay(for: interval.start)
+    let rangeEnd = interval.end
+    let limit = rule.endDate.map(calendar.startOfDay(for:))
+    var result: [Date] = []
+    var cursor = startDay
+    var occurrenceIndex = 0
+    while cursor < rangeEnd && occurrenceIndex < 3660 {
+        if let limit, cursor > limit { break }
+        let daysFromStart = calendar.dateComponents([.day], from: startDay, to: cursor).day ?? 0
+        let matches: Bool
+        switch rule.frequency {
+        case .daily:
+            matches = daysFromStart >= 0 && daysFromStart % max(rule.interval, 1) == 0
+        case .weekly:
+            matches = daysFromStart >= 0 && daysFromStart % 7 == 0 && (daysFromStart / 7) % max(rule.interval, 1) == 0
+        }
+        if matches && cursor >= rangeStart && !rule.exceptionDates.contains(where: { calendar.isDate($0, inSameDayAs: cursor) }) {
+            result.append(cursor)
+        }
+        cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? rangeEnd
+        occurrenceIndex += 1
+    }
+    return result
+}
+
 @Model
 final class Paper {
     @Attribute(.unique) var id: UUID
@@ -152,6 +220,7 @@ final class TodoItem {
     var scheduledStart: Date?
     var scheduledEnd: Date?
     var isAllDay: Bool
+    var recurrenceJSON: String?
     var quadrantRaw: String = ""
     var paper: Paper?
 
@@ -170,6 +239,23 @@ final class TodoItem {
         self.scheduledStart = nil
         self.scheduledEnd = nil
         self.isAllDay = false
+        self.recurrenceJSON = nil
+    }
+
+    var recurrenceRule: CalendarRecurrenceRule? {
+        get { decodedRecurrenceRule(from: recurrenceJSON) }
+        set { recurrenceJSON = encodedRecurrenceRule(newValue) }
+    }
+
+    func recurrenceStarts(in interval: DateInterval, calendar: Calendar = .current) -> [Date] {
+        guard let start = scheduledStart, let rule = recurrenceRule else { return [] }
+        return recurrenceDates(start: start, rule: rule, in: interval, calendar: calendar)
+    }
+
+    func scheduledOccurrenceStart(on date: Date, calendar: Calendar = .current) -> Date? {
+        guard scheduledStart != nil, recurrenceRule != nil,
+              let day = calendar.dateInterval(of: .day, for: date) else { return nil }
+        return recurrenceStarts(in: day, calendar: calendar).first
     }
 }
 
@@ -183,6 +269,7 @@ final class CalendarEvent {
     var categoryRaw: String
     var isCompleted: Bool
     var note: String?
+    var recurrenceJSON: String?
 
     var category: EventCategory {
         get { EventCategory(rawValue: categoryRaw) ?? .daily }
@@ -198,6 +285,49 @@ final class CalendarEvent {
         self.categoryRaw = category.rawValue
         self.isCompleted = false
         self.note = note
+        self.recurrenceJSON = nil
+    }
+
+    var recurrenceRule: CalendarRecurrenceRule? {
+        get { decodedRecurrenceRule(from: recurrenceJSON) }
+        set { recurrenceJSON = encodedRecurrenceRule(newValue) }
+    }
+
+    func recurrenceStarts(in interval: DateInterval, calendar: Calendar = .current) -> [Date] {
+        guard let rule = recurrenceRule else { return [] }
+        return recurrenceDates(start: startTime, rule: rule, in: interval, calendar: calendar)
+    }
+
+    func occurrenceStart(on date: Date, calendar: Calendar = .current) -> Date? {
+        guard recurrenceRule != nil,
+              let day = calendar.dateInterval(of: .day, for: date) else { return nil }
+        return recurrenceStarts(in: day, calendar: calendar).first
+    }
+}
+
+extension CalendarEvent {
+    func covers(_ date: Date, calendar: Calendar = .current) -> Bool {
+        if recurrenceRule != nil {
+            return occurrenceStart(on: date, calendar: calendar) != nil
+        }
+        let day = calendar.startOfDay(for: date)
+        let startDay = calendar.startOfDay(for: startTime)
+        let endDay = calendar.startOfDay(for: endTime)
+        return isAllDay ? day >= startDay && day < endDay : day >= startDay && day <= endDay
+    }
+}
+
+extension TodoItem {
+    func covers(_ date: Date, calendar: Calendar = .current) -> Bool {
+        guard let start = scheduledStart else { return false }
+        if recurrenceRule != nil {
+            return scheduledOccurrenceStart(on: date, calendar: calendar) != nil
+        }
+        let day = calendar.startOfDay(for: date)
+        let end = scheduledEnd ?? start
+        let startDay = calendar.startOfDay(for: start)
+        let endDay = calendar.startOfDay(for: end)
+        return isAllDay ? day >= startDay && day < endDay : day >= startDay && day <= endDay
     }
 }
 

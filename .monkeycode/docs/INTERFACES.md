@@ -30,6 +30,8 @@
 - `SharedContainer.makeModelContainer()`：创建共享 SwiftData 容器。
 - `SharedContainer.seedCalendarEvents(in:)`：当事件为空时插入示例事件。
 - `CalendarDisplayMode`：日历页面的瞬时显示状态，包含月视图、周视图和日程视图，不写入 SwiftData。
+- `CalendarRecurrenceRule`：描述每日或每周重复、重复间隔、结束日期和例外日期；通过 JSON 字符串分别存储在 `CalendarEvent.recurrenceJSON` 和 `TodoItem.recurrenceJSON`。
+- `CalendarEvent.covers(_:calendar:)` 与 `TodoItem.covers(_:calendar:)`：统一判断单次或重复安排是否覆盖指定日期，日历月视图、周视图和日程视图复用该规则。
 - `NoteImageStore.save(data:referencedNames:)`：压缩并保存图片，返回生成的资源名。
 - `NoteImageStore.referencedNames(in:)`：从 Markdown 中提取合法图片资源名。
 - `NoteImageStore.deleteReferenced(in:preserving:)`：删除当前正文引用且未被保留集合引用的图片。

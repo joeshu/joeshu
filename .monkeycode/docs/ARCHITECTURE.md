@@ -45,6 +45,7 @@ graph TD
 - `PaperCard` 在纸片索引中展示待办进度、今日安排数量和下一项未完成任务。
 - `NotePaperView` 管理 Markdown 编辑、预览、图片导入、导出和标题。
 - `CalendarHomeView` 管理月份网格、日期选择、彩色事件标签、周标尺和日时间线。
+- `CalendarRecurrenceRule` 与模型 occurrence 查询负责生成指定日期范围内的每日或每周重复展示实例，并过滤例外日期。
 - `QuadrantHomeView` 从 `TodoItem` 派生四象限任务并提供移动、编辑、完成和打开纸片。
 - `SettingsView` 管理外观、配色、待办字号、自动清除和 Markdown 渲染强度。
 
