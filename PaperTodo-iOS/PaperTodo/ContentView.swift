@@ -5,7 +5,6 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.settings) private var settings
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Paper.updatedAt, order: .reverse) private var papers: [Paper]
     @State private var paperPendingDeletion: Paper?
     @State private var saveErrorMessage: String?
@@ -104,12 +103,6 @@ struct ContentView: View {
                     TodoPaperView(paper: paper)
                 case .note:
                     NotePaperView(paper: paper)
-                }
-            }
-            .transaction { transaction in
-                if reduceMotion {
-                    transaction.animation = nil
-                    transaction.disablesAnimations = true
                 }
             }
             .confirmationDialog(
