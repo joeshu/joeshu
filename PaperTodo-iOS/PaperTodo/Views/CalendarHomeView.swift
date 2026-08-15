@@ -256,9 +256,9 @@ struct CalendarHomeView: View {
             WeekCalendarCard(
                 selectedDate: selectedDate,
                 events: events,
+                scheduledTodos: papers.flatMap(\.todoItems),
                 calendar: calendar,
                 theme: theme,
-                scheduledTodos: papers.flatMap(\.todoItems),
                 onSelect: selectDate,
                 onOpen: openEvent,
                 onAdd: addEvent,
