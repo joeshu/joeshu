@@ -13,6 +13,7 @@ PaperTodo 是一个 SwiftUI 个人工作台。首页通过 `HomeMode` 在纸片�
 - `TaskScheduleSheet`：为待办设置开始时间和预计时长，并显示在今日时间线。
 - `CalendarContextToolbar`：展示日历上下文、今天定位、月份导航和快速新增日程。
 - `TimelineEventRow`：展示单日与跨日时间摘要，支持编辑和上下文菜单切换完成状态。
+- `TimelineStatusStrip`：更新今天的当前时间，并展示选中日期的日程完成进度。
 - `PaperCard`：在纸片索引中展示类型、进度、下一项任务和今日排期信息。
 - `PaperSearchSheet`：搜索纸片标题、笔记正文和待办内容。
 - `DailyReviewSheet`：展示今日任务完成率、剩余任务和排期时长。

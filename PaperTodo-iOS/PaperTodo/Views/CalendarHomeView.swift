@@ -596,6 +596,11 @@ private struct DayTimelineCard: View {
             .foregroundStyle(theme.text)
 
             weekStrip
+            TimelineStatusStrip(
+                selectedDate: selectedDate,
+                events: events,
+                theme: theme
+            )
 
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 10) {
@@ -771,6 +776,54 @@ private struct TimelineEventRow: View {
         .accessibilityLabel("\(event.title)，\(event.isCompleted ? "已完成" : "未完成")")
         .accessibilityHint("打开事件编辑")
         .accessibilityAddTraits(.isButton)
+    }
+}
+
+private struct TimelineStatusStrip: View {
+    let selectedDate: Date
+    let events: [CalendarEvent]
+    let theme: PaperPalette
+
+    private var completedCount: Int {
+        events.filter(\.isCompleted).count
+    }
+
+    var body: some View {
+        TimelineView(.periodic(from: Date(), by: 60)) { context in
+            HStack(spacing: 10) {
+                Image(systemName: Calendar.current.isDateInToday(selectedDate) ? "clock.fill" : "checkmark.circle.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(theme.accent)
+
+                if Calendar.current.isDateInToday(selectedDate) {
+                    Text("现在 \(context.date.formatted(.dateTime.hour().minute()))")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.text)
+                } else {
+                    Text("当天进度")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(theme.text)
+                }
+
+                Spacer()
+
+                Text(events.isEmpty ? "暂无日程" : "已完成 \(completedCount)/\(events.count)")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(theme.weakText)
+
+                if !events.isEmpty {
+                    ProgressView(value: Double(completedCount), total: Double(events.count))
+                        .tint(theme.accent)
+                        .frame(width: 52)
+                        .accessibilityLabel("日程完成进度")
+                        .accessibilityValue("已完成 \(completedCount) 项，共 \(events.count) 项")
+                }
+            }
+            .padding(.horizontal, 12)
+            .frame(minHeight: 34)
+            .background(theme.accent.opacity(0.08), in: Capsule())
+            .overlay(Capsule().stroke(theme.accent.opacity(0.14), lineWidth: 1))
+        }
     }
 }
 

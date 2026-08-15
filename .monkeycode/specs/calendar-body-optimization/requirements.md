@@ -35,3 +35,13 @@
 1. WHEN the user opens an event context menu, THE system SHALL provide an action matching the event completion state.
 2. WHEN the completion action succeeds, THE system SHALL persist the new completion state and update the event appearance.
 3. IF saving the completion state fails, THE system SHALL restore the previous state and show an error message.
+
+### Requirement 4
+
+**User Story:** AS a user, I want the selected day summary to update with the current time and completion progress, so that I can understand the day's execution state.
+
+#### Acceptance Criteria
+
+1. WHILE the selected date is today, THE system SHALL show the current local time and refresh it at least once per minute.
+2. WHEN the selected date contains events, THE system SHALL show completed event count and total event count.
+3. WHEN the selected date contains no events, THE system SHALL show an empty schedule summary.
