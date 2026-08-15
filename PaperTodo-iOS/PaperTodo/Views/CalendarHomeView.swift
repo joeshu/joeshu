@@ -1290,6 +1290,8 @@ private struct MonthCard: View {
     let calendar: Calendar
     let theme: PaperPalette
     let onSelect: (Date) -> Void
+    @State private var zoomScale: CGFloat = 1
+    @GestureState private var pinchScale: CGFloat = 1
 
     private struct MonthEvent: Identifiable {
         let id: String
@@ -1310,22 +1312,77 @@ private struct MonthCard: View {
                 Text("共 \(monthEventCount) 项")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(theme.weakText)
+                zoomControls
             }
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 0), count: 7), spacing: 0) {
-                ForEach(weekdays, id: \.self) { day in
-                    Text(day)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(theme.weakText)
-                        .frame(maxWidth: .infinity, minHeight: 28)
-                        .background(theme.paper.opacity(0.3))
-                }
-                ForEach(days, id: \.self) { date in
-                    monthDay(date)
+            ScrollView(.horizontal, showsIndicators: true) {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(columnWidth), spacing: 1), count: 7), spacing: 1) {
+                    ForEach(weekdays, id: \.self) { day in
+                        Text(day)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(theme.weakText)
+                            .frame(width: columnWidth, minHeight: 28)
+                            .background(theme.paper.opacity(0.3))
+                    }
+                    ForEach(days, id: \.self) { date in
+                        monthDay(date)
+                    }
                 }
             }
+            .scrollIndicators(.visible)
+            .simultaneousGesture(
+                MagnificationGesture()
+                    .updating($pinchScale) { value, state, _ in
+                        state = value
+                    }
+                    .onEnded { value in
+                        zoomScale = clampedZoom(zoomScale * value)
+                    }
+            )
         }
         .paperCard(theme, elevation: .raised)
+    }
+
+    private var effectiveZoom: CGFloat {
+        clampedZoom(zoomScale * pinchScale)
+    }
+
+    private var columnWidth: CGFloat {
+        72 * effectiveZoom
+    }
+
+    private var zoomControls: some View {
+        HStack(spacing: 2) {
+            Button {
+                zoomScale = clampedZoom(zoomScale - 0.1)
+            } label: {
+                Image(systemName: "minus.magnifyingglass")
+            }
+            .disabled(effectiveZoom <= 0.75)
+
+            Button {
+                zoomScale = 1
+            } label: {
+                Text("\(Int(effectiveZoom * 100))%")
+                    .font(.caption2.weight(.semibold).monospacedDigit())
+                    .frame(minWidth: 38)
+            }
+
+            Button {
+                zoomScale = clampedZoom(zoomScale + 0.1)
+            } label: {
+                Image(systemName: "plus.magnifyingglass")
+            }
+            .disabled(effectiveZoom >= 1.6)
+        }
+        .buttonStyle(.borderless)
+        .foregroundStyle(theme.accent)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("月历缩放")
+    }
+
+    private func clampedZoom(_ value: CGFloat) -> CGFloat {
+        min(max(value, 0.75), 1.6)
     }
 
     private var monthEventCount: Int {
@@ -1382,10 +1439,10 @@ private struct MonthCard: View {
                 }
             }
             .frame(minHeight: 116, alignment: .topLeading)
-            .frame(maxWidth: .infinity)
             .padding(.horizontal, 3)
             .padding(.top, 5)
             .background(selected ? theme.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+            .frame(width: columnWidth, alignment: .topLeading)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(
