@@ -30,7 +30,7 @@ jobs:
       - name: Build unsigned app
         working-directory: PaperTodo-iOS
         run: |
-          set -o pipefail
+          set +e
           xcodebuild \
             -project PaperTodo.xcodeproj \
             -scheme PaperTodo \
@@ -41,6 +41,11 @@ jobs:
             CODE_SIGNING_REQUIRED=NO \
             CODE_SIGN_IDENTITY="" \
             build 2>&1 | tee xcodebuild.log
+          build_status=${PIPESTATUS[0]}
+          while IFS= read -r line; do
+            echo "::error title=Xcodebuild::$line"
+          done < <(rg 'error:|fatal error:' xcodebuild.log || true)
+          exit "$build_status"
 
       - name: Upload build log
         if: always()
