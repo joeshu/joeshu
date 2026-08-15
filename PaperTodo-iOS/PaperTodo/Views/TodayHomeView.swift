@@ -228,10 +228,6 @@ struct TodayHomeView: View {
                         }
                     }
                 }
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("日历事件，\(event.title)")
-                .accessibilityValue("\(event.startTime.formatted(date: .omitted, time: .shortened)) 至 \(event.endTime.formatted(date: .omitted, time: .shortened))，\(event.isCompleted ? "已完成" : "未完成")")
-                .accessibilityHint("日历事件")
             }
         }
     }
@@ -267,6 +263,10 @@ struct TodayHomeView: View {
                             .background(event.category.tagBackground, in: Capsule())
                     }
                 }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("日历事件，\(event.title)")
+                .accessibilityValue("\(event.startTime.formatted(date: .omitted, time: .shortened)) 至 \(event.endTime.formatted(date: .omitted, time: .shortened))，\(event.isCompleted ? "已完成" : "未完成")")
+                .accessibilityHint("日历事件")
             }
             ForEach(scheduledTodos) { item in
                 Button {
