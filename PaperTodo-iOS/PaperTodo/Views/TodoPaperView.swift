@@ -252,14 +252,14 @@ struct TodoPaperView: View {
 
              if editingItemID == item.id {
                  TextField("待办事项", text: binding(for: item), onCommit: finishEditing)
-                       .font(.system(size: todoFontSize, design: .rounded, relativeTo: .body))
+                       .font(.system(size: todoFontSize, weight: .regular, design: .rounded, relativeTo: .body))
                       .foregroundStyle(theme.text)
                       .textFieldStyle(.plain)
                       .submitLabel(.done)
                       .focused($editingItemFocused)
              } else {
                  Text(item.text)
-                       .font(.system(size: todoFontSize, design: .rounded, relativeTo: .body))
+                       .font(.system(size: todoFontSize, weight: .regular, design: .rounded, relativeTo: .body))
                      .strikethrough(item.isDone)
                      .foregroundStyle(item.isDone ? theme.weakText : theme.text)
                      .animation(.easeOut(duration: 0.2), value: item.isDone)
