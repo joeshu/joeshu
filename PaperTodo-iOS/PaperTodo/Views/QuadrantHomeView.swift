@@ -13,6 +13,14 @@ struct QuadrantHomeView: View {
         papers.flatMap(\.todoItems)
     }
 
+    private var activeItems: [TodoItem] {
+        allItems.filter { !$0.isDone }
+    }
+
+    private var completedItems: [TodoItem] {
+        allItems.filter(\.isDone)
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: PaperSpacing.section) {
@@ -20,22 +28,27 @@ struct QuadrantHomeView: View {
                     Text("四象限")
                         .font(.system(.largeTitle, design: .rounded).weight(.bold))
                         .foregroundStyle(theme.text)
-                    Text("按重要性和紧急性整理待办")
+                    Text("把注意力放在真正重要的下一步")
                         .font(PaperTypography.metadata)
                         .foregroundStyle(theme.weakText)
                 }
                 .padding(.horizontal, 4)
 
+                summaryStrip
+
                 HStack(spacing: PaperSpacing.compact) {
                     Label("重要", systemImage: "star")
                     Label("紧急", systemImage: "bolt")
+                    Spacer()
+                    Text("未完成优先")
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(theme.weakText)
                 .padding(.horizontal, PaperSpacing.control)
                 .frame(minHeight: 36)
                 .background(theme.paper.opacity(0.46), in: Capsule())
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 160, maximum: 240), spacing: 12)], spacing: 12) {
+
+                LazyVGrid(columns: [GridItem(.flexible(minimum: 0), spacing: 12), GridItem(.flexible(minimum: 0), spacing: 12)], spacing: 12) {
                     ForEach(Quadrant.allCases) { quadrant in
                         quadrantCard(quadrant)
                     }
@@ -80,15 +93,55 @@ struct QuadrantHomeView: View {
         }
     }
 
+    private var summaryStrip: some View {
+        HStack(spacing: 0) {
+            summaryMetric(value: activeItems.count, label: "待处理", color: theme.accent)
+            Divider()
+                .frame(height: 32)
+                .overlay(theme.paperBorder.opacity(0.6))
+            summaryMetric(value: completedItems.count, label: "已完成", color: theme.active)
+            Divider()
+                .frame(height: 32)
+                .overlay(theme.paperBorder.opacity(0.6))
+            summaryMetric(value: allItems.count, label: "全部任务", color: theme.text)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, PaperSpacing.control)
+        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("共 \(allItems.count) 项任务，待处理 \(activeItems.count) 项，已完成 \(completedItems.count) 项")
+    }
+
+    private func summaryMetric(value: Int, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text("\(value)")
+                .font(PaperTypography.statistic)
+                .foregroundStyle(color)
+                .monospacedDigit()
+            Text(label)
+                .font(PaperTypography.metadata)
+                .foregroundStyle(theme.weakText)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
     private func quadrantCard(_ quadrant: Quadrant) -> some View {
-        let tasks = allItems.filter { !$0.isDone && resolvedQuadrant(of: $0) == quadrant }
+        let tasks = activeItems.filter { resolvedQuadrant(of: $0) == quadrant }
+        let completedCount = completedItems.filter { resolvedQuadrant(of: $0) == quadrant }.count
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: PaperSpacing.compact) {
-                RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous)
-                    .fill(quadrant.color)
-                    .frame(width: 4, height: 42)
+                Image(systemName: symbolName(for: quadrant))
+                    .font(.system(size: PaperIconSize.medium, weight: .semibold))
+                    .foregroundStyle(quadrant.color)
+                    .frame(width: 36, height: 36)
+                    .background(quadrant.color.opacity(0.12), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(quadrant.displayName).font(.subheadline.weight(.bold))
+                    Text(quadrant.displayName)
+                        .font(.subheadline.weight(.bold))
                     Text(quadrant.subtitle)
                         .font(PaperTypography.metadata)
                         .foregroundStyle(theme.weakText)
@@ -104,7 +157,12 @@ struct QuadrantHomeView: View {
             .foregroundStyle(theme.text)
             if tasks.isEmpty {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("暂无任务").font(.caption).foregroundStyle(theme.weakText)
+                    Image(systemName: completedCount > 0 ? "checkmark.circle" : "tray")
+                        .font(.system(size: PaperIconSize.medium))
+                        .foregroundStyle(completedCount > 0 ? theme.active : theme.weakText)
+                    Text(completedCount > 0 ? "本象限已清空" : "从这里开始整理")
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(theme.weakText)
                     Button {
                         presentAddTask(in: quadrant)
                     } label: {
@@ -125,17 +183,22 @@ struct QuadrantHomeView: View {
                         .foregroundStyle(theme.weakText)
                 }
             }
+            if completedCount > 0 && !tasks.isEmpty {
+                Text("已完成 \(completedCount) 项")
+                    .font(.caption2)
+                    .foregroundStyle(theme.active)
+            }
         }
         .padding(PaperSpacing.content)
-        .frame(maxWidth: .infinity, minHeight: 170, alignment: .topLeading)
-        .background(theme.paper.opacity(0.44), in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+        .frame(maxWidth: .infinity, minHeight: 190, alignment: .topLeading)
+        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                 .stroke(quadrant.color.opacity(0.32), lineWidth: 1)
         }
         .shadow(color: theme.shadow.opacity(0.1), radius: PaperElevation.raised.shadowRadius, y: PaperElevation.raised.shadowY)
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("\(quadrant.displayName)，\(tasks.count) 项任务")
+        .accessibilityLabel("\(quadrant.displayName)，\(tasks.count) 项待处理任务，已完成 \(completedCount) 项")
     }
 
     private func symbolName(for quadrant: Quadrant) -> String {
