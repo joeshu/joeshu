@@ -330,6 +330,11 @@ struct CalendarHomeView: View {
         isPresentingForm = true
     }
 
+    private func addEvent(on date: Date) {
+        selectDate(date)
+        addEvent()
+    }
+
     private func createEventFromDraft(_ draft: NaturalLanguageScheduleDraft) {
         let event = CalendarEvent(title: draft.title, startTime: draft.start, endTime: draft.end, category: draft.category, isAllDay: draft.isAllDay)
         event.reminderMinutes = draft.reminderMinutes
@@ -461,7 +466,9 @@ struct CalendarHomeView: View {
                 selectedDate: selectedDate,
                 calendar: calendar,
                 theme: theme,
-                onSelect: selectDate
+                onSelect: selectDate,
+                onOpen: openEvent,
+                onAdd: { addEvent(on: $0) }
             )
 
             DayTimelineCard(
@@ -521,7 +528,9 @@ struct CalendarHomeView: View {
                     selectedDate: selectedDate,
                     calendar: calendar,
                     theme: theme,
-                    onSelect: selectDate
+                    onSelect: selectDate,
+                    onOpen: openEvent,
+                    onAdd: { addEvent(on: $0) }
                 )
                 .frame(maxWidth: .infinity)
 
@@ -1290,6 +1299,8 @@ private struct MonthCard: View {
     let calendar: Calendar
     let theme: PaperPalette
     let onSelect: (Date) -> Void
+    let onOpen: (CalendarEvent) -> Void
+    let onAdd: (Date) -> Void
     @State private var zoomScale: CGFloat = 1
     @GestureState private var pinchScale: CGFloat = 1
 
@@ -1298,6 +1309,7 @@ private struct MonthCard: View {
         let title: String
         let color: Color
         let isCompleted: Bool
+        let event: CalendarEvent?
     }
 
     var body: some View {
@@ -1316,31 +1328,35 @@ private struct MonthCard: View {
             }
 
             ScrollView(.horizontal, showsIndicators: true) {
-                LazyVGrid(columns: Array(repeating: GridItem(.fixed(columnWidth), spacing: 1), count: 7), spacing: 1) {
-                    ForEach(weekdays, id: \.self) { day in
-                        Text(day)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(theme.weakText)
-                            .frame(width: columnWidth, minHeight: 28)
-                            .background(theme.paper.opacity(0.3))
-                    }
-                    ForEach(days, id: \.self) { date in
-                        monthDay(date)
-                    }
-                }
+                calendarGrid
+                    .simultaneousGesture(
+                        MagnificationGesture()
+                            .updating($pinchScale) { value, state, _ in
+                                state = value
+                            }
+                            .onEnded { value in
+                                zoomScale = clampedZoom(zoomScale * value)
+                            }
+                    )
             }
             .scrollIndicators(.visible)
-            .simultaneousGesture(
-                MagnificationGesture()
-                    .updating($pinchScale) { value, state, _ in
-                        state = value
-                    }
-                    .onEnded { value in
-                        zoomScale = clampedZoom(zoomScale * value)
-                    }
-            )
         }
         .paperCard(theme, elevation: .raised)
+    }
+
+    private var calendarGrid: some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.fixed(columnWidth), spacing: 1), count: 7), spacing: 1) {
+            ForEach(weekdays, id: \.self) { day in
+                Text(day)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.weakText)
+                    .frame(width: columnWidth, minHeight: 28)
+                    .background(theme.paper.opacity(0.3))
+            }
+            ForEach(days, id: \.self) { date in
+                monthDay(date)
+            }
+        }
     }
 
     private var effectiveZoom: CGFloat {
@@ -1407,47 +1423,74 @@ private struct MonthCard: View {
         let items = monthEvents(on: date)
         let visibleItems = Array(items.prefix(20))
         let itemCount = items.count
-        return Button { onSelect(date) } label: {
-            VStack(alignment: .leading, spacing: 5) {
-                Text("\(calendar.component(.day, from: date))")
-                    .font(.system(size: selected ? 15 : (inMonth ? 14 : 13), weight: selected ? .bold : .semibold))
-                    .foregroundStyle(selected ? theme.paper : (inMonth ? theme.text : theme.weakText.opacity(0.5)))
-                    .frame(width: 30, height: 30, alignment: .center)
-                    .background(selected ? theme.accent : .clear, in: Circle())
-                    .overlay {
-                        if calendar.isDateInToday(date) && !selected {
-                            Circle().stroke(theme.accent, lineWidth: 1.25)
+        return VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .top, spacing: 4) {
+                Button { onSelect(date) } label: {
+                    Text("\(calendar.component(.day, from: date))")
+                        .font(.system(size: selected ? 15 : (inMonth ? 14 : 13), weight: selected ? .bold : .semibold))
+                        .foregroundStyle(selected ? theme.paper : (inMonth ? theme.text : theme.weakText.opacity(0.5)))
+                        .frame(width: 30, height: 30, alignment: .center)
+                        .background(selected ? theme.accent : .clear, in: Circle())
+                        .overlay {
+                            if calendar.isDateInToday(date) && !selected {
+                                Circle().stroke(theme.accent, lineWidth: 1.25)
+                            }
                         }
-                    }
-                VStack(alignment: .leading, spacing: 3) {
-                    ForEach(visibleItems) { item in
-                        Text(monthEventTitle(item.title))
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundStyle(item.isCompleted ? theme.weakText : item.color.opacity(0.9))
-                            .lineLimit(2)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(.horizontal, 5)
-                            .padding(.vertical, 3)
-                            .background(item.color.opacity(item.isCompleted ? 0.08 : 0.16), in: RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous))
-                    }
                 }
-                if items.count > visibleItems.count {
-                    Text("+\(items.count - visibleItems.count) 项")
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(theme.weakText)
+                .buttonStyle(.plain)
+                Spacer(minLength: 0)
+                Button { onAdd(date) } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(theme.accent)
+                        .frame(width: 26, height: 26)
+                        .background(theme.accent.opacity(0.08), in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("在此日期新建日程")
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                ForEach(visibleItems) { item in
+                    if let event = item.event {
+                        Button { onOpen(event) } label: {
+                            eventLabel(item)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("编辑日程：\(monthEventTitle(item.title))")
+                    } else {
+                        eventLabel(item)
+                    }
                 }
             }
-            .frame(minHeight: 116, alignment: .topLeading)
-            .padding(.horizontal, 3)
-            .padding(.top, 5)
-            .background(selected ? theme.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
-            .frame(width: columnWidth, alignment: .topLeading)
+            if items.count > visibleItems.count {
+                Text("+\(items.count - visibleItems.count) 项")
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(theme.weakText)
+            }
         }
-        .buttonStyle(.plain)
+        .frame(minHeight: 116, alignment: .topLeading)
+        .padding(.horizontal, 3)
+        .padding(.top, 5)
+        .background(selected ? theme.accent.opacity(0.08) : .clear, in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+        .frame(width: columnWidth, alignment: .topLeading)
+        .contentShape(Rectangle())
+        .onTapGesture { onSelect(date) }
+        .accessibilityElement(children: .contain)
         .accessibilityLabel(
             "\(date.formatted(.dateTime.month().day()))，\(itemCount) 项安排\(calendar.isDateInToday(date) ? "，今天" : "")\(selected ? "，已选中" : "")"
         )
+    }
+
+    private func eventLabel(_ item: MonthEvent) -> some View {
+        Text(monthEventTitle(item.title))
+            .font(.system(size: 10, weight: .medium))
+            .foregroundStyle(item.isCompleted ? theme.weakText : item.color.opacity(0.9))
+            .lineLimit(2)
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 5)
+            .padding(.vertical, 3)
+            .background(item.color.opacity(item.isCompleted ? 0.08 : 0.16), in: RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous))
     }
 
     private func monthEventTitle(_ title: String) -> String {
@@ -1463,7 +1506,8 @@ private struct MonthCard: View {
                     id: "event-\(event.id.uuidString)-\(date.timeIntervalSinceReferenceDate)",
                     title: event.title,
                     color: event.category.tagText,
-                    isCompleted: event.isCompleted
+                    isCompleted: event.isCompleted,
+                    event: event
                 )
             }
         let todoEvents = scheduledTodos
@@ -1473,7 +1517,8 @@ private struct MonthCard: View {
                     id: "todo-\(item.id.uuidString)-\(date.timeIntervalSinceReferenceDate)",
                     title: item.text,
                     color: theme.active,
-                    isCompleted: item.isDone
+                    isCompleted: item.isDone,
+                    event: nil
                 )
             }
         return (calendarEvents + todoEvents).sorted { $0.title < $1.title }
