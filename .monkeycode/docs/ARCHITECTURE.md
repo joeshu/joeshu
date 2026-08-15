@@ -16,6 +16,7 @@ graph TD
     P --> N["NotePaperView"]
     M --> E["CalendarEventFormView"]
     Y --> R["QuickCaptureSheet"]
+    H --> S["PaperSearchSheet"]
     N --> I["NoteImageStore"]
     N --> X["NoteExportStore"]
     C --> D["SwiftData ModelContainer"]
@@ -33,6 +34,8 @@ graph TD
 - `TodayHomeView` 聚合当天的未完成待办、已安排任务、日历事件、完成进度和计划容量。
 - `TaskScheduleSheet` 编辑任务的计划开始时间和预计时长，并保存派生结束时间。
 - `QuickCaptureSheet` 将输入保存为收件箱任务或新笔记纸片。
+- `PaperSearchSheet` 搜索纸片标题、Markdown 正文和待办内容，并支持直接打开结果。
+- `DailyReviewSheet` 展示今日完成数、剩余数、排期时长和完成率。
 - `TodoPaperView` 管理待办排序、完成、删除、拖放、撤销/重做、自动清除和 Widget 刷新。
 - `PaperCard` 在纸片索引中展示待办进度、今日安排数量和下一项未完成任务。
 - `NotePaperView` 管理 Markdown 编辑、预览、图片导入、导出和标题。

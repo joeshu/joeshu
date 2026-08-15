@@ -6,6 +6,7 @@ struct TodayHomeView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \CalendarEvent.startTime) private var events: [CalendarEvent]
     @State private var schedulingItem: TodoItem?
+    @State private var isReviewPresented = false
     let papers: [Paper]
     let theme: PaperPalette
     let onQuickCapture: () -> Void
@@ -79,6 +80,15 @@ struct TodayHomeView: View {
         }
         .scrollIndicators(.hidden)
         .background(theme.backgroundGradient.ignoresSafeArea())
+        .sheet(isPresented: $isReviewPresented) {
+            DailyReviewSheet(
+                completedCount: completedCount,
+                totalCount: totalCount,
+                scheduledMinutes: scheduledMinutes,
+                pendingCount: pendingTodos.count,
+                theme: theme
+            )
+        }
     }
 
     private var header: some View {
@@ -133,6 +143,14 @@ struct TodayHomeView: View {
                     onQuickCapture()
                 } label: {
                     Label("添加任务", systemImage: "plus")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(TodayActionButton(theme: theme, filled: false))
+
+                Button {
+                    isReviewPresented = true
+                } label: {
+                    Label("今日回顾", systemImage: "checkmark.rectangle")
                         .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(TodayActionButton(theme: theme, filled: false))
@@ -353,5 +371,73 @@ struct QuickCaptureSheet: View {
             }
         }
         .presentationDetents([.medium])
+    }
+}
+
+private struct DailyReviewSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let completedCount: Int
+    let totalCount: Int
+    let scheduledMinutes: Int
+    let pendingCount: Int
+    let theme: PaperPalette
+
+    private var completion: Double {
+        guard totalCount > 0 else { return 0 }
+        return Double(completedCount) / Double(totalCount)
+    }
+
+    var body: some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("今天完成了多少")
+                        .font(.system(.title2, design: .rounded).weight(.bold))
+                        .foregroundStyle(theme.text)
+                    Text(completion == 1 ? "计划完成，给自己留一点余地。" : "保留未完成项，明天继续推进。")
+                        .font(.subheadline)
+                        .foregroundStyle(theme.weakText)
+                }
+
+                HStack(spacing: 10) {
+                    reviewMetric("已完成", value: "\(completedCount)", symbol: "checkmark.circle.fill")
+                    reviewMetric("剩余", value: "\(pendingCount)", symbol: "circle.dashed")
+                    reviewMetric("排期", value: "\(scheduledMinutes)m", symbol: "clock.fill")
+                }
+
+                ProgressView(value: completion)
+                    .tint(theme.active)
+                Text("完成率 \(Int(completion * 100))%")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(theme.active)
+                Spacer()
+            }
+            .padding(20)
+            .background(theme.backgroundGradient.ignoresSafeArea())
+            .navigationTitle("今日回顾")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("完成") { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func reviewMetric(_ label: String, value: String, symbol: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: symbol)
+                .foregroundStyle(theme.active)
+            Text(value)
+                .font(.title3.weight(.bold).monospacedDigit())
+                .foregroundStyle(theme.text)
+            Text(label)
+                .font(.caption)
+                .foregroundStyle(theme.weakText)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(theme.paper.opacity(0.55), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
     }
 }

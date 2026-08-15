@@ -13,6 +13,7 @@ struct ContentView: View {
     @State private var paperAwaitingDeletion: Paper?
     @State private var pendingDeletions: [UUID: PendingDeletion] = [:]
     @State private var isQuickCapturePresented = false
+    @State private var isSearchPresented = false
 
     private var sortedPapers: [Paper] {
         Self.sortPapers(papers)
@@ -142,6 +143,9 @@ struct ContentView: View {
                     capture(kind: kind, text: text)
                 }
             }
+            .sheet(isPresented: $isSearchPresented) {
+                PaperSearchSheet(papers: activePapers, theme: theme)
+            }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if !capsulePapers.isEmpty {
                     CapsuleBar(papers: capsulePapers, theme: theme)
@@ -158,6 +162,13 @@ struct ContentView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .topBarTrailing) {
+                    Button {
+                        isSearchPresented = true
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                    }
+                    .accessibilityLabel("搜索")
+
                     Menu {
                         Picker("配色", selection: $settings.colorScheme) {
                             ForEach(PaperColorScheme.allCases) { scheme in
