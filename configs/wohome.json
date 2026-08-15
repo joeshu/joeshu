@@ -1,1 +1,0 @@
-{"urlPattern":"^https:\\/\\/iotpservice\\.smartont\\.net\\/wohome\\/dispatcher","id":"wohome","name":"联通智家","mode":"json","processor":{"processor":"deleteFields","params":{"paths":["RSP.DATA[0].configList","RSP.DATA.configList","data.configList"]}}}

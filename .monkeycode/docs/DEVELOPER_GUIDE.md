@@ -37,10 +37,6 @@ xcodebuild -project PaperTodo.xcodeproj -scheme PaperTodo -configuration Release
 
 `.github/workflows/papertodo-ios.yml` 在 `PaperTodo-iOS/**` 变化时触发。流程在 macOS 15 上安装 XcodeGen、生成 Xcode 项目、构建无签名 Release App、打包 IPA 并上传 artifact。
 
-### `Build and Deploy`
-
-`.github/workflows/build.yml` 会在仓库推送时运行根目录构建脚本。该工作流属于仓库现有 CI 配置，PaperTodo iOS 的编译验证以 `PaperTodo iOS Build` 为准。
-
 ## 变更验证
 
 提交前执行：

@@ -1,1 +1,0 @@
-{"urlPattern":"^https?:\\/\\/apis\\.folidaymall\\.com\\/online\\/capi\\/component\\/getPageComponents","id":"foday","name":"复游会","mode":"json","processor":{"processor":"filterArray","params":{"path":"data.pageComponents","excludeKeys":["TCMP_home_followingadvertising","TC_Interactive_Ad","TC_Member_Banner","TC_AIGO"],"keyField":"componentCode"}}}
