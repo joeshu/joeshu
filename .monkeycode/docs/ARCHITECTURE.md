@@ -32,6 +32,7 @@ graph TD
 
 - `HomeModeContent` 根据 `HomeMode` 切换今日、纸片、日历和四象限。
 - `CalendarContextToolbar` 提供日历月份、选中日期、今天定位、月份切换和快速新增入口。
+- `TimelineEventRow` 根据选中日期生成单日或跨日时间摘要，并通过 `CalendarHomeView` 保存完成状态。
 - `TodayHomeView` 聚合当天的未完成待办、已安排任务、日历事件、完成进度和计划容量。
 - `TaskScheduleSheet` 编辑任务的计划开始时间和预计时长，并保存派生结束时间。
 - `QuickCaptureSheet` 将输入保存为收件箱任务或新笔记纸片。

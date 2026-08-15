@@ -90,7 +90,8 @@ struct CalendarHomeView: View {
                                     theme: theme,
                                     onSelect: selectDate,
                                     onOpen: openEvent,
-                                    onAdd: addEvent
+                                    onAdd: addEvent,
+                                    onToggleCompletion: toggleEventCompletion
                                 )
                             }
                             .padding(.horizontal, 12)
@@ -144,7 +145,8 @@ struct CalendarHomeView: View {
                             theme: theme,
                             onSelect: selectDate,
                             onOpen: openEvent,
-                            onAdd: addEvent
+                            onAdd: addEvent,
+                            onToggleCompletion: toggleEventCompletion
                         )
                         .padding(.top, 104)
                         .frame(width: width * 0.60)
@@ -210,6 +212,16 @@ struct CalendarHomeView: View {
     private func addEvent() {
         editingEvent = nil
         isPresentingForm = true
+    }
+
+    private func toggleEventCompletion(_ event: CalendarEvent) {
+        event.isCompleted.toggle()
+        do {
+            try modelContext.save()
+        } catch {
+            event.isCompleted.toggle()
+            saveErrorMessage = error.localizedDescription
+        }
     }
 }
 
@@ -497,7 +509,7 @@ private struct MonthCard: View {
         let inMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
         let selected = calendar.isDate(date, inSameDayAs: selectedDate)
         let dayEvents = events.filter { eventCoversDate($0, date) }
-        let visibleEvents = Array(dayEvents.prefix(3))
+        let visibleEvents = Array(dayEvents.prefix(4))
         return Button { onSelect(date) } label: {
             VStack(alignment: .leading, spacing: 1.5) {
                 Text("\(calendar.component(.day, from: date))")
@@ -511,29 +523,22 @@ private struct MonthCard: View {
                         }
                     }
                     .shadow(color: selected ? theme.accent.opacity(0.25) : .clear, radius: 6, y: 3)
-                ForEach(visibleEvents) { event in
-                    HStack(spacing: 3) {
+                HStack(spacing: 3) {
+                    ForEach(visibleEvents) { event in
                         Circle()
                             .fill(event.category.ringColor)
-                            .frame(width: 4, height: 4)
-                        Text(event.title)
-                            .font(.caption2.weight(.medium))
-                            .lineLimit(1)
+                            .frame(width: 5, height: 5)
+                            .accessibilityHidden(true)
                     }
-                    .padding(.horizontal, 3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: 15)
-                    .foregroundStyle(event.category.tagText)
-                    .background(event.category.tagBackground, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    if dayEvents.count > visibleEvents.count {
+                        Text("+\(dayEvents.count - visibleEvents.count)")
+                            .font(.system(size: 9, weight: .semibold))
+                            .foregroundStyle(theme.weakText)
+                    }
                 }
-                if dayEvents.count > 3 {
-                    Text("+\(dayEvents.count - 3)")
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundStyle(theme.weakText)
-                        .frame(height: 12, alignment: .leading)
-                }
+                .frame(height: 16, alignment: .leading)
             }
-            .frame(minHeight: 84, alignment: .top)
+            .frame(minHeight: 68, alignment: .top)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
@@ -557,6 +562,7 @@ private struct DayTimelineCard: View {
     let onSelect: (Date) -> Void
     let onOpen: (CalendarEvent) -> Void
     let onAdd: () -> Void
+    let onToggleCompletion: (CalendarEvent) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -608,9 +614,13 @@ private struct DayTimelineCard: View {
                         .frame(maxWidth: .infinity, minHeight: 180)
                     } else {
                         ForEach(events) { event in
-                            TimelineEventRow(event: event, theme: theme) {
-                                onOpen(event)
-                            }
+                            TimelineEventRow(
+                                event: event,
+                                selectedDate: selectedDate,
+                                theme: theme,
+                                onOpen: { onOpen(event) },
+                                onToggleCompletion: { onToggleCompletion(event) }
+                            )
                         }
                     }
                 }
@@ -673,11 +683,30 @@ private struct DayTimelineCard: View {
 
 private struct TimelineEventRow: View {
     let event: CalendarEvent
+    let selectedDate: Date
     let theme: PaperPalette
-    let onToggle: () -> Void
+    let onOpen: () -> Void
+    let onToggleCompletion: () -> Void
+
+    private var timeSummary: String {
+        let calendar = Calendar.current
+        let selectedDay = calendar.startOfDay(for: selectedDate)
+        let startDay = calendar.startOfDay(for: event.startTime)
+        let endDay = calendar.startOfDay(for: event.endTime)
+        if startDay == selectedDay && endDay == selectedDay {
+            return "\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))"
+        }
+        if startDay < selectedDay && endDay > selectedDay {
+            return "跨日 · 全天"
+        }
+        if startDay < selectedDay {
+            return "延续至 \(event.endTime.formatted(.dateTime.hour().minute()))"
+        }
+        return "从 \(event.startTime.formatted(.dateTime.hour().minute())) 开始"
+    }
 
     var body: some View {
-        PressableScaleButton(action: onToggle) { pressed in
+        PressableScaleButton(action: onOpen) { pressed in
             HStack(alignment: .top, spacing: 6) {
                 Text(event.startTime.formatted(.dateTime.hour().minute()))
                     .font(.caption2.weight(.semibold))
@@ -695,7 +724,7 @@ private struct TimelineEventRow: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 6) {
-                        Text("\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))")
+                        Text(timeSummary)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(theme.timeColor)
                         Text(event.category.displayName)
@@ -729,6 +758,14 @@ private struct TimelineEventRow: View {
                         .allowsHitTesting(false)
                 }
                 .shadow(color: theme.shadow.opacity(0.3), radius: 8, y: 4)
+            }
+        }
+        .contextMenu {
+            Button(action: onToggleCompletion) {
+                Label(event.isCompleted ? "标记为未完成" : "标记为已完成", systemImage: event.isCompleted ? "arrow.uturn.backward" : "checkmark")
+            }
+            Button(action: onOpen) {
+                Label("编辑日程", systemImage: "pencil")
             }
         }
         .accessibilityLabel("\(event.title)，\(event.isCompleted ? "已完成" : "未完成")")
