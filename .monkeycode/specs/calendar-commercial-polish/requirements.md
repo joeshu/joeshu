@@ -63,3 +63,14 @@
 2. WHEN a scheduled todo is shown in the timeline, THE system SHALL show its scheduled time context and distinguish it from a calendar event.
 3. WHEN the user completes a scheduled todo from the timeline, THE system SHALL persist the todo completion and update the timeline count and progress.
 4. WHEN the selected date contains calendar events and scheduled todos, THE system SHALL include both item types in the timeline total.
+
+### Requirement 6
+
+**User Story:** AS a user, I want planned work to remain visible across calendar views, so that I can review execution history and multi-day capacity.
+
+#### Acceptance Criteria
+
+1. WHEN a todo has a scheduled start and end, THE system SHALL show it on every covered calendar date.
+2. WHEN a calendar month or week contains scheduled todos, THE system SHALL include them in arrangement counts and day density indicators.
+3. WHEN a scheduled todo is completed, THE system SHALL preserve it in calendar history with completed styling and include it in completion totals.
+4. WHEN the selected date is today, THE system SHALL show a current-time marker in the execution timeline.

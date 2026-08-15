@@ -64,10 +64,16 @@ struct CalendarHomeView: View {
     private var selectedScheduledTodos: [TodoItem] {
         papers.flatMap(\.todoItems)
             .filter { item in
-                guard !item.isDone, let start = item.scheduledStart else { return false }
-                return calendar.isDate(start, inSameDayAs: selectedDate)
+                scheduledTodoCoversDate(item, selectedDate)
             }
             .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+    }
+
+    private func scheduledTodoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
+        guard let start = item.scheduledStart else { return false }
+        let end = item.scheduledEnd ?? start
+        let day = calendar.startOfDay(for: date)
+        return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
     }
 
     private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
@@ -90,7 +96,7 @@ struct CalendarHomeView: View {
                                 CalendarContextToolbar(
                                     monthTitle: monthTitle,
                                     selectedDate: selectedDate,
-                                    eventCount: selectedEvents.count,
+                                     eventCount: selectedEvents.count + selectedScheduledTodos.count,
                                     isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
                                     displayMode: $displayMode,
                                     theme: theme,
@@ -114,7 +120,7 @@ struct CalendarHomeView: View {
                             CalendarContextToolbar(
                                 monthTitle: monthTitle,
                                 selectedDate: selectedDate,
-                                eventCount: selectedEvents.count,
+                                 eventCount: selectedEvents.count + selectedScheduledTodos.count,
                                 isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
                                 displayMode: $displayMode,
                                 theme: theme,
@@ -205,12 +211,12 @@ struct CalendarHomeView: View {
     }
 
     private func completeTodo(_ item: TodoItem) {
-        item.isDone = true
+        item.isDone.toggle()
         item.paper?.updatedAt = Date()
         do {
             try modelContext.save()
         } catch {
-            item.isDone = false
+            item.isDone.toggle()
             saveErrorMessage = error.localizedDescription
         }
     }
@@ -228,6 +234,7 @@ struct CalendarHomeView: View {
                 selectedDate: selectedDate,
                 calendar: calendar,
                 theme: theme,
+                scheduledTodos: papers.flatMap(\.todoItems),
                 onSelect: selectDate
             )
 
@@ -251,10 +258,12 @@ struct CalendarHomeView: View {
                 events: events,
                 calendar: calendar,
                 theme: theme,
+                scheduledTodos: papers.flatMap(\.todoItems),
                 onSelect: selectDate,
                 onOpen: openEvent,
                 onAdd: addEvent,
-                onToggleCompletion: toggleEventCompletion
+                onToggleCompletion: toggleEventCompletion,
+                onToggleTodo: completeTodo
             )
 
         case .agenda:
@@ -288,6 +297,7 @@ struct CalendarHomeView: View {
                     selectedDate: selectedDate,
                     calendar: calendar,
                     theme: theme,
+                    scheduledTodos: papers.flatMap(\.todoItems),
                     onSelect: selectDate
                 )
                 .frame(maxWidth: .infinity)
@@ -311,12 +321,14 @@ struct CalendarHomeView: View {
             WeekCalendarCard(
                 selectedDate: selectedDate,
                 events: events,
+                scheduledTodos: papers.flatMap(\.todoItems),
                 calendar: calendar,
                 theme: theme,
                 onSelect: selectDate,
                 onOpen: openEvent,
                 onAdd: addEvent,
-                onToggleCompletion: toggleEventCompletion
+                onToggleCompletion: toggleEventCompletion,
+                onToggleTodo: completeTodo
             )
             .frame(maxWidth: 920)
 
@@ -498,12 +510,14 @@ private struct CalendarBackdrop: View {
 private struct WeekCalendarCard: View {
     let selectedDate: Date
     let events: [CalendarEvent]
+    let scheduledTodos: [TodoItem]
     let calendar: Calendar
     let theme: PaperPalette
     let onSelect: (Date) -> Void
     let onOpen: (CalendarEvent) -> Void
     let onAdd: () -> Void
     let onToggleCompletion: (CalendarEvent) -> Void
+    let onToggleTodo: (TodoItem) -> Void
 
     private var weekDates: [Date] {
         guard let interval = calendar.dateInterval(of: .weekOfYear, for: selectedDate) else { return [] }
@@ -560,12 +574,12 @@ private struct WeekCalendarCard: View {
     }
 
     private var weekEventCount: Int {
-        weekDates.reduce(0) { $0 + events(on: $1).count }
+        weekDates.reduce(0) { $0 + events(on: $1).count + todos(on: $1).count }
     }
 
     private var completedEventCount: Int {
         weekDates.reduce(0) { total, date in
-            total + events(on: date).filter(\.isCompleted).count
+            total + events(on: date).filter(\.isCompleted).count + todos(on: date).filter(\.isDone).count
         }
     }
 
@@ -576,6 +590,7 @@ private struct WeekCalendarCard: View {
 
     private func weekColumn(for date: Date) -> some View {
         let dayEvents = events(on: date)
+        let dayTodos = todos(on: date)
         let selected = calendar.isDate(date, inSameDayAs: selectedDate)
         let today = calendar.isDateInToday(date)
         return VStack(alignment: .leading, spacing: 8) {
@@ -594,9 +609,9 @@ private struct WeekCalendarCard: View {
                 .frame(minHeight: 64)
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(dayEvents.count) 个事件")
+            .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(dayEvents.count + dayTodos.count) 项安排")
 
-            if dayEvents.isEmpty {
+            if dayEvents.isEmpty && dayTodos.isEmpty {
                 Button {
                     onSelect(date)
                     onAdd()
@@ -637,6 +652,29 @@ private struct WeekCalendarCard: View {
                         }
                     }
                 }
+                ForEach(dayTodos) { item in
+                    Button { onSelect(date) } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(todoTimeSummary(for: item))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(theme.active)
+                            Text(item.text)
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(item.isDone ? theme.weakText : theme.text)
+                                .strikethrough(item.isDone)
+                                .lineLimit(3)
+                        }
+                        .padding(8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(theme.active.opacity(0.12), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                    }
+                    .buttonStyle(.plain)
+                    .contextMenu {
+                        Button { onToggleTodo(item) } label: {
+                            Label(item.isDone ? "标记为未完成" : "标记为已完成", systemImage: item.isDone ? "arrow.uturn.backward" : "checkmark")
+                        }
+                    }
+                }
             }
         }
         .padding(8)
@@ -650,6 +688,22 @@ private struct WeekCalendarCard: View {
             day >= calendar.startOfDay(for: event.startTime) && day <= calendar.startOfDay(for: event.endTime)
         }
         .sorted { $0.startTime < $1.startTime }
+    }
+
+    private func todos(on date: Date) -> [TodoItem] {
+        let day = calendar.startOfDay(for: date)
+        return scheduledTodos.filter { item in
+            guard let start = item.scheduledStart else { return false }
+            let end = item.scheduledEnd ?? start
+            return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
+        }
+        .sorted { ($0.scheduledStart ?? .distantFuture) < ($1.scheduledStart ?? .distantFuture) }
+    }
+
+    private func todoTimeSummary(for item: TodoItem) -> String {
+        guard let start = item.scheduledStart else { return "已安排" }
+        guard let end = item.scheduledEnd else { return "从 \(start.formatted(.dateTime.hour().minute())) 开始" }
+        return "\(start.formatted(.dateTime.hour().minute())) - \(end.formatted(.dateTime.hour().minute()))"
     }
 
     private func timeSummary(for event: CalendarEvent, on date: Date) -> String {
@@ -675,6 +729,7 @@ private struct MonthCard: View {
     let days: [Date]
     let weekdays: [String]
     let events: [CalendarEvent]
+    let scheduledTodos: [TodoItem]
     let selectedDate: Date
     let calendar: Calendar
     let theme: PaperPalette
@@ -726,19 +781,28 @@ private struct MonthCard: View {
     }
 
     private var monthEventCount: Int {
-        events.filter { event in
+        let eventCount = events.filter { event in
             guard let interval = calendar.dateInterval(of: .month, for: month) else { return false }
             let start = calendar.startOfDay(for: event.startTime)
             let end = calendar.startOfDay(for: event.endTime)
             return end >= interval.start && start < interval.end
         }.count
+        let todoCount = scheduledTodos.filter { item in
+            guard let start = item.scheduledStart,
+                  let interval = calendar.dateInterval(of: .month, for: month) else { return false }
+            let end = item.scheduledEnd ?? start
+            return end >= interval.start && start < interval.end
+        }.count
+        return eventCount + todoCount
     }
 
     private func monthDay(_ date: Date) -> some View {
         let inMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
         let selected = calendar.isDate(date, inSameDayAs: selectedDate)
         let dayEvents = events.filter { eventCoversDate($0, date) }
-        let visibleEvents = Array(dayEvents.prefix(4))
+        let dayTodos = scheduledTodos.filter { todoCoversDate($0, date) }
+        let itemCount = dayEvents.count + dayTodos.count
+        let visibleEvents = Array(dayEvents.prefix(3))
         return Button { onSelect(date) } label: {
             VStack(alignment: .leading, spacing: 1.5) {
                 Text("\(calendar.component(.day, from: date))")
@@ -759,8 +823,14 @@ private struct MonthCard: View {
                             .frame(width: 5, height: 5)
                             .accessibilityHidden(true)
                     }
-                    if dayEvents.count > visibleEvents.count {
-                        Text("+\(dayEvents.count - visibleEvents.count)")
+                    if dayTodos.count > 0 {
+                        Circle()
+                            .fill(theme.active)
+                            .frame(width: 5, height: 5)
+                            .accessibilityHidden(true)
+                    }
+                    if itemCount > visibleEvents.count + (dayTodos.isEmpty ? 0 : 1) {
+                        Text("+\(itemCount - visibleEvents.count - (dayTodos.isEmpty ? 0 : 1))")
                             .font(.system(size: 9, weight: .semibold))
                             .foregroundStyle(theme.weakText)
                     }
@@ -771,7 +841,7 @@ private struct MonthCard: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(dayEvents.count) 个事件")
+        .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(itemCount) 项安排")
     }
 
     private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
@@ -779,6 +849,13 @@ private struct MonthCard: View {
         let startDay = calendar.startOfDay(for: event.startTime)
         let endDay = calendar.startOfDay(for: event.endTime)
         return day >= startDay && day <= endDay
+    }
+
+    private func todoCoversDate(_ item: TodoItem, _ date: Date) -> Bool {
+        guard let start = item.scheduledStart else { return false }
+        let end = item.scheduledEnd ?? start
+        let day = calendar.startOfDay(for: date)
+        return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
     }
 }
 
@@ -798,11 +875,13 @@ private struct DayTimelineCard: View {
     private enum TimelineItem: Identifiable {
         case event(CalendarEvent)
         case todo(TodoItem)
+        case now(Date)
 
         var id: UUID {
             switch self {
             case .event(let event): event.id
             case .todo(let item): item.id
+            case .now: UUID(uuidString: "00000000-0000-0000-0000-000000000001")!
             }
         }
 
@@ -810,13 +889,21 @@ private struct DayTimelineCard: View {
             switch self {
             case .event(let event): event.startTime
             case .todo(let item): item.scheduledStart ?? .distantFuture
+            case .now(let date): date
             }
         }
     }
 
     private var timelineItems: [TimelineItem] {
-        (events.map(TimelineItem.event) + scheduledTodos.map(TimelineItem.todo))
-            .sorted { $0.startTime < $1.startTime }
+        let scheduleItems = events.map(TimelineItem.event) + scheduledTodos.map(TimelineItem.todo)
+        guard calendar.isDateInToday(selectedDate) else {
+            return scheduleItems.sorted { $0.startTime < $1.startTime }
+        }
+        return (scheduleItems + [.now(Date())]).sorted { $0.startTime < $1.startTime }
+    }
+
+    private var scheduleCount: Int {
+        events.count + scheduledTodos.count
     }
 
     var body: some View {
@@ -834,7 +921,7 @@ private struct DayTimelineCard: View {
                         .foregroundStyle(theme.text)
                 }
                 Spacer()
-                Text("\(timelineItems.count) 项")
+                Text("\(scheduleCount) 项")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(theme.weakText)
                 Button(action: onAdd) {
@@ -890,6 +977,8 @@ private struct DayTimelineCard: View {
                                     theme: theme,
                                     onComplete: { onCompleteTodo(todo) }
                                 )
+                            case .now(let date):
+                                TimelineNowMarker(date: date, theme: theme)
                             }
                         }
                     }
@@ -1106,6 +1195,32 @@ private struct ScheduledTodoTimelineRow: View {
     }
 }
 
+private struct TimelineNowMarker: View {
+    let date: Date
+    let theme: PaperPalette
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text("现在")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 44, alignment: .trailing)
+            Capsule()
+                .fill(theme.accent)
+                .frame(width: 8, height: 8)
+            Rectangle()
+                .fill(theme.accent.opacity(0.7))
+                .frame(height: 1.5)
+            Text(date.formatted(.dateTime.hour().minute()))
+                .font(.caption2.weight(.semibold).monospacedDigit())
+                .foregroundStyle(theme.accent)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("当前时间 \(date.formatted(.dateTime.hour().minute()))")
+    }
+}
+
 private struct TimelineStatusStrip: View {
     let selectedDate: Date
     let events: [CalendarEvent]
@@ -1113,7 +1228,7 @@ private struct TimelineStatusStrip: View {
     let theme: PaperPalette
 
     private var completedCount: Int {
-        events.filter(\.isCompleted).count
+        events.filter(\.isCompleted).count + scheduledTodos.filter(\.isDone).count
     }
 
     private var totalCount: Int {
