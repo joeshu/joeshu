@@ -203,8 +203,8 @@ struct CalendarHomeView: View {
                                     onToday: { shiftMonth(0) },
                                     onPrevious: { shiftMonth(-1) },
                                     onNext: { shiftMonth(1) },
-                                    onNaturalLanguage: { isPresentingNaturalLanguage = true },
-                                    onAdd: addEvent
+                                    onAdd: addEvent,
+                                    onNaturalLanguage: { isPresentingNaturalLanguage = true }
                                 )
                                 compactCalendarContent
                             }
@@ -229,8 +229,8 @@ struct CalendarHomeView: View {
                                 onToday: { shiftMonth(0) },
                                 onPrevious: { shiftMonth(-1) },
                                  onNext: { shiftMonth(1) },
-                                 onNaturalLanguage: { isPresentingNaturalLanguage = true },
-                                 onAdd: addEvent
+                                 onAdd: addEvent,
+                                 onNaturalLanguage: { isPresentingNaturalLanguage = true }
                             )
                             .padding(.horizontal, 12)
                             .padding(.top, 16)
