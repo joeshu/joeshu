@@ -51,9 +51,19 @@ private struct CalendarConflictSummary {
 
     var hasWarning: Bool { overlapCount > 0 || plannedMinutes > 480 }
     var message: String {
-        if overlapCount > 0 && plannedMinutes > 480 { return "有 \(overlapCount) 处时间冲突，计划时长超过 8 小时" }
+        if overlapCount > 0 && plannedMinutes > 480 {
+            return "有 \(overlapCount) 处时间冲突，计划 \(durationTitle)，超出 8 小时"
+        }
         if overlapCount > 0 { return "有 \(overlapCount) 处时间冲突" }
-        return "计划时长超过 8 小时"
+        return "计划 \(durationTitle)，超出 8 小时"
+    }
+
+    var durationTitle: String {
+        let hours = plannedMinutes / 60
+        let minutes = plannedMinutes % 60
+        if hours == 0 { return "\(minutes) 分钟" }
+        if minutes == 0 { return "\(hours) 小时" }
+        return "\(hours) 小时 \(minutes) 分钟"
     }
 
     static func forDate(_ date: Date, events: [CalendarEvent], todos: [TodoItem], calendar: Calendar) -> Self {
@@ -108,7 +118,9 @@ struct CalendarHomeView: View {
     }
 
     private var monthTitle: String {
-        month.formatted(.dateTime.year().month(.wide))
+        let year = calendar.component(.year, from: month)
+        let monthNumber = calendar.component(.month, from: month)
+        return "\(year)年\(monthNumber)月"
     }
 
     private var days: [Date] {
@@ -777,7 +789,7 @@ private struct CalendarConflictBanner: View {
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(theme.text)
             Spacer(minLength: 0)
-            Text("\(summary.plannedMinutes) 分钟")
+             Text(summary.durationTitle)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(theme.weakText)
         }
@@ -1373,7 +1385,7 @@ private struct DayTimelineCard: View {
                         .foregroundStyle(theme.text)
                 }
                 Spacer()
-                Text("\(scheduleCount) 项")
+                Text("共 \(scheduleCount) 项")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(theme.weakText)
                 Button(action: onAdd) {
@@ -1447,6 +1459,7 @@ private struct DayTimelineCard: View {
                             }
                         }
                     }
+                    .padding(.bottom, 96)
                 }
             }
         }
