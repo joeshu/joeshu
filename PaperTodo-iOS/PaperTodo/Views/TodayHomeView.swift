@@ -412,7 +412,6 @@ struct TodayHomeView: View {
 private struct TodayActionButton: ButtonStyle {
     let theme: PaperPalette
     let filled: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -426,7 +425,7 @@ private struct TodayActionButton: ButtonStyle {
                         .stroke(theme.active.opacity(0.35), lineWidth: 1)
                 }
             }
-            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
     }
 }
 

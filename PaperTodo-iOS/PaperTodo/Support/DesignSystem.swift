@@ -129,19 +129,17 @@ extension View {
 
 struct PaperPressStyle: ButtonStyle {
     var pressedScale: CGFloat = 0.975
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .scaleEffect(configuration.isPressed ? pressedScale : 1)
             .opacity(configuration.isPressed ? 0.88 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
 struct PaperPrimaryButtonStyle: ButtonStyle {
     let palette: PaperPalette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -152,13 +150,12 @@ struct PaperPrimaryButtonStyle: ButtonStyle {
             .background(palette.brandAction, in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
             .opacity(configuration.isPressed ? 0.82 : 1)
             .scaleEffect(configuration.isPressed ? 0.98 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
 struct PaperSecondaryButtonStyle: ButtonStyle {
     let palette: PaperPalette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -172,13 +169,12 @@ struct PaperSecondaryButtonStyle: ButtonStyle {
                     .stroke(palette.paperBorder.opacity(0.8), lineWidth: 1)
             }
             .opacity(configuration.isPressed ? 0.72 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
 struct PaperIconButtonStyle: ButtonStyle {
     let palette: PaperPalette
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -190,14 +186,13 @@ struct PaperIconButtonStyle: ButtonStyle {
                 Circle()
                     .stroke(palette.paperBorder.opacity(0.7), lineWidth: 1)
             }
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
 struct PaperFilterChipStyle: ButtonStyle {
     let palette: PaperPalette
     let selected: Bool
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -212,7 +207,7 @@ struct PaperFilterChipStyle: ButtonStyle {
                 }
             }
             .opacity(configuration.isPressed ? 0.78 : 1)
-            .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: configuration.isPressed)
+            .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
     }
 }
 
