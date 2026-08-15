@@ -1348,7 +1348,7 @@ private struct MonthCard: View {
         let inMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
         let selected = calendar.isDate(date, inSameDayAs: selectedDate)
         let items = monthEvents(on: date)
-        let visibleItems = Array(items.prefix(2))
+        let visibleItems = Array(items.prefix(20))
         let itemCount = items.count
         return Button { onSelect(date) } label: {
             VStack(alignment: .leading, spacing: 5) {
