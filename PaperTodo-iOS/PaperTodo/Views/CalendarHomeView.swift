@@ -60,6 +60,17 @@ struct CalendarHomeView: View {
                     if width < 720 {
                         ScrollView(.vertical, showsIndicators: false) {
                             VStack(spacing: 16) {
+                                CalendarContextToolbar(
+                                    monthTitle: monthTitle,
+                                    selectedDate: selectedDate,
+                                    eventCount: selectedEvents.count,
+                                    isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
+                                    theme: theme,
+                                    onToday: { shiftMonth(0) },
+                                    onPrevious: { shiftMonth(-1) },
+                                    onNext: { shiftMonth(1) },
+                                    onAdd: addEvent
+                                )
                                 MonthCard(
                                     month: month,
                                     title: monthTitle,
@@ -69,8 +80,7 @@ struct CalendarHomeView: View {
                                     selectedDate: selectedDate,
                                     calendar: calendar,
                                     theme: theme,
-                                    onSelect: selectDate,
-                                    onShift: shiftMonth
+                                    onSelect: selectDate
                                 )
                                 DayTimelineCard(
                                     monthTitle: monthTitle,
@@ -92,6 +102,23 @@ struct CalendarHomeView: View {
                         .offset(y: appeared ? 0 : 40)
                         .animation(.spring(response: 0.6, dampingFraction: 0.86), value: appeared)
                     } else {
+                        CalendarContextToolbar(
+                            monthTitle: monthTitle,
+                            selectedDate: selectedDate,
+                            eventCount: selectedEvents.count,
+                            isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
+                            theme: theme,
+                            onToday: { shiftMonth(0) },
+                            onPrevious: { shiftMonth(-1) },
+                            onNext: { shiftMonth(1) },
+                            onAdd: addEvent
+                        )
+                        .padding(.horizontal, 12)
+                        .padding(.top, 16)
+                        .frame(maxWidth: .infinity, alignment: .top)
+                        .offset(y: appeared ? 0 : 40)
+                        .zIndex(3)
+
                         MonthCard(
                             month: month,
                             title: monthTitle,
@@ -101,8 +128,7 @@ struct CalendarHomeView: View {
                             selectedDate: selectedDate,
                             calendar: calendar,
                             theme: theme,
-                            onSelect: selectDate,
-                            onShift: shiftMonth
+                            onSelect: selectDate
                         )
                         .padding(.leading, 12)
                         .padding(.top, 34)
@@ -184,6 +210,116 @@ struct CalendarHomeView: View {
     private func addEvent() {
         editingEvent = nil
         isPresentingForm = true
+    }
+}
+
+private struct CalendarContextToolbar: View {
+    let monthTitle: String
+    let selectedDate: Date
+    let eventCount: Int
+    let isCurrentMonth: Bool
+    let theme: PaperPalette
+    let onToday: () -> Void
+    let onPrevious: () -> Void
+    let onNext: () -> Void
+    let onAdd: () -> Void
+
+    private var selectedDateTitle: String {
+        Calendar.current.isDateInToday(selectedDate)
+            ? "今天"
+            : selectedDate.formatted(.dateTime.weekday(.wide).month().day())
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 12) {
+                contextSummary
+                Spacer(minLength: 8)
+                navigationControls
+                addButton
+            }
+            VStack(alignment: .leading, spacing: 12) {
+                contextSummary
+                HStack {
+                    navigationControls
+                    Spacer()
+                    addButton
+                }
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 13)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
+                .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
+        )
+        .shadow(color: theme.shadow.opacity(0.25), radius: 14, y: 7)
+    }
+
+    private var contextSummary: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text("日历")
+                .font(.system(.title2, design: .rounded).weight(.bold))
+                .foregroundStyle(theme.text)
+            HStack(spacing: 6) {
+                Text(monthTitle)
+                    .font(.subheadline.weight(.semibold))
+                Text("·")
+                    .foregroundStyle(theme.weakText)
+                Text(selectedDateTitle)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(theme.accent)
+            }
+            .foregroundStyle(theme.weakText)
+            Text(eventCount == 0 ? "当天暂无安排" : "已安排 \(eventCount) 项日程")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(theme.weakText)
+        }
+    }
+
+    private var navigationControls: some View {
+        HStack(spacing: 4) {
+            Button(action: onPrevious) {
+                Image(systemName: "chevron.left")
+            }
+            .accessibilityLabel("上个月")
+
+            Button(action: onToday) {
+                Text("今天")
+                    .font(.caption.weight(.bold))
+                    .frame(minWidth: 44)
+            }
+            .foregroundStyle(isCurrentMonth ? theme.weakText : theme.accent)
+            .background(
+                (isCurrentMonth ? theme.paper : theme.accent.opacity(0.12)),
+                in: Capsule()
+            )
+            .accessibilityLabel("回到今天")
+
+            Button(action: onNext) {
+                Image(systemName: "chevron.right")
+            }
+            .accessibilityLabel("下个月")
+        }
+        .font(.system(size: 14, weight: .bold))
+        .foregroundStyle(theme.text)
+        .padding(4)
+        .background(theme.paper.opacity(0.58), in: Capsule())
+        .overlay(Capsule().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
+    }
+
+    private var addButton: some View {
+        Button(action: onAdd) {
+            Image(systemName: "plus")
+                .font(.system(size: 14, weight: .bold))
+                .frame(width: 44, height: 44)
+                .foregroundStyle(theme.paper)
+                .background(theme.accent, in: Circle())
+                .shadow(color: theme.accent.opacity(0.25), radius: 8, y: 4)
+        }
+        .accessibilityLabel("新建日程")
     }
 }
 
@@ -302,7 +438,6 @@ private struct MonthCard: View {
     let calendar: Calendar
     let theme: PaperPalette
     let onSelect: (Date) -> Void
-    let onShift: (Int) -> Void
 
     var body: some View {
         VStack(spacing: 10) {
@@ -316,26 +451,13 @@ private struct MonthCard: View {
                         .foregroundStyle(theme.accent)
                 }
                 Spacer()
-                Text("\(monthEventCount) 项")
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(theme.accent)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 6)
-                    .background(theme.accent.opacity(0.11), in: Capsule())
-                Menu {
-                    Button("上个月") { onShift(-1) }
-                    Button("下个月") { onShift(1) }
-                    Button("回到今天") { onShift(0) }
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(theme.text)
-                        .frame(width: 44, height: 44)
-                        .contentShape(Circle())
-                        .background(theme.paper.opacity(0.5), in: Circle())
-                }
-                .accessibilityLabel("更多选项")
-            }
+                 Text("\(monthEventCount) 项")
+                     .font(.caption2.weight(.semibold))
+                     .foregroundStyle(theme.accent)
+                     .padding(.horizontal, 9)
+                     .padding(.vertical, 6)
+                     .background(theme.accent.opacity(0.11), in: Capsule())
+             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
                 ForEach(weekdays, id: \.self) { day in
                     Text(day)
