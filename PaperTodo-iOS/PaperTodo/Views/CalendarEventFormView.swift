@@ -109,7 +109,7 @@ struct CalendarEventFormView: View {
 
     private var isValidTime: Bool {
         if isAllDay { return combined(date: endDate, time: endTime) >= combined(date: startDate, time: startTime) }
-        combined(date: endDate, time: endTime) > combined(date: startDate, time: startTime)
+        return combined(date: endDate, time: endTime) > combined(date: startDate, time: startTime)
     }
 
     private func save() {
