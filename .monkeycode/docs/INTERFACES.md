@@ -29,6 +29,7 @@
 - `SharedContainer.storeURL()`：返回 App Group SwiftData store 地址。
 - `SharedContainer.makeModelContainer()`：创建共享 SwiftData 容器。
 - `SharedContainer.seedCalendarEvents(in:)`：当事件为空时插入示例事件。
+- `CalendarDisplayMode`：日历页面的瞬时显示状态，包含月视图和日程视图，不写入 SwiftData。
 - `NoteImageStore.save(data:referencedNames:)`：压缩并保存图片，返回生成的资源名。
 - `NoteImageStore.referencedNames(in:)`：从 Markdown 中提取合法图片资源名。
 - `NoteImageStore.deleteReferenced(in:preserving:)`：删除当前正文引用且未被保留集合引用的图片。

@@ -1,6 +1,20 @@
 import SwiftUI
 import SwiftData
 
+private enum CalendarDisplayMode: String, CaseIterable, Identifiable {
+    case month = "月视图"
+    case agenda = "日程"
+
+    var id: String { rawValue }
+
+    var symbolName: String {
+        switch self {
+        case .month: return "calendar"
+        case .agenda: return "list.bullet"
+        }
+    }
+}
+
 struct CalendarHomeView: View {
     @Environment(\.modelContext) private var modelContext
     let theme: PaperPalette
@@ -11,6 +25,7 @@ struct CalendarHomeView: View {
     @State private var isPresentingForm = false
     @State private var editingEvent: CalendarEvent?
     @State private var saveErrorMessage: String?
+    @State private var displayMode: CalendarDisplayMode = .month
 
     private let calendar = Calendar.current
     private let weekdayLabels = ["日", "一", "二", "三", "四", "五", "六"]
@@ -65,34 +80,14 @@ struct CalendarHomeView: View {
                                     selectedDate: selectedDate,
                                     eventCount: selectedEvents.count,
                                     isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
+                                    displayMode: $displayMode,
                                     theme: theme,
                                     onToday: { shiftMonth(0) },
                                     onPrevious: { shiftMonth(-1) },
                                     onNext: { shiftMonth(1) },
                                     onAdd: addEvent
                                 )
-                                MonthCard(
-                                    month: month,
-                                    title: monthTitle,
-                                    days: days,
-                                    weekdays: weekdays,
-                                    events: events,
-                                    selectedDate: selectedDate,
-                                    calendar: calendar,
-                                    theme: theme,
-                                    onSelect: selectDate
-                                )
-                                DayTimelineCard(
-                                    monthTitle: monthTitle,
-                                    selectedDate: selectedDate,
-                                    events: selectedEvents,
-                                    calendar: calendar,
-                                    theme: theme,
-                                    onSelect: selectDate,
-                                    onOpen: openEvent,
-                                    onAdd: addEvent,
-                                    onToggleCompletion: toggleEventCompletion
-                                )
+                                compactCalendarContent
                             }
                             .padding(.horizontal, 12)
                             .padding(.top, 20)
@@ -103,55 +98,28 @@ struct CalendarHomeView: View {
                         .offset(y: appeared ? 0 : 40)
                         .animation(.spring(response: 0.6, dampingFraction: 0.86), value: appeared)
                     } else {
-                        CalendarContextToolbar(
-                            monthTitle: monthTitle,
-                            selectedDate: selectedDate,
-                            eventCount: selectedEvents.count,
-                            isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
-                            theme: theme,
-                            onToday: { shiftMonth(0) },
-                            onPrevious: { shiftMonth(-1) },
-                            onNext: { shiftMonth(1) },
-                            onAdd: addEvent
-                        )
-                        .padding(.horizontal, 12)
-                        .padding(.top, 16)
-                        .frame(maxWidth: .infinity, alignment: .top)
-                        .offset(y: appeared ? 0 : 40)
-                        .zIndex(3)
+                        VStack(spacing: 0) {
+                            CalendarContextToolbar(
+                                monthTitle: monthTitle,
+                                selectedDate: selectedDate,
+                                eventCount: selectedEvents.count,
+                                isCurrentMonth: calendar.isDate(month, equalTo: Date(), toGranularity: .month),
+                                displayMode: $displayMode,
+                                theme: theme,
+                                onToday: { shiftMonth(0) },
+                                onPrevious: { shiftMonth(-1) },
+                                onNext: { shiftMonth(1) },
+                                onAdd: addEvent
+                            )
+                            .padding(.horizontal, 12)
+                            .padding(.top, 16)
 
-                        MonthCard(
-                            month: month,
-                            title: monthTitle,
-                            days: days,
-                            weekdays: weekdays,
-                            events: events,
-                            selectedDate: selectedDate,
-                            calendar: calendar,
-                            theme: theme,
-                            onSelect: selectDate
-                        )
-                        .padding(.leading, 12)
-                        .padding(.top, 34)
-                        .frame(width: max(width * 0.58, 296))
+                            wideCalendarContent
+                                .padding(.horizontal, 12)
+                                .padding(.top, 20)
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                         .offset(y: appeared ? 0 : 40)
-                        .zIndex(1)
-
-                        DayTimelineCard(
-                            monthTitle: monthTitle,
-                            selectedDate: selectedDate,
-                            events: selectedEvents,
-                            calendar: calendar,
-                            theme: theme,
-                            onSelect: selectDate,
-                            onOpen: openEvent,
-                            onAdd: addEvent,
-                            onToggleCompletion: toggleEventCompletion
-                        )
-                        .padding(.top, 104)
-                        .frame(width: width * 0.60)
-                        .offset(x: width * 0.40, y: appeared ? 0 : 40)
-                        .zIndex(2)
                     }
                 }
                 .animation(.spring(response: 0.6, dampingFraction: 0.86), value: appeared)
@@ -223,6 +191,96 @@ struct CalendarHomeView: View {
             saveErrorMessage = error.localizedDescription
         }
     }
+
+    @ViewBuilder
+    private var compactCalendarContent: some View {
+        switch displayMode {
+        case .month:
+            MonthCard(
+                month: month,
+                title: monthTitle,
+                days: days,
+                weekdays: weekdays,
+                events: events,
+                selectedDate: selectedDate,
+                calendar: calendar,
+                theme: theme,
+                onSelect: selectDate
+            )
+
+            DayTimelineCard(
+                monthTitle: monthTitle,
+                selectedDate: selectedDate,
+                events: selectedEvents,
+                calendar: calendar,
+                theme: theme,
+                onSelect: selectDate,
+                onOpen: openEvent,
+                onAdd: addEvent,
+                onToggleCompletion: toggleEventCompletion
+            )
+
+        case .agenda:
+            DayTimelineCard(
+                monthTitle: monthTitle,
+                selectedDate: selectedDate,
+                events: selectedEvents,
+                calendar: calendar,
+                theme: theme,
+                onSelect: selectDate,
+                onOpen: openEvent,
+                onAdd: addEvent,
+                onToggleCompletion: toggleEventCompletion
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var wideCalendarContent: some View {
+        switch displayMode {
+        case .month:
+            HStack(alignment: .top, spacing: 16) {
+                MonthCard(
+                    month: month,
+                    title: monthTitle,
+                    days: days,
+                    weekdays: weekdays,
+                    events: events,
+                    selectedDate: selectedDate,
+                    calendar: calendar,
+                    theme: theme,
+                    onSelect: selectDate
+                )
+                .frame(maxWidth: .infinity)
+
+                DayTimelineCard(
+                    monthTitle: monthTitle,
+                    selectedDate: selectedDate,
+                    events: selectedEvents,
+                    calendar: calendar,
+                    theme: theme,
+                    onSelect: selectDate,
+                    onOpen: openEvent,
+                    onAdd: addEvent,
+                    onToggleCompletion: toggleEventCompletion
+                )
+                .frame(maxWidth: .infinity)
+            }
+        case .agenda:
+            DayTimelineCard(
+                monthTitle: monthTitle,
+                selectedDate: selectedDate,
+                events: selectedEvents,
+                calendar: calendar,
+                theme: theme,
+                onSelect: selectDate,
+                onOpen: openEvent,
+                onAdd: addEvent,
+                onToggleCompletion: toggleEventCompletion
+            )
+            .frame(maxWidth: 620)
+        }
+    }
 }
 
 private struct CalendarContextToolbar: View {
@@ -230,6 +288,7 @@ private struct CalendarContextToolbar: View {
     let selectedDate: Date
     let eventCount: Int
     let isCurrentMonth: Bool
+    @Binding var displayMode: CalendarDisplayMode
     let theme: PaperPalette
     let onToday: () -> Void
     let onPrevious: () -> Void
@@ -248,12 +307,14 @@ private struct CalendarContextToolbar: View {
                 contextSummary
                 Spacer(minLength: 8)
                 navigationControls
+                viewMenu
                 addButton
             }
             VStack(alignment: .leading, spacing: 12) {
                 contextSummary
                 HStack {
                     navigationControls
+                    viewMenu
                     Spacer()
                     addButton
                 }
@@ -333,6 +394,26 @@ private struct CalendarContextToolbar: View {
         }
         .accessibilityLabel("新建日程")
     }
+
+    private var viewMenu: some View {
+        Menu {
+            Picker("日历视图", selection: $displayMode) {
+                ForEach(CalendarDisplayMode.allCases) { mode in
+                    Label(mode.rawValue, systemImage: mode.symbolName)
+                        .tag(mode)
+                }
+            }
+        } label: {
+            Label(displayMode.rawValue, systemImage: displayMode.symbolName)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(theme.text)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 44)
+                .background(theme.paper.opacity(0.58), in: Capsule())
+                .overlay(Capsule().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
+        }
+        .accessibilityLabel("切换日历视图")
+    }
 }
 
 private struct CalendarBackdrop: View {
@@ -342,7 +423,7 @@ private struct CalendarBackdrop: View {
         ZStack {
             theme.backgroundGradient
             Canvas { context, size in
-                let step: CGFloat = 40
+                let step: CGFloat = 48
                 var path = Path()
                 stride(from: 0, through: size.width, by: step).forEach { x in
                     path.move(to: CGPoint(x: x, y: 0))
@@ -352,90 +433,8 @@ private struct CalendarBackdrop: View {
                     path.move(to: CGPoint(x: 0, y: y))
                     path.addLine(to: CGPoint(x: size.width, y: y))
                 }
-                context.stroke(path, with: .color(theme.paperBorder.opacity(0.22)), lineWidth: 1)
+                context.stroke(path, with: .color(theme.paperBorder.opacity(0.12)), lineWidth: 1)
             }
-            VStack {
-                HStack(spacing: 12) {
-                    Spacer()
-                    FloatingIcon(delay: 0) { GoogleGIcon() }
-                    FloatingIcon(delay: 0.5) { ExcelIcon() }
-                    FloatingIcon(delay: 1.0) { OutlookIcon() }
-                }
-                .padding(.top, 18)
-                .padding(.trailing, 14)
-                Spacer()
-            }
-        }
-    }
-}
-
-private struct FloatingIcon<Content: View>: View {
-    let content: Content
-    let delay: Double
-    @State private var floating = false
-
-    init(delay: Double, @ViewBuilder content: () -> Content) {
-        self.delay = delay
-        self.content = content()
-    }
-
-    var body: some View {
-        content
-            .frame(width: 40, height: 40)
-            .shadow(color: .black.opacity(0.12), radius: 6, y: 3)
-            .offset(y: floating ? -4 : 4)
-            .onAppear {
-                withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true).delay(delay)) {
-                    floating = true
-                }
-            }
-    }
-}
-
-private struct GoogleGIcon: View {
-    var body: some View {
-        Canvas { context, size in
-            let radius = size.width * 0.5
-            let lineWidth = size.width * 0.26
-            let center = CGPoint(x: size.width / 2, y: size.height / 2)
-            let ringRadius = radius - lineWidth / 2 - 1
-            let segments: [(Color, Angle, Angle)] = [
-                (.blue, .degrees(300), .degrees(45)),
-                (.red, .degrees(45), .degrees(135)),
-                (.yellow, .degrees(135), .degrees(225)),
-                (.green, .degrees(225), .degrees(300))
-            ]
-            for (color, start, end) in segments {
-                var path = Path()
-                path.addArc(center: center, radius: ringRadius, startAngle: start, endAngle: end, clockwise: false)
-                context.stroke(path, with: .color(color), style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-            }
-            let bar = CGRect(x: center.x, y: center.y - lineWidth / 2, width: radius * 0.72, height: lineWidth)
-            context.fill(Path(bar), with: .color(.blue))
-        }
-        .background(Circle().fill(.white))
-    }
-}
-
-private struct ExcelIcon: View {
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 9, style: .continuous)
-                .fill(Color(hex: "1D9C4A"))
-            Text("E")
-                .font(.system(size: 19, weight: .bold))
-                .foregroundStyle(.white)
-        }
-    }
-}
-
-private struct OutlookIcon: View {
-    var body: some View {
-        ZStack {
-            Circle().fill(Color(hex: "0F6CBD"))
-            Image(systemName: "envelope.fill")
-                .font(.system(size: 16))
-                .foregroundStyle(.white)
         }
     }
 }

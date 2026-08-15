@@ -32,6 +32,7 @@ graph TD
 
 - `HomeModeContent` 根据 `HomeMode` 切换今日、纸片、日历和四象限。
 - `CalendarContextToolbar` 提供日历月份、选中日期、今天定位、月份切换和快速新增入口。
+- `CalendarDisplayMode` 控制月视图和日程视图；iPhone 使用单列流，iPad 使用非重叠双列布局。
 - `TimelineEventRow` 根据选中日期生成单日或跨日时间摘要，并通过 `CalendarHomeView` 保存完成状态。
 - `TodayHomeView` 聚合当天的未完成待办、已安排任务、日历事件、完成进度和计划容量。
 - `TaskScheduleSheet` 编辑任务的计划开始时间和预计时长，并保存派生结束时间。

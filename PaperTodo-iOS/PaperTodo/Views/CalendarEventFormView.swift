@@ -61,7 +61,7 @@ struct CalendarEventFormView: View {
                         Toggle("已完成", isOn: $isCompleted)
                     }
                 }
-                if endTime <= startTime {
+                if !isValidTime {
                     Section {
                     Text("结束日期和时间需晚于开始日期和时间")
                             .font(.caption)
@@ -114,11 +114,12 @@ struct CalendarEventFormView: View {
             return
         }
         let target = event ?? CalendarEvent(title: title, startTime: start, endTime: end, category: category)
-        target.title = title
+        target.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         target.startTime = start
         target.endTime = end
         target.category = category
-        target.note = note.isEmpty ? nil : note
+        let trimmedNote = note.trimmingCharacters(in: .whitespacesAndNewlines)
+        target.note = trimmedNote.isEmpty ? nil : trimmedNote
         if event != nil {
             target.isCompleted = isCompleted
         }
