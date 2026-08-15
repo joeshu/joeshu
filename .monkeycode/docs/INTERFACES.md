@@ -36,6 +36,9 @@
 - `CalendarEvent.covers(_:calendar:)` 与 `TodoItem.covers(_:calendar:)`：统一判断单次或重复安排是否覆盖指定日期，日历月视图、周视图和日程视图复用该规则。
 - `CalendarFilterState`：保存日历页面的分类、待办、完成状态和全天状态筛选；筛选变化不会修改月份或选中日期。
 - `CalendarConflictSummary.forDate(_:events:todos:calendar:)`：计算指定日期的定时安排重叠数量和计划分钟数。
+- `CalendarDateSupport.monthGridDates(for:calendar:)`、`weekDates(containing:calendar:)`：生成月视图网格和周视图日期集合。
+- `CalendarTimeSlot.dateValue(using:)`：将周视图日期列和小时槽转换为具体时间。
+- `CalendarDropPayload`：统一编码日程事件和待办拖放来源。
 - `NaturalLanguageScheduleParser.parse(_:reference:calendar:)`：本地解析相对日期、日期、时间范围、时长、分类和提醒，返回可编辑 `NaturalLanguageScheduleDraft`。
 - Widget `Provider.loadEntry()` 从 App Group SwiftData 容器读取待办，并使用 `TodoItem.covers(_:calendar:)` 和 `scheduledOccurrenceStart(on:calendar:)` 生成今日数量、时长和下一项任务。
 - `NoteImageStore.save(data:referencedNames:)`：压缩并保存图片，返回生成的资源名。

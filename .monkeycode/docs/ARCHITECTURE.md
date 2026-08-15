@@ -45,6 +45,7 @@ graph TD
 - `PaperCard` 在纸片索引中展示待办进度、今日安排数量和下一项未完成任务。
 - `NotePaperView` 管理 Markdown 编辑、预览、图片导入、导出和标题。
 - `CalendarHomeView` 管理月份网格、日期选择、彩色事件标签、周标尺和日时间线。
+- `CalendarDateSupport` 提供月份网格、周日期、小时槽和拖放载荷等纯日历支持类型，隔离日期计算与 SwiftUI 展示。
 - `CalendarFilterState` 管理事件分类、待办来源、完成状态和全天状态筛选；`CalendarConflictSummary` 计算选中日期的时间重叠与计划容量提示。
 - `NaturalLanguageScheduleParser` 将本地自然语言输入转换为可编辑的日程草稿，`NaturalLanguageScheduleSheet` 负责结构化确认并复用事件和待办保存路径。
 - 日历页、今日页和待办纸片在排期保存成功后调用 `WidgetCenter.shared.reloadAllTimelines()`；今日排期筛选统一通过 `TodoItem.covers(_:calendar:)` 处理跨日和重复实例。
