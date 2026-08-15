@@ -88,9 +88,9 @@ jobs:
         working-directory: PaperTodo-iOS
         run: |
           APP_PATH="build-livecontainer/Build/Products/Release-iphoneos/PaperTodoLiveContainer.app"
-          mkdir -p Payload-LiveContainer
-          cp -R "$APP_PATH" Payload-LiveContainer/
-          zip -r PaperTodo-LiveContainer.ipa Payload-LiveContainer
+          mkdir -p Payload
+          cp -R "$APP_PATH" Payload/
+          zip -r PaperTodo-LiveContainer.ipa Payload
           ls -lh PaperTodo-LiveContainer.ipa
 
       - name: Upload IPA
