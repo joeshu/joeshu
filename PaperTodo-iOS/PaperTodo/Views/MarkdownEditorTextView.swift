@@ -73,8 +73,11 @@ struct MarkdownEditorTextView: UIViewRepresentable {
                 )
                 DispatchQueue.main.async { [weak textView] in
                     guard let textView else { return }
+                    guard self.pendingID == id, textView.text == text else { return }
                     textView.attributedText = highlighted
-                    textView.selectedRange = selected
+                    let location = min(selected.location, textView.text.utf16.count)
+                    let length = min(selected.length, textView.text.utf16.count - location)
+                    textView.selectedRange = NSRange(location: location, length: max(0, length))
                 }
             }
             pendingHighlight?.cancel()

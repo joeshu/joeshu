@@ -18,7 +18,7 @@ struct TodoPaperView: View {
     @State private var editingItemID: UUID?
     @FocusState private var editingItemFocused: Bool
     @State private var saveTask: Task<Void, Never>?
-    @State private var autoClearTask: Task<Void, Never>?
+    @State private var autoClearTasks: [UUID: Task<Void, Never>] = [:]
     @State private var saveErrorMessage: String?
 
     private var sortedTodos: [TodoItem] {
@@ -224,6 +224,8 @@ struct TodoPaperView: View {
         }
         .onDisappear {
             saveTask?.cancel()
+            autoClearTasks.values.forEach { $0.cancel() }
+            autoClearTasks.removeAll()
             saveContext()
         }
     }
@@ -299,13 +301,8 @@ struct TodoPaperView: View {
                  Label("编辑", systemImage: "pencil")
              }
              Button {
-                 pushUndo()
-                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
-                    item.isDone.toggle()
-                    paper.updatedAt = Date()
-                    saveContext()
-                }
-            } label: {
+                  toggle(item)
+             } label: {
                 Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
             }
         }
@@ -395,6 +392,8 @@ struct TodoPaperView: View {
     }
 
     private func restore(_ snap: [TodoSnapshot]) {
+        autoClearTasks.values.forEach { $0.cancel() }
+        autoClearTasks.removeAll()
         let snapByID = Dictionary(uniqueKeysWithValues: snap.map { ($0.id, $0) })
         var remainingIDs = Set(snapByID.keys)
         for item in paper.todoItems {
@@ -415,6 +414,7 @@ struct TodoPaperView: View {
         }
         paper.updatedAt = Date()
         saveContext()
+        refreshWidget()
     }
 
     private func undo() {
@@ -482,10 +482,13 @@ struct TodoPaperView: View {
         if settings.autoClearDone && item.isDone {
             let itemID = item.id
             let paperID = paper.persistentModelID
-            autoClearTask?.cancel()
-            autoClearTask = Task { @MainActor in
+            autoClearTasks[itemID]?.cancel()
+            autoClearTasks[itemID] = Task { @MainActor in
                 try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled else { return }
+                guard !Task.isCancelled else {
+                    autoClearTasks.removeValue(forKey: itemID)
+                    return
+                }
                 guard settings.autoClearDone,
                       let current = paper.todoItems.first(where: { $0.id == itemID }),
                       current.isDone,
@@ -496,6 +499,7 @@ struct TodoPaperView: View {
                 paper.updatedAt = Date()
                 saveContext()
                 refreshWidget()
+                autoClearTasks.removeValue(forKey: itemID)
             }
         }
     }
@@ -558,6 +562,7 @@ struct TodoPaperView: View {
         }
         paper.updatedAt = Date()
         saveContext()
+        refreshWidget()
     }
 }
 

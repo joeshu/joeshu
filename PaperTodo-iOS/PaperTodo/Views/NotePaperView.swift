@@ -18,6 +18,7 @@ struct NotePaperView: View {
     @State private var exportError: String?
     @State private var saveErrorMessage: String?
     @State private var saveTask: Task<Void, Never>?
+    @State private var importGeneration = UUID()
 
     private var theme: PaperPalette {
         settings.palette(systemDark: colorScheme == .dark)
@@ -207,27 +208,30 @@ struct NotePaperView: View {
             Text(saveErrorMessage ?? "无法保存更改。")
         }
         .onDisappear {
+            importGeneration = UUID()
             saveTask?.cancel()
             saveContext()
         }
     }
 
     private func loadImage(from item: PhotosPickerItem) {
+        let generation = importGeneration
+        let referencedNames = NoteImageStore.referencedNames(in: paper.body)
         Task {
             await MainActor.run { startImport() }
             guard let data = try? await item.loadTransferable(type: Data.self) else {
                 await MainActor.run {
-                    finishImport(name: nil)
+                    finishImport(name: nil, generation: generation)
                     pickerItem = nil
                 }
                 return
             }
             let name = await NoteImageImportQueue.shared.save(
                 data: data,
-                referencedNames: NoteImageStore.referencedNames(in: paper.body)
+                referencedNames: referencedNames
             )
             await MainActor.run {
-                finishImport(name: name)
+                finishImport(name: name, generation: generation)
                 pickerItem = nil
             }
         }
@@ -237,34 +241,38 @@ struct NotePaperView: View {
         let pasteboard = UIPasteboard.general
         let imageTypes = [UTType.png.identifier, UTType.jpeg.identifier, UTType.image.identifier]
         guard let data = imageTypes.lazy.compactMap({ pasteboard.data(forPasteboardType: $0) }).first else { return }
+        let generation = importGeneration
+        let referencedNames = NoteImageStore.referencedNames(in: paper.body)
         startImport()
         Task {
             let name = await NoteImageImportQueue.shared.save(
                 data: data,
-                referencedNames: NoteImageStore.referencedNames(in: paper.body)
+                referencedNames: referencedNames
             )
             await MainActor.run {
-                finishImport(name: name)
+                finishImport(name: name, generation: generation)
             }
         }
     }
 
     private func loadDroppedImages(_ providers: [NSItemProvider]) {
         for provider in providers {
+            let generation = importGeneration
+            let referencedNames = NoteImageStore.referencedNames(in: paper.body)
             startImport()
             if provider.hasItemConformingToTypeIdentifier(UTType.image.identifier) {
                 provider.loadDataRepresentation(forTypeIdentifier: UTType.image.identifier) { data, _ in
                     guard let data else {
-                        Task { @MainActor in finishImport(name: nil) }
+                        Task { @MainActor in finishImport(name: nil, generation: generation) }
                         return
                     }
                     Task {
                         let name = await NoteImageImportQueue.shared.save(
                             data: data,
-                            referencedNames: NoteImageStore.referencedNames(in: paper.body)
+                            referencedNames: referencedNames
                         )
                         await MainActor.run {
-                            finishImport(name: name)
+                            finishImport(name: name, generation: generation)
                         }
                     }
                 }
@@ -272,22 +280,22 @@ struct NotePaperView: View {
                 provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
                     Task {
                         guard let url = item as? URL else {
-                            await MainActor.run { finishImport(name: nil) }
+                            await MainActor.run { finishImport(name: nil, generation: generation) }
                             return
                         }
                         let values = try? url.resourceValues(forKeys: [.fileSizeKey])
                         guard let fileSize = values?.fileSize,
                               fileSize <= NoteImageStore.maxInputBytes,
                               let data = try? Data(contentsOf: url) else {
-                            await MainActor.run { finishImport(name: nil) }
+                            await MainActor.run { finishImport(name: nil, generation: generation) }
                             return
                         }
                         let name = await NoteImageImportQueue.shared.save(
                             data: data,
-                            referencedNames: NoteImageStore.referencedNames(in: paper.body)
+                            referencedNames: referencedNames
                         )
                         await MainActor.run {
-                            finishImport(name: name)
+                            finishImport(name: name, generation: generation)
                         }
                     }
                 }
@@ -337,7 +345,11 @@ struct NotePaperView: View {
         pendingImports += 1
     }
 
-    private func finishImport(name: String?) {
+    private func finishImport(name: String?, generation: UUID? = nil) {
+        guard generation == nil || generation == importGeneration else {
+            pendingImports = max(0, pendingImports - 1)
+            return
+        }
         pendingImports = max(0, pendingImports - 1)
         if let name {
             insertImageReference(name)

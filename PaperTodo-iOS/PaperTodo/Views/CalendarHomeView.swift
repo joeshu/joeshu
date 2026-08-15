@@ -21,7 +21,7 @@ struct CalendarHomeView: View {
     }
 
     private var monthTitle: String {
-        month.formatted(.dateTime.month(.wide))
+        month.formatted(.dateTime.year().month(.wide))
     }
 
     private var days: [Date] {
@@ -39,8 +39,15 @@ struct CalendarHomeView: View {
     }
 
     private var selectedEvents: [CalendarEvent] {
-        events.filter { calendar.isDate($0.startTime, inSameDayAs: selectedDate) }
+        events.filter { eventCoversDate($0, selectedDate) }
             .sorted { $0.startTime < $1.startTime }
+    }
+
+    private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
+        let day = calendar.startOfDay(for: date)
+        let startDay = calendar.startOfDay(for: event.startTime)
+        let endDay = calendar.startOfDay(for: event.endTime)
+        return day >= startDay && day <= endDay
     }
 
     var body: some View {
@@ -300,8 +307,21 @@ private struct MonthCard: View {
     var body: some View {
         VStack(spacing: 10) {
             HStack {
-                Text(title).font(.system(size: 18, weight: .bold)).foregroundStyle(theme.text)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title)
+                        .font(.system(.title3, design: .rounded).weight(.bold))
+                        .foregroundStyle(theme.text)
+                    Text("月视图")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(theme.accent)
+                }
                 Spacer()
+                Text("\(monthEventCount) 项")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(theme.accent)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background(theme.accent.opacity(0.11), in: Capsule())
                 Menu {
                     Button("上个月") { onShift(-1) }
                     Button("下个月") { onShift(1) }
@@ -318,7 +338,9 @@ private struct MonthCard: View {
             }
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 2), count: 7), spacing: 4) {
                 ForEach(weekdays, id: \.self) { day in
-                    Text(day).font(.system(size: 12, weight: .medium)).foregroundStyle(theme.weakText)
+                    Text(day)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(day == "日" || day == "六" ? theme.accent : theme.weakText)
                 }
                 ForEach(days, id: \.self) { date in
                     monthDay(date)
@@ -332,13 +354,27 @@ private struct MonthCard: View {
             RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
                 .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
         )
+        .overlay(alignment: .top) {
+            RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
+                .stroke(theme.accent.opacity(0.22), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
         .shadow(color: theme.shadow.opacity(0.35), radius: 20, y: 12)
+    }
+
+    private var monthEventCount: Int {
+        events.filter { event in
+            guard let interval = calendar.dateInterval(of: .month, for: month) else { return false }
+            let start = calendar.startOfDay(for: event.startTime)
+            let end = calendar.startOfDay(for: event.endTime)
+            return end >= interval.start && start < interval.end
+        }.count
     }
 
     private func monthDay(_ date: Date) -> some View {
         let inMonth = calendar.isDate(date, equalTo: month, toGranularity: .month)
         let selected = calendar.isDate(date, inSameDayAs: selectedDate)
-        let dayEvents = events.filter { calendar.isDate($0.startTime, inSameDayAs: date) }
+        let dayEvents = events.filter { eventCoversDate($0, date) }
         let visibleEvents = Array(dayEvents.prefix(3))
         return Button { onSelect(date) } label: {
             VStack(alignment: .leading, spacing: 1.5) {
@@ -347,16 +383,26 @@ private struct MonthCard: View {
                     .foregroundStyle(selected ? theme.paper : (inMonth ? theme.text : theme.weakText.opacity(0.5)))
                     .frame(width: 34, height: 34)
                     .background(selected ? theme.accent : .clear, in: Circle())
+                    .overlay {
+                        if calendar.isDateInToday(date) && !selected {
+                            Circle().stroke(theme.accent, lineWidth: 1.5)
+                        }
+                    }
                     .shadow(color: selected ? theme.accent.opacity(0.25) : .clear, radius: 6, y: 3)
                 ForEach(visibleEvents) { event in
-                    Text(event.title)
-                        .font(.system(size: 9, weight: .medium))
-                        .lineLimit(1)
-                        .padding(.horizontal, 2)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .frame(height: 15)
-                        .foregroundStyle(event.category.tagText)
-                        .background(event.category.tagBackground, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    HStack(spacing: 3) {
+                        Circle()
+                            .fill(event.category.ringColor)
+                            .frame(width: 4, height: 4)
+                        Text(event.title)
+                            .font(.caption2.weight(.medium))
+                            .lineLimit(1)
+                    }
+                    .padding(.horizontal, 3)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 15)
+                    .foregroundStyle(event.category.tagText)
+                    .background(event.category.tagBackground, in: RoundedRectangle(cornerRadius: 4, style: .continuous))
                 }
                 if dayEvents.count > 3 {
                     Text("+\(dayEvents.count - 3)")
@@ -365,11 +411,18 @@ private struct MonthCard: View {
                         .frame(height: 12, alignment: .leading)
                 }
             }
-            .frame(height: 84, alignment: .top)
+            .frame(minHeight: 84, alignment: .top)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(dayEvents.count) 个事件")
+    }
+
+    private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
+        let day = calendar.startOfDay(for: date)
+        let startDay = calendar.startOfDay(for: event.startTime)
+        let endDay = calendar.startOfDay(for: event.endTime)
+        return day >= startDay && day <= endDay
     }
 }
 
@@ -386,12 +439,21 @@ private struct DayTimelineCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(spacing: 12) {
-                Image(systemName: "calendar.badge.clock").font(.system(size: 22))
+                Image(systemName: "calendar.badge.clock")
+                    .font(.system(size: 22, weight: .semibold))
+                    .foregroundStyle(theme.accent)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(monthTitle).font(.system(size: 11)).foregroundStyle(theme.weakText)
-                    Text(calendar.isDateInToday(selectedDate) ? "今天" : selectedDate.formatted(.dateTime.day())).font(.system(size: 16, weight: .bold))
+                    Text(monthTitle)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(theme.weakText)
+                    Text(calendar.isDateInToday(selectedDate) ? "今天" : selectedDate.formatted(.dateTime.month().day()))
+                        .font(.system(.headline, design: .rounded).weight(.bold))
+                        .foregroundStyle(theme.text)
                 }
                 Spacer()
+                Text("\(events.count) 项")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(theme.weakText)
                 Button(action: onAdd) {
                     Image(systemName: "plus")
                         .font(.system(size: 13, weight: .bold))
@@ -410,7 +472,18 @@ private struct DayTimelineCard: View {
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 10) {
                     if events.isEmpty {
-                        Text("当天暂无日程").font(.subheadline).foregroundStyle(theme.weakText).frame(maxWidth: .infinity, minHeight: 180)
+                        VStack(spacing: 10) {
+                            Image(systemName: "calendar.badge.plus")
+                                .font(.system(size: 28, weight: .light))
+                                .foregroundStyle(theme.accent)
+                            Text("当天暂无日程")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(theme.text)
+                            Button("新建日程", action: onAdd)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(theme.accent)
+                        }
+                        .frame(maxWidth: .infinity, minHeight: 180)
                     } else {
                         ForEach(events) { event in
                             TimelineEventRow(event: event, theme: theme) {
@@ -430,6 +503,11 @@ private struct DayTimelineCard: View {
             UnevenRoundedRectangle(topLeadingRadius: PaperRadius.shell, bottomLeadingRadius: PaperRadius.shell, bottomTrailingRadius: PaperRadius.block, topTrailingRadius: PaperRadius.block)
                 .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
         )
+        .overlay(alignment: .leading) {
+            UnevenRoundedRectangle(topLeadingRadius: PaperRadius.shell, bottomLeadingRadius: PaperRadius.shell, bottomTrailingRadius: PaperRadius.block, topTrailingRadius: PaperRadius.block)
+                .stroke(theme.accent.opacity(0.3), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
         .shadow(color: theme.shadow.opacity(0.4), radius: 24, x: -8, y: 8)
     }
 
@@ -446,7 +524,9 @@ private struct DayTimelineCard: View {
                 let weekdayIndex = (calendar.component(.weekday, from: date) - firstWeekday + 7) % 7
                 Button { onSelect(date) } label: {
                     VStack(spacing: 3) {
-                        Text(orderedLabels[weekdayIndex]).font(.system(size: 10)).foregroundStyle(theme.weakText)
+                        Text(orderedLabels[weekdayIndex])
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(weekdayIndex == 0 || weekdayIndex == 6 ? theme.accent : theme.weakText)
                         ZStack {
                             Circle().fill(theme.accent)
                                 .frame(width: 30, height: 30)
@@ -455,7 +535,7 @@ private struct DayTimelineCard: View {
                                 .animation(.spring(response: 0.35, dampingFraction: 0.7), value: selected)
                             Text("\(calendar.component(.day, from: date))")
                                 .font(.system(size: 13, weight: selected ? .bold : .regular))
-                                .foregroundStyle(selected ? theme.paper : theme.weakText)
+                                .foregroundStyle(selected ? theme.paper : theme.text)
                         }
                         .frame(width: 30, height: 30)
                     }
@@ -478,13 +558,13 @@ private struct TimelineEventRow: View {
         PressableScaleButton(action: onToggle) { pressed in
             HStack(alignment: .top, spacing: 6) {
                 Text(event.startTime.formatted(.dateTime.hour().minute()))
-                    .font(.system(size: 11))
-                    .foregroundStyle(theme.weakText)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(event.category.ringColor)
                     .frame(width: 44, alignment: .trailing)
                     .padding(.top, 11)
 
                 ZStack {
-                    Rectangle().fill(theme.paperBorder.opacity(0.6)).frame(width: 1)
+                    Rectangle().fill(event.category.ringColor.opacity(0.42)).frame(width: 1.5)
                     Circle().stroke(event.category.ringColor, lineWidth: 2)
                         .frame(width: 10, height: 10)
                         .padding(.top, 13)
@@ -492,30 +572,46 @@ private struct TimelineEventRow: View {
                 .frame(maxWidth: 1, maxHeight: .infinity)
 
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(theme.timeColor)
+                    HStack(spacing: 6) {
+                        Text("\(event.startTime.formatted(.dateTime.hour().minute())) - \(event.endTime.formatted(.dateTime.hour().minute()))")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(theme.timeColor)
+                        Text(event.category.displayName)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(event.category.tagText)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(event.category.tagBackground, in: Capsule())
+                    }
                     Text(event.title)
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(event.isCompleted ? theme.weakText : theme.text)
+                        .font(.system(.subheadline, design: .rounded).weight(.semibold))
+                        .foregroundStyle(event.isCompleted ? theme.weakText : event.category.tagText)
                         .strikethrough(event.isCompleted)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
-                    pressed ? theme.paper.opacity(0.7) : theme.paper.opacity(0.45),
+                    pressed ? event.category.tagBackground.opacity(0.32) : theme.paper.opacity(0.45),
                     in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                         .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
                 )
+                .overlay(alignment: .leading) {
+                    Capsule()
+                        .fill(event.category.ringColor)
+                        .frame(width: 3)
+                        .padding(.vertical, 8)
+                        .allowsHitTesting(false)
+                }
                 .shadow(color: theme.shadow.opacity(0.3), radius: 8, y: 4)
             }
         }
         .accessibilityLabel("\(event.title)，\(event.isCompleted ? "已完成" : "未完成")")
-        .accessibilityHint("打开编辑")
+        .accessibilityHint("打开事件编辑")
+        .accessibilityAddTraits(.isButton)
     }
 }
 

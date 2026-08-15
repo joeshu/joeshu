@@ -18,10 +18,20 @@ enum NoteImageStore {
         return cache
     }()
 
+    private static let storedImageNamePattern = try? NSRegularExpression(
+        pattern: #"^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[1-5][0-9A-Fa-f]{3}-[89ABab][0-9A-Fa-f]{3}-[0-9A-Fa-f]{12}\.jpg$"#
+    )
+
     private static var assetsDir: URL {
         let dir = URL.documentsDirectory.appendingPathComponent("note-assets", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
+    }
+
+    private static func isValidStoredImageName(_ name: String) -> Bool {
+        guard let regex = storedImageNamePattern else { return false }
+        let range = NSRange(location: 0, length: (name as NSString).length)
+        return regex.firstMatch(in: name, range: range) != nil
     }
 
     static func save(image: UIImage) -> String? {
@@ -52,6 +62,7 @@ enum NoteImageStore {
         let encodedData = output as Data
         guard encodedData.count <= maxStoredImageBytes else { return nil }
         let referencedBytes = referencedNames.reduce(0) { total, name in
+            guard isValidStoredImageName(name) else { return total }
             let fileURL = assetsDir.appendingPathComponent(name)
             let values = try? fileURL.resourceValues(forKeys: [.fileSizeKey])
             return total + (values?.fileSize ?? 0)
@@ -66,6 +77,7 @@ enum NoteImageStore {
     }
 
     static func image(named: String, maxPixelSize: CGFloat = 2048) -> UIImage? {
+        guard isValidStoredImageName(named) else { return nil }
         let cacheKey = named as NSString
         if let cached = imageCache.object(forKey: cacheKey) {
             return cached
@@ -86,6 +98,7 @@ enum NoteImageStore {
     }
 
     static func delete(named: String) {
+        guard isValidStoredImageName(named) else { return }
         imageCache.removeObject(forKey: named as NSString)
         let url = assetsDir.appendingPathComponent(named)
         try? FileManager.default.removeItem(at: url)
@@ -104,24 +117,33 @@ enum NoteImageStore {
             guard !inFence else { continue }
             let range = NSRange(location: 0, length: (line as NSString).length)
             for match in regex.matches(in: line, range: range) {
-                names.insert((line as NSString).substring(with: match.range(at: 1)))
+                let name = (line as NSString).substring(with: match.range(at: 1))
+                if isValidStoredImageName(name) {
+                    names.insert(name)
+                }
             }
         }
         return names
     }
 
-    static func deleteReferenced(in markdown: String) {
-        referencedNames(in: markdown).forEach(delete(named:))
+    static func deleteReferenced(in markdown: String, preserving preservedNames: Set<String> = []) {
+        referencedNames(in: markdown)
+            .subtracting(preservedNames)
+            .forEach(delete(named:))
     }
 
     static func cleanupOrphans(referencedNames: Set<String>) {
+        let validReferencedNames = referencedNames.filter(isValidStoredImageName)
         guard let files = try? FileManager.default.contentsOfDirectory(at: assetsDir, includingPropertiesForKeys: nil) else { return }
-        for file in files where file.pathExtension.lowercased() == "jpg" && !referencedNames.contains(file.lastPathComponent) {
+        for file in files where file.pathExtension.lowercased() == "jpg"
+                && isValidStoredImageName(file.lastPathComponent)
+                && !validReferencedNames.contains(file.lastPathComponent) {
             try? FileManager.default.removeItem(at: file)
         }
     }
 
     static func copy(named: String, to directory: URL) -> Bool {
+        guard isValidStoredImageName(named) else { return false }
         let source = assetsDir.appendingPathComponent(named)
         let destination = directory.appendingPathComponent(named)
         do {

@@ -106,6 +106,7 @@ struct QuadrantHomeView: View {
                         .lineLimit(2)
                         .font(.caption)
                         .foregroundStyle(theme.text)
+                        .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 .buttonStyle(.plain)
@@ -115,6 +116,7 @@ struct QuadrantHomeView: View {
                     .lineLimit(2)
                     .font(.caption)
                     .foregroundStyle(theme.text)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
@@ -184,11 +186,11 @@ struct QuadrantHomeView: View {
         editorConfig = QuadrantEditorConfig(title: "编辑任务", initialText: item.text) { text in
             item.text = text
             item.paper?.updatedAt = Date()
-            saveContext()
+            return saveContext()
         }
     }
 
-    private func addTask(named title: String, in quadrant: Quadrant) {
+    private func addTask(named title: String, in quadrant: Quadrant) -> Bool {
         let target: Paper
         if let existing = papers.first(where: { $0.kind == .todo }) {
             target = existing
@@ -201,14 +203,16 @@ struct QuadrantHomeView: View {
         item.quadrant = quadrant
         target.todoItems.append(item)
         target.updatedAt = Date()
-        saveContext()
+        return saveContext()
     }
 
-    private func saveContext() {
+    private func saveContext() -> Bool {
         do {
             try modelContext.save()
+            return true
         } catch {
             saveErrorMessage = error.localizedDescription
+            return false
         }
     }
 }
@@ -217,17 +221,17 @@ private struct QuadrantEditorConfig: Identifiable {
     let id = UUID()
     let title: String
     let initialText: String
-    let handler: (String) -> Void
+    let handler: (String) -> Bool
 }
 
 private struct QuadrantTaskEditorSheet: View {
     @Environment(\.dismiss) private var dismiss
     let title: String
     let initialText: String
-    let onSubmit: (String) -> Void
+    let onSubmit: (String) -> Bool
     @State private var text: String
 
-    init(title: String, initialText: String, onSubmit: @escaping (String) -> Void) {
+    init(title: String, initialText: String, onSubmit: @escaping (String) -> Bool) {
         self.title = title
         self.initialText = initialText
         self.onSubmit = onSubmit
@@ -249,8 +253,9 @@ private struct QuadrantTaskEditorSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        onSubmit(text.trimmingCharacters(in: .whitespacesAndNewlines))
-                        dismiss()
+                        if onSubmit(text.trimmingCharacters(in: .whitespacesAndNewlines)) {
+                            dismiss()
+                        }
                     }
                     .disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }

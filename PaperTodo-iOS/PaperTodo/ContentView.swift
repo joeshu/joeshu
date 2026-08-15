@@ -12,13 +12,9 @@ struct ContentView: View {
     @State private var paperPreview: Paper?
     @State private var paperAwaitingDeletion: Paper?
     @State private var pendingDeletions: [UUID: PendingDeletion] = [:]
-    @State private var sortedCache: [Paper] = []
 
     private var sortedPapers: [Paper] {
-        if sortedCache.isEmpty && !papers.isEmpty {
-            return Self.sortPapers(papers)
-        }
-        return sortedCache
+        Self.sortPapers(papers)
     }
 
     private static func sortPapers(_ input: [Paper]) -> [Paper] {
@@ -39,7 +35,12 @@ struct ContentView: View {
     }
 
     private var activePapers: [Paper] {
-        sortedPapers.filter { $0.id != paperAwaitingDeletion?.id }
+        let pendingIDs = Set(pendingDeletions.keys)
+        return sortedPapers.filter { !pendingIDs.contains($0.id) }
+    }
+
+    private var pendingDeletionPapers: [Paper] {
+        pendingDeletions.values.map(\.paper).sorted { $0.updatedAt > $1.updatedAt }
     }
 
     private var visiblePapers: [Paper] {
@@ -93,9 +94,6 @@ struct ContentView: View {
             }
             .navigationTitle("PaperTodo")
             .navigationBarTitleDisplayMode(.inline)
-            .task(id: papers) {
-                sortedCache = Self.sortPapers(papers)
-            }
             .navigationDestination(for: Paper.self) { paper in
                 switch paper.kind {
                 case .todo:
@@ -143,9 +141,9 @@ struct ContentView: View {
                 }
             }
             .overlay(alignment: .bottom) {
-                if let paperAwaitingDeletion {
-                    UndoDeletionBanner(paper: paperAwaitingDeletion, theme: theme) {
-                        undoDeletion()
+                if !pendingDeletionPapers.isEmpty {
+                    UndoDeletionBanner(papers: pendingDeletionPapers, theme: theme) { paper in
+                        undoDeletion(paper)
                     }
                     .padding(.bottom, capsulePapers.isEmpty ? 12 : 64)
                     .transition(.move(edge: .bottom).combined(with: .opacity))
@@ -247,18 +245,23 @@ struct ContentView: View {
         }
     }
 
-    private func undoDeletion() {
-        if let paper = paperAwaitingDeletion {
-            pendingDeletions.removeValue(forKey: paper.id)
-        }
+    private func undoDeletion(_ paper: Paper) {
+        pendingDeletions.removeValue(forKey: paper.id)
         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-            paperAwaitingDeletion = nil
+            if paperAwaitingDeletion?.id == paper.id {
+                paperAwaitingDeletion = nil
+            }
         }
     }
 
     private func permanentlyDelete(_ paper: Paper) {
         if paper.kind == .note {
-            NoteImageStore.deleteReferenced(in: paper.body)
+            let namesReferencedByOtherNotes = (try? modelContext.fetch(FetchDescriptor<Paper>()))?
+                .filter { $0.id != paper.id && $0.kind == .note }
+                .reduce(into: Set<String>()) { names, otherPaper in
+                    names.formUnion(NoteImageStore.referencedNames(in: otherPaper.body))
+                } ?? []
+            NoteImageStore.deleteReferenced(in: paper.body, preserving: namesReferencedByOtherNotes)
         }
         pendingDeletions.removeValue(forKey: paper.id)
         if paperAwaitingDeletion?.id == paper.id {
@@ -744,22 +747,29 @@ private struct OverviewMetrics {
 }
 
 private struct UndoDeletionBanner: View {
-    let paper: Paper
+    let papers: [Paper]
     let theme: PaperPalette
-    let onUndo: () -> Void
+    let onUndo: (Paper) -> Void
 
     var body: some View {
         HStack(spacing: 10) {
             Image(systemName: "trash.slash")
                 .foregroundStyle(theme.danger)
-            Text("已移除纸片")
+            Text("已移除 \(papers.count) 张纸片")
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(theme.text)
             Spacer(minLength: 8)
-            Button("撤销", action: onUndo)
-                .font(.caption.weight(.bold))
-                .foregroundStyle(theme.active)
-                .buttonStyle(PaperPressStyle(pressedScale: 0.96))
+            Menu {
+                ForEach(papers) { paper in
+                    Button(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title) {
+                        onUndo(paper)
+                    }
+                }
+            } label: {
+                Text("撤销")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(theme.active)
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
@@ -768,7 +778,7 @@ private struct UndoDeletionBanner: View {
         .shadow(color: theme.shadow.opacity(0.55), radius: 12, y: 4)
         .padding(.horizontal, 16)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("已移除纸片，可撤销")
+        .accessibilityLabel("已移除 \(papers.count) 张纸片，可选择撤销")
     }
 }
 

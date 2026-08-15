@@ -9,7 +9,8 @@ struct CalendarEventFormView: View {
     let onSave: () -> Void
 
     @State private var title: String
-    @State private var date: Date
+    @State private var startDate: Date
+    @State private var endDate: Date
     @State private var startTime: Date
     @State private var endTime: Date
     @State private var category: EventCategory
@@ -22,11 +23,13 @@ struct CalendarEventFormView: View {
     init(event: CalendarEvent?, date: Date, onSave: @escaping () -> Void = {}) {
         self.event = event
         self.onSave = onSave
-        let day = Calendar.current.startOfDay(for: event?.startTime ?? date)
+        let startDay = Calendar.current.startOfDay(for: event?.startTime ?? date)
+        let endDay = Calendar.current.startOfDay(for: event?.endTime ?? event?.startTime ?? date)
         _title = State(initialValue: event?.title ?? "")
-        _date = State(initialValue: day)
-        _startTime = State(initialValue: event?.startTime ?? day.addingTimeInterval(7 * 3600))
-        _endTime = State(initialValue: event?.endTime ?? day.addingTimeInterval(8 * 3600))
+        _startDate = State(initialValue: startDay)
+        _endDate = State(initialValue: endDay)
+        _startTime = State(initialValue: event?.startTime ?? startDay.addingTimeInterval(7 * 3600))
+        _endTime = State(initialValue: event?.endTime ?? startDay.addingTimeInterval(8 * 3600))
         _category = State(initialValue: event?.category ?? .daily)
         _isCompleted = State(initialValue: event?.isCompleted ?? false)
         _note = State(initialValue: event?.note ?? "")
@@ -39,7 +42,8 @@ struct CalendarEventFormView: View {
                     TextField("标题", text: $title)
                 }
                 Section("时间") {
-                    DatePicker("日期", selection: $date, displayedComponents: .date)
+                    DatePicker("开始日期", selection: $startDate, displayedComponents: .date)
+                    DatePicker("结束日期", selection: $endDate, displayedComponents: .date)
                     DatePicker("开始", selection: $startTime, displayedComponents: .hourAndMinute)
                     DatePicker("结束", selection: $endTime, displayedComponents: .hourAndMinute)
                 }
@@ -59,7 +63,7 @@ struct CalendarEventFormView: View {
                 }
                 if endTime <= startTime {
                     Section {
-                        Text("结束时间需晚于开始时间")
+                    Text("结束日期和时间需晚于开始日期和时间")
                             .font(.caption)
                             .foregroundStyle(.red)
                     }
@@ -99,12 +103,12 @@ struct CalendarEventFormView: View {
     }
 
     private var isValidTime: Bool {
-        endTime > startTime
+        combined(date: endDate, time: endTime) > combined(date: startDate, time: startTime)
     }
 
     private func save() {
-        let start = combined(date: date, time: startTime)
-        let end = combined(date: date, time: endTime, fallback: start.addingTimeInterval(3600))
+        let start = combined(date: startDate, time: startTime)
+        let end = combined(date: endDate, time: endTime, fallback: start.addingTimeInterval(3600))
         guard end > start else {
             saveError = "结束时间需晚于开始时间。"
             return

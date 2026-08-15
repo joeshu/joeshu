@@ -1,96 +1,94 @@
-# 全局优化实施计划
+# 需求实施计划
 
-目标：从全局出发，统一界面视觉与设计令牌、提升 Markdown 与首页渲染性能、修复已审查出的功能 Bug 并补齐缺失交互。
+- [x] 1. 加固笔记图片资源边界与引用生命周期
+- [x] 1.1 校验并规范化 Markdown 图片资源名（对应全局优化 4.4、历史设计 R4.AC3）
+    - 修改 `Support/NoteImageStore.swift`，仅允许应用生成的 UUID `.jpg` 文件名作为资源标识。
+    - 在 `image(named:)`、`delete(named:)`、`copy(named:to:)`、大小统计和孤立清理入口统一拒绝路径分隔符、绝对路径、父目录引用和非资源扩展名。
+    - 保证非法引用只返回失败或跳过，不访问 `Documents` 目录之外的文件。
+- [x] 1.2 按引用关系安全删除笔记图片（对应全局优化 6.4、历史设计正确性属性 P1）
+    - 修改 `ContentView.permanentlyDelete` 与 `NoteImageStore.deleteReferenced`，删除纸片前计算其他笔记的引用集合。
+    - 仅删除当前笔记独占的资源，保留仍被其他笔记引用的图片。
+    - 让启动时 `cleanupOrphans` 与手动删除使用同一套合法资源名和引用判定规则。
+  - [ ]* 1.3 编写图片资源安全属性测试（对应设计正确性属性 P1、历史设计 R4.AC3）
+    - 验证任意包含路径分隔符、父目录引用或绝对路径的 Markdown 引用都不会访问资源目录外部。
+    - 验证共享图片引用删除任一笔记后，另一笔记仍能加载该图片。
+- [x] 1.4 检查点 - 确保所有测试通过,如有疑问请询问用户
 
-- [x] 1. 日历模式接入全局主题
-  - [x] 1.1 日历背景与卡片接入主题令牌
-    - 将 `CalendarHomeView.swift` 整屏背景 `Color(hex: "E8EEF5")`、`CalendarBackdrop` 渐变与网格线改用 `theme.backgroundGradient`/`theme.canvas`/`theme.paperBorder`（行 87、135、147）
-    - 将月卡 `Color.white.opacity`/`Color.white` 卡片底与时间线卡材质改为 `theme.surfaceGradient` + `theme.paperBorder`，统一深浅模式（行 275、366、437）
-    - 圆角复用 `PaperRadius.shell`/`block`，消除 24/28/24 硬编码（行 274、366）
-  - [x] 1.2 日历文字与选中高亮接入主题
-    - 正文近黑色 `Color(hex: "1C1C1E")` 改用 `theme.text`（行 249、258、288、338、345、430）
-    - 选中日/周条/底部 tab 的 `Color(hex: "4A7BF7")` 改用 `theme.accent`（行 290、291、384、491、495）
-    - 浅灰 `Color(hex: "C7C7CC")` 改为 `theme.weakText` 或提升对比度（行 266、305、382、412）
-  - [x] 1.3 统一日历底部导航与全局导航范式
-    - 重构 `CalendarTabBar`：将日历底部三个 tab（日历/应用/个人中心）改为与全局一致的分段/工具栏切换，消除图标语义与实际跳转不符问题（CalendarHomeView.swift:467-508、HomeModeContent.swift:44-49）
-    - 删除"应用→list、个人中心→quadrant"的错误映射，统一模式切换入口
-  - [ ]* 1.4 深色模式一致性校验
-    - 校验日历、列表、四象限三模式在 warm/ink/forest/rose 各主题深浅色下的背景、卡片、文字对比度一致
+- [x] 2. 修复日历事件日期和跨日显示逻辑
+- [x] 2.1 支持跨日事件的日期合并和表单校验（对应设计 Components And Interfaces、全局优化 7.6）
+    - 修改 `Views/CalendarEventFormView.swift`，为开始日期和结束日期提供一致的数据模型，允许合法的跨日事件。
+    - 校验结束日期时间严格晚于开始日期时间，保存失败时保留表单输入并显示可理解错误。
+    - 编辑已有跨日事件时完整回填开始和结束日期及时间。
+- [x] 2.2 按事件覆盖日期筛选月历和时间线（对应 requirements R2.AC3、历史设计正确性属性 P2）
+    - 修改 `CalendarHomeView.selectedEvents` 和 `MonthCard.monthDay`，将事件结束日期覆盖的每一天纳入事件摘要和当天列表。
+    - 保持事件按开始时间排序，并避免同一事件在同一日期重复显示。
+    - 跨日事件在时间线中保留完整开始和结束时间信息。
+  - [ ]* 2.3 编写日历日期属性测试（对应设计正确性属性 P2、requirements R2.AC2-R2.AC4）
+    - 验证月历网格包含完整周行且日期顺序符合系统日历。
+    - 验证跨日事件出现在覆盖的每个日期，事件边界日期和空日期行为正确。
+- [x] 2.4 检查点 - 确保所有测试通过,如有疑问请询问用户
 
-- [x] 2. 全局颜色派生与无障碍适配
-  - [x] 2.1 事件分类与象限颜色并入主题派生
-    - `EventCategory.tagBackground/tagText/ringColor` 由主题派生并提供深色变体，消除 18 个硬编码 `Color(hex:)`（Paper.swift:27-62）
-    - `Quadrant.color` 从 palette 派生或提供 dark 版本，替换 `4A7BF7/5B9BD5/FFB04A/4CD964` 硬编码（Paper.swift:133-140）
-    - `Color(hex:)` 结果缓存到静态字典，避免每次 getter 重复解析（Paper.swift:151-159）
-  - [x] 2.2 统一同语义颜色
-    - `QuadrantHomeView` 未勾选复选框与操作菜单 `Color.secondary` 统一为 `theme.weakText`（行 96、132）
-    - `AnimatedCheckCircle` 未选中描边与勾选图标接入主题（DesignSystem.swift:72-75）
-    - 删除 dropZone `Color.red` 改用 `theme.danger`（TodoPaperView.swift:295）
-    - 首页 segmented Picker 增加 `.tint(theme.active)` 与设置页一致（HomeModeContent.swift:17-23）
-  - [x] 2.3 统一触控目标尺寸
-    - 日历"更多选项"/"+"按钮、周条日按钮触控区扩至 ≥44pt（CalendarHomeView.swift:256-260、335-341、382-393）
-    - `QuadrantHomeView` 复选框与 ellipsis 菜单、`PaperFilterBar` 筛选胶囊补足最小触控尺寸（QuadrantHomeView.swift:95-99、ContentView.swift:316-317）
-  - [x] 2.4 动态字体适配
-    - `MarkdownTextView` 标题固定 pt 改为可缩放样式（MarkdownTextView.swift:48）
-    - `NotePaperView`/`MarkdownEditorTextView` 编辑器 17pt 固定字号改用 `UIFontMetrics.scaledFont`（MarkdownEditorTextView.swift:21）
-    - `TodoPaperView` 新增待办输入框与日历事件行固定高度改为自适应（TodoPaperView.swift:105、MarkdownTextView.swift:294-304）
-  - [x] 2.5 无障碍标签修复
-    - `TimelineEventRow` accessibilityLabel 改为"打开 X 进行编辑"，与点击动作一致并加 `.isButton`（CalendarHomeView.swift:443）
-    - `SettingsView` PickerRow 合并为单个可交互元素（SettingsView.swift:104-121）
-  - [ ]* 2.6 辅助功能与深色模式测试
-    - 校验各模式 VoiceOver 标签可读、触控目标 ≥44pt、深色模式无白底
+- [x] 3. 统一待办完成、自动清除、撤销和 Widget 更新路径
+- [x] 3.1 抽取待办状态变更入口（对应全局优化 6.2、7.2、requirements R3.AC3）
+    - 修改 `Views/TodoPaperView.swift`，让行点击、上下文菜单完成、自动清除、撤销/重做和删除共用一致的状态更新、保存和 Widget 刷新逻辑。
+    - 上下文菜单完成操作必须触发与普通点击相同的自动清除延迟任务和取消条件。
+    - 移动排序、标题编辑和完成状态变化完成保存后刷新 Widget 数据。
+- [x] 3.2 修复连续操作下的自动清除和撤销状态（对应全局优化 6.2、6.3）
+    - 在取消完成、删除、撤销和重做时取消相关延迟清理任务。
+    - 保持对象 ID、排序索引、完成状态和正在编辑状态在恢复后的一致性。
+    - 多个已完成任务连续操作时，保证延迟清理只作用于仍满足条件的目标任务。
+  - [ ]* 3.3 编写待办操作属性测试（对应设计正确性属性 P3、全局优化 6.2-6.5）
+    - 验证任意完成入口产生一致的持久化状态和 Widget 刷新行为。
+    - 验证撤销/重做保持任务 ID 和顺序，并验证自动清除不会误删已撤销任务。
+- [x] 3.4 检查点 - 确保所有测试通过,如有疑问请询问用户
 
-- [x] 3. 检查点 - 界面优化完成，确保编译通过，如有疑问请询问用户
+- [x] 4. 修复 Markdown 编辑和图片导入竞态
+- [x] 4.1 使异步 Markdown 高亮按文本版本回写（对应全局优化 4.1、历史设计 R4.AC3）
+    - 修改 `Views/MarkdownEditorTextView.swift`，在后台解析和主线程赋值两个阶段都校验文本版本或请求 ID。
+    - 仅当文本、选区和编辑器仍对应当前请求时应用 `attributedText`，避免旧任务覆盖最新输入。
+    - 保证应用高亮后选区仍处于有效 UTF-16 范围，且编辑器状态更新继续在主线程完成。
+- [x] 4.2 固定图片导入的数据快照和生命周期（对应全局优化 4.4、7.3）
+    - 修改 `Views/NotePaperView.swift`，在启动异步导入时捕获正文引用快照和当前纸片标识。
+    - 导入完成后确认当前页面仍对应同一纸片，再插入图片引用；页面离开或纸片变化时释放结果并保持资源清理一致。
+    - 为 PhotosPicker、粘贴板和拖放三条入口统一导入计数、失败提示和保存行为。
+  - [ ]* 4.3 编写编辑器竞态测试（对应设计错误处理、全局优化 4.1）
+    - 验证快速连续输入时旧高亮结果不会覆盖最新正文。
+    - 验证异步图片导入失败、取消和页面切换时不会插入错误纸片或残留无引用资源。
+- [x] 4.4 检查点 - 确保所有测试通过,如有疑问请询问用户
 
-- [x] 4. 提升 Markdown 渲染与首页计算性能
-  - [x] 4.1 编辑器增量高亮与防抖
-    - `MarkdownEditorTextView.textViewDidChange` 增加 150-300ms 防抖，避免每次击键全量 `AttributedString(markdown:)` 解析（MarkdownEditorTextView.swift:56-69）
-    - 防抖期间保留当前高亮，避免输入闪烁
-  - [x] 4.2 解析下沉与缓存
-    - `MarkdownTextView.inline(_:)` 的 `AttributedString(markdown:)` 解析下沉到 init 一次性完成，块级与内联均不再在 body 求值时重复解析（MarkdownTextView.swift:144-166）
-  - [x] 4.3 首页 computed 链聚合
-    - 合并 `sortedPapers → activePapers → visiblePapers → filterCounts` 为单次遍历构建索引，消除每次渲染的多重全量 filter/sort（ContentView.swift:16-63）
-    - `PaperCard.summary/detailText` 笔记摘要只截取前 N 字符再正则/计词，避免每 60 秒全量扫描（ContentView.swift:492-505）
-  - [x] 4.4 启动清理与图片加载异步化
-    - `PaperTodoApp` 的 `cleanupOrphanedImages` 移到后台队列，避免启动阻塞主线程（PaperTodoApp.swift:30-38）
-    - `NoteImageStore.referencedNames(in:)` 正则提升为 `static let` 一次性编译（NoteImageStore.swift:93-111）
-    - `NoteImageStore.image(named:)` 同步主线程解码改为异步加载 + 占位图（NoteImageStore.swift:67-85）
-  - [x] 4.5 undo/redo 快照优化
-    - `TodoPaperView` undo 快照改为字段级回滚或复用对象 `id`，避免删除重建整个列表（TodoPaperView.swift:348-377）
-  - [ ]* 4.6 渲染与计算性能基准测试
-    - 大笔记连续输入、长列表滚动、多事件日历下测量主线程阻塞与帧率
+- [x] 5. 完善删除撤销和四象限保存失败行为
+- [x] 5.1 支持多纸片并行删除的独立撤销状态（对应全局优化 6.5、requirements R4.AC3）
+    - 修改 `Views/ContentView.swift`，让每个待删除纸片拥有独立撤销入口或可恢复集合。
+    - 保证连续删除多张纸片时，撤销任一纸片不会影响其他纸片的倒计时和永久删除流程。
+    - 纸片永久删除时继续清理其独占图片并保存 SwiftData 上下文。
+- [x] 5.2 保留四象限编辑输入并处理保存失败（对应 requirements R3.AC3、R4.AC3）
+    - 修改 `Views/QuadrantHomeView.swift`，让编辑/新增任务的提交失败信息返回 Sheet，保留用户输入并允许重试。
+    - 保存成功后再关闭编辑 Sheet；新增任务继续写入目标象限和所属待办纸片。
+    - 对新增任务标题执行统一空白清理，并避免空标题进入 SwiftData。
+  - [ ]* 5.3 编写删除和四象限交互测试（对应 requirements R3.AC3-R3.AC5、R4.AC3）
+    - 验证多纸片删除和撤销互不干扰。
+    - 验证四象限保存失败时输入内容仍保留，成功后任务归属和文本正确持久化。
+- [x] 5.4 检查点 - 确保所有测试通过,如有疑问请询问用户
 
-- [x] 5. 检查点 - 性能优化完成，确保编译通过，如有疑问请询问用户
+- [x] 6. 校正首页缓存、布局和辅助功能一致性
+- [x] 6.1 让首页排序缓存响应关系和字段变化（对应全局优化 4.3、历史设计正确性属性 P4）
+    - 修改 `Views/ContentView.swift`，确保待办子项完成状态、排序索引、纸片置顶和更新时间变化都能刷新首页排序及筛选结果。
+    - 保持模式切换不修改 `Paper`、`TodoItem` 内容，并避免缓存空数组与真实空数据混淆。
+- [x] 6.2 修复日历和四象限的小屏自适应边界（对应 requirements R4.AC1、设计 R5.AC1）
+    - 调整 `CalendarHomeView.swift` 的月历单元格和时间线布局，保证动态字体下事件标签、标题和按钮可见。
+    - 调整 `QuadrantHomeView.swift` 的自适应列、任务行和菜单布局，保证 iPhone/iPad 上文字不截断且操作区域不重叠。
+- [x] 6.3 完善关键控件辅助功能语义（对应 requirements R4.AC2、全局优化 2.5）
+    - 校验模式切换、月份导航、日期单元格、事件行、象限任务和删除撤销控件的标签、值、提示和按钮 trait 与实际动作一致。
+    - 保证装饰性图标不进入 VoiceOver 朗读顺序，交互元素触控区域保持至少 44pt。
+  - [ ]* 6.4 编写首页状态和布局测试（对应设计正确性属性 P2-P4、requirements R1.AC2-R1.AC4、R4.AC1-R4.AC2）
+    - 验证模式切换保留纸片、筛选和主题状态，首页数据变化后排序和筛选结果及时更新。
+    - 在代表性 iPhone/iPad 尺寸下验证关键视图无重叠、无截断和按钮可触达。
+- [x] 6.5 检查点 - 确保所有测试通过,如有疑问请询问用户
 
-- [x] 6. 修复功能 Bug
-  - [x] 6.1 修复筛选计数单位错误
-    - `filterCounts.pending` 改为统计含未完成项的纸片数，与筛选结果一致（ContentView.swift:52-63）
-  - [x] 6.2 修复 autoClearDone 与 undo 竞态
-    - 延迟删除前校验 `item` 未被删除/所属纸片未变，使用任务取消避免访问已删除对象（TodoPaperView.swift:427-436）
-  - [x] 6.3 修复 undo/redo 破坏对象身份
-    - `restore` 复用快照 `id` 恢复对象，保证正在编辑的 item 与外部引用在 undo 后仍有效（TodoPaperView.swift:354-365）
-  - [x] 6.4 修复图片删除清空缓存
-    - `NoteImageStore.delete(named:)` 只移除对应 key，避免清空整个缓存（NoteImageStore.swift:87-91）
-  - [x] 6.5 删除撤销一致性
-    - 删除确认后延迟窗口内多次删除时保持各纸片独立撤销机会，避免前一纸片被立即永久删除（ContentView.swift:225-241）
-  - [ ]* 6.6 单元测试
-    - 为筛选计数、象限推导、undo/redo 对象身份编写单元测试
-
-- [x] 7. 功能增强与缺失补齐
-  - [x] 7.1 笔记标题重命名
-    - `NotePaperView` 增加标题编辑入口，与 `TodoPaperView` 对齐（NotePaperView.swift）
-  - [x] 7.2 Widget 数据主动刷新
-    - 关键变更（toggle/删除/添加）后调用 `WidgetCenter.shared.reloadAllTimelines()`，消除 30 分钟滞后（PaperTodoWidget.swift、TodoPaperView.swift、NotePaperView.swift）
-  - [x] 7.3 导出异步化与失败提示
-    - `NoteExportStore` 导出移到后台，失败时提示用户而非静默不弹 sheet（NoteExportStore.swift、NotePaperView.swift:112-117）
-  - [x] 7.4 保存失败统一反馈
-    - 三个编辑页 `try? modelContext.save()` 静默吞错统一为失败提示，与 `ContentView` 的保存失败 alert 一致（TodoPaperView.swift、NotePaperView.swift、CalendarHomeView.swift）
-  - [x] 7.5 空状态统一
-    - `TodoPaperView` 空列表增加"还没有待办"引导文案与输入框占位符（TodoPaperView.swift:47-121）
-    - 全局空状态保留模式切换入口，日历模式无数据时提供首次引导（ContentView.swift:69-87）
-  - [x] 7.6 日历表单与布局修复
-    - `CalendarEventFormView` 结束时间无效时保存按钮禁用并说明，而非静默改值（CalendarEventFormView.swift:88-90）
-    - 月历星期表头与网格按系统 `firstWeekday` 生成，消除周一/周日起始错位（CalendarHomeView.swift:18、375）
-    - 月卡/时间线卡布局改为小屏纵向堆叠、iPad 固定容器宽度，消除重叠与裁剪（CalendarHomeView.swift:45-83、309）
-  - [ ]* 7.7 集成测试
-    - 校验三种模式切换、任务操作、导出失败提示与空状态引导
+- [x] 7. 完成代码质量和构建验证
+- [x] 7.1 执行静态质量检查并修正实现回归（对应全局优化目标、requirements R4.AC3）
+    - 检查资源路径、SwiftData 保存错误、异步任务取消、主线程 UI 更新和无效输入处理。
+    - 运行 `git diff --check`，确保新增实现无格式错误、调试输出或敏感信息。
+  - [ ]* 7.2 执行自动化回归测试（对应设计 Test Strategy、全局优化 6.6-7.7）
+    - 运行项目已有单元测试、属性测试和 UI 测试，覆盖图片资源、日历跨日、待办操作、删除撤销和模式切换。
+- [x] 7.3 检查点 - 确保所有测试通过,如有疑问请询问用户
