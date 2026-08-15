@@ -47,7 +47,6 @@
 - `NoteImageStore.cleanupOrphans(referencedNames:)`：清理未被引用的合法 JPG 资源。
 - `NoteExportStore.writeMarkdownPackage(title:body:)`：生成临时 Markdown 导出目录。
 - `ReminderNotificationService`：申请通知权限，按对象 UUID 创建、更新和取消未来本地提醒；过期提醒会跳过。
-- `ReminderNotificationService`：申请通知权限，按对象 UUID 创建、更新和取消未来本地提醒；过期提醒会跳过。
 
 ## 设置接口
 

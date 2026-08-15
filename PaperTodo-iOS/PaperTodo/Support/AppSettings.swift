@@ -45,6 +45,15 @@ enum HomeMode: String, CaseIterable, Identifiable {
     case quadrant = "四象限"
 
     var id: String { rawValue }
+
+    var symbolName: String {
+        switch self {
+        case .today: return "sun.max"
+        case .list: return "rectangle.stack"
+        case .calendar: return "calendar"
+        case .quadrant: return "square.grid.2x2"
+        }
+    }
 }
 
 @Observable

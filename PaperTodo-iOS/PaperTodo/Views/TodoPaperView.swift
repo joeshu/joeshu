@@ -52,9 +52,9 @@ struct TodoPaperView: View {
             Section {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 8) {
-                        Text("待办事项")
-                            .font(.system(.caption, design: .rounded).weight(.semibold))
-                            .foregroundStyle(theme.weakText)
+                        Label("待办事项", systemImage: "checklist")
+                            .font(PaperTypography.eyebrow)
+                            .foregroundStyle(theme.active)
                         Spacer()
                         if settings.autoClearDone {
                             Label("自动清除", systemImage: "wand.and.stars")
@@ -69,9 +69,12 @@ struct TodoPaperView: View {
                             Text("完成 \(completedCount)/\(sortedTodos.count)")
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(theme.weakText)
-                                .monospacedDigit()
+                            .monospacedDigit()
                         }
                     }
+                    Text(sortedTodos.isEmpty ? "从一件小事开始" : "保持节奏，完成下一项")
+                        .font(PaperTypography.metadata)
+                        .foregroundStyle(theme.weakText)
                     TextField("纸片标题", text: $paper.title)
                         .font(.system(.title3, design: .rounded).weight(.semibold))
                         .foregroundStyle(theme.text)
@@ -87,7 +90,7 @@ struct TodoPaperView: View {
             Section {
                 ForEach(sortedTodos) { item in
                     todoRow(item)
-                        .listRowBackground(theme.surfaceGradient)
+                        .listRowBackground(clearCardBackground)
                 }
                 .onDelete(perform: deleteItems)
                 .onMove(perform: moveItems)
@@ -99,8 +102,8 @@ struct TodoPaperView: View {
                         Text("还没有待办")
                             .font(.system(.subheadline, design: .rounded).weight(.semibold))
                             .foregroundStyle(theme.weakText)
-                        Text("在下方输入框输入内容，回车即可添加")
-                            .font(.caption)
+                        Text("在下方输入框写下内容，回车即可添加")
+                            .font(PaperTypography.metadata)
                             .foregroundStyle(theme.weakText.opacity(0.7))
                             .multilineTextAlignment(.center)
                     }
@@ -119,14 +122,14 @@ struct TodoPaperView: View {
             Section {
                 HStack(alignment: .top, spacing: 12) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.title2)
+                        .font(.system(size: PaperIconSize.large))
                         .foregroundStyle(theme.tint)
                         .padding(.top, 2)
                     TextEditor(text: $newTodoText)
                         .frame(minHeight: 36)
                         .frame(maxHeight: 132)
                         .scrollContentBackground(.hidden)
-                        .font(.system(.body, design: .rounded))
+                        .font(PaperTypography.body)
                         .foregroundStyle(theme.text)
                         .focused($newItemFocused)
                         .onChange(of: newTodoText) { _, newValue in
@@ -143,17 +146,7 @@ struct TodoPaperView: View {
         }
         .scrollContentBackground(.hidden)
         .scrollDismissesKeyboard(.interactively)
-        .background(
-            LinearGradient(
-                colors: [
-                    theme.paper.opacity(0.25),
-                    theme.paper.opacity(0.05)
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-        )
+        .background(theme.backgroundGradient.ignoresSafeArea())
         .safeAreaInset(edge: .bottom) {
             if !sortedTodos.isEmpty {
                 dropZone
@@ -245,12 +238,11 @@ struct TodoPaperView: View {
                 RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                     .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
             )
-            .shadow(color: theme.shadow.opacity(0.65), radius: 3, y: 1)
-            .shadow(color: theme.shadow.opacity(0.4), radius: 14, y: 5)
+            .shadow(color: theme.shadow.opacity(PaperElevation.raised.shadowOpacity), radius: PaperElevation.raised.shadowRadius, y: PaperElevation.raised.shadowY)
     }
 
     private func todoRow(_ item: TodoItem) -> some View {
-        HStack(spacing: 12) {
+        HStack(spacing: PaperSpacing.control) {
             AnimatedCheckCircle(
                 isDone: item.isDone,
                 tint: theme.active,
@@ -260,14 +252,14 @@ struct TodoPaperView: View {
 
              if editingItemID == item.id {
                  TextField("待办事项", text: binding(for: item), onCommit: finishEditing)
-                      .font(.system(size: todoFontSize, design: .rounded))
+                       .font(.system(size: todoFontSize, design: .rounded, relativeTo: .body))
                       .foregroundStyle(theme.text)
                       .textFieldStyle(.plain)
                       .submitLabel(.done)
                       .focused($editingItemFocused)
              } else {
                  Text(item.text)
-                      .font(.system(size: todoFontSize, design: .rounded))
+                       .font(.system(size: todoFontSize, design: .rounded, relativeTo: .body))
                      .strikethrough(item.isDone)
                      .foregroundStyle(item.isDone ? theme.weakText : theme.text)
                      .animation(.easeOut(duration: 0.2), value: item.isDone)
@@ -286,8 +278,8 @@ struct TodoPaperView: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(item.text)
-        .accessibilityValue(item.isDone ? "已完成" : "未完成")
-        .accessibilityHint("双击切换完成状态，使用上下文菜单编辑")
+         .accessibilityValue(item.isDone ? "已完成" : "未完成")
+         .accessibilityHint("双击切换完成状态，使用上下文菜单编辑")
         .onDrag { NSItemProvider(object: item.id.uuidString as NSString) }
         .swipeActions(edge: .trailing, allowsFullSwipe: true) {
             Button(role: .destructive) {
@@ -296,7 +288,7 @@ struct TodoPaperView: View {
                 Label("删除", systemImage: "trash")
             }
         }
-        .contextMenu {
+         .contextMenu {
              Button {
                  deleteItem(item)
             } label: {
@@ -317,8 +309,11 @@ struct TodoPaperView: View {
                  schedulingItem = item
              } label: {
                  Label("安排时间", systemImage: "clock.badge.plus")
-             }
-         }
+          }
+         .padding(.horizontal, PaperSpacing.compact)
+         .padding(.vertical, PaperSpacing.micro)
+         .background(theme.paper.opacity(0.24), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+     }
     }
 
     private var dropZone: some View {

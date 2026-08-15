@@ -31,7 +31,6 @@ xcodebuild -project PaperTodo.xcodeproj -scheme PaperTodo -configuration Release
 - 页面异步任务需要在页面离开或对象变化时取消或验证代际标识。
 - 日历事件通过 `CalendarEventFormView` 校验开始和结束日期时间，跨日事件按覆盖日期显示。
 - 本地提醒通过 `ReminderNotificationService` 统一调度；模型保存成功后再更新通知，完成、清除排期和删除对象时取消对应提醒。
-- 本地提醒通过 `ReminderNotificationService` 统一调度；模型保存成功后再更新通知，完成、清除排期和删除对象时取消对应提醒。
 
 ## CI 流程
 
@@ -57,6 +56,8 @@ git status --short
 # 查看 iOS 构建工作流
 gh run list --workflow "PaperTodo iOS Build"
 ```
+
+当前 Linux 开发环境同时缺少 `swift` 和 `xcodebuild`；SwiftUI 源码的最终编译验证依赖 GitHub Actions 的 macOS runner。
 
 ## 文档与安全边界
 

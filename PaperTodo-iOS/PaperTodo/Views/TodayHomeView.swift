@@ -4,6 +4,7 @@ import WidgetKit
 
 struct TodayHomeView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \CalendarEvent.startTime) private var events: [CalendarEvent]
     @State private var schedulingItem: TodoItem?
     @State private var isReviewPresented = false
@@ -28,6 +29,10 @@ struct TodayHomeView: View {
             item.covers(today, calendar: calendar)
         }
             .sorted { scheduleStart(for: $0) < scheduleStart(for: $1) }
+    }
+
+    private var nextScheduledTodo: TodoItem? {
+        scheduledTodos.first
     }
 
     private func scheduleStart(for item: TodoItem) -> Date {
@@ -70,6 +75,7 @@ struct TodayHomeView: View {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 planningCard
+                nextUpSection
                 if !todayEvents.isEmpty || !scheduledTodos.isEmpty {
                     timelineSection
                 }
@@ -117,10 +123,11 @@ struct TodayHomeView: View {
     }
 
     private var planningCard: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        PaperSurface(palette: theme, elevation: .raised) {
+            VStack(alignment: .leading, spacing: PaperSpacing.control) {
             HStack {
-                Label("今日进度", systemImage: "chart.bar.fill")
-                    .font(.subheadline.weight(.semibold))
+                Label("今日状态", systemImage: "chart.bar.fill")
+                    .font(PaperTypography.sectionTitle)
                     .foregroundStyle(theme.text)
                 Spacer()
                 Text("\(completedCount)/\(totalCount)")
@@ -133,22 +140,22 @@ struct TodayHomeView: View {
                 Label("已安排 \(scheduledMinutes) 分钟", systemImage: "clock")
                 Label("未安排 \(unscheduledTodos.count) 项", systemImage: "tray")
             }
-            .font(.caption)
+            .font(PaperTypography.metadata)
             .foregroundStyle(theme.weakText)
-            HStack(spacing: 10) {
-                Button(action: onQuickCapture) {
-                    Label("快速记录", systemImage: "square.and.pencil")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(TodayActionButton(theme: theme, filled: true))
+            Button(action: onQuickCapture) {
+                Label("快速记录", systemImage: "square.and.pencil")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(PaperPrimaryButtonStyle(palette: theme))
 
+            HStack(spacing: PaperSpacing.compact) {
                 Button {
                     onQuickCapture()
                 } label: {
                     Label("添加任务", systemImage: "plus")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(TodayActionButton(theme: theme, filled: false))
+                .buttonStyle(PaperSecondaryButtonStyle(palette: theme))
 
                 Button {
                     isReviewPresented = true
@@ -156,48 +163,117 @@ struct TodayHomeView: View {
                     Label("今日回顾", systemImage: "checkmark.rectangle")
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(TodayActionButton(theme: theme, filled: false))
+                .buttonStyle(PaperSecondaryButtonStyle(palette: theme))
+            }
             }
         }
-        .padding(16)
-        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous).stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
+    }
+
+    private var nextUpSection: some View {
+        VStack(alignment: .leading, spacing: PaperSpacing.control) {
+            sectionTitle("下一项", symbol: "arrow.right.circle")
+            if let item = nextScheduledTodo {
+                Button {
+                    complete(item)
+                } label: {
+                    HStack(spacing: PaperSpacing.control) {
+                        Image(systemName: "arrow.right.circle.fill")
+                            .font(.system(size: PaperIconSize.large, weight: .medium))
+                            .foregroundStyle(theme.brandAction)
+                        VStack(alignment: .leading, spacing: PaperSpacing.micro) {
+                            Text(item.text)
+                                .font(.body.weight(.semibold))
+                                .foregroundStyle(theme.text)
+                                .multilineTextAlignment(.leading)
+                            Text(scheduleText(for: item))
+                                .font(PaperTypography.metadata)
+                                .foregroundStyle(theme.weakText)
+                        }
+                        Spacer(minLength: PaperSpacing.compact)
+                        Image(systemName: "checkmark")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(theme.weakText)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .paperCard(theme, elevation: .floating)
+                .contextMenu {
+                    Button {
+                        schedulingItem = item
+                    } label: {
+                        Label("调整时间", systemImage: "clock.badge.plus")
+                    }
+                }
+            } else {
+                PaperSurface(palette: theme, elevation: .flat) {
+                    HStack(spacing: PaperSpacing.control) {
+                        Image(systemName: unscheduledTodos.isEmpty ? "checkmark.seal" : "calendar.badge.plus")
+                            .font(.system(size: PaperIconSize.large))
+                            .foregroundStyle(theme.active)
+                        VStack(alignment: .leading, spacing: PaperSpacing.micro) {
+                            Text(unscheduledTodos.isEmpty ? "今天没有下一项任务" : "安排一项任务开始专注")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(theme.text)
+                            Text(unscheduledTodos.isEmpty ? "给今天留一点空白。" : "从快速记录开始，把想法放进收件箱。")
+                                .font(PaperTypography.metadata)
+                                .foregroundStyle(theme.weakText)
+                        }
+                        Spacer(minLength: PaperSpacing.compact)
+                        if !unscheduledTodos.isEmpty {
+                            Button("开始") {
+                                onQuickCapture()
+                            }
+                            .buttonStyle(PaperSecondaryButtonStyle(palette: theme))
+                        }
+                    }
+                }
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("日历事件，\(event.title)")
+                .accessibilityValue("\(event.startTime.formatted(date: .omitted, time: .shortened)) 至 \(event.endTime.formatted(date: .omitted, time: .shortened))，\(event.isCompleted ? "已完成" : "未完成")")
+                .accessibilityHint("日历事件")
+            }
+        }
     }
 
     private var timelineSection: some View {
         VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("日程", symbol: "calendar")
+            HStack {
+                sectionTitle("今日安排", symbol: "timeline.selection")
+                Spacer()
+                Text("\(todayEvents.count + scheduledTodos.count) 项")
+                    .font(PaperTypography.metadata.weight(.semibold))
+                    .foregroundStyle(theme.weakText)
+            }
             ForEach(todayEvents) { event in
-                HStack(spacing: 12) {
-                    Circle()
-                        .fill(event.category.ringColor)
-                        .frame(width: 10, height: 10)
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(event.title)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(theme.text)
-                        Text("\(event.startTime.formatted(date: .omitted, time: .shortened)) - \(event.endTime.formatted(date: .omitted, time: .shortened))")
-                            .font(.caption)
-                            .foregroundStyle(theme.weakText)
+                PaperSurface(palette: theme, elevation: .flat) {
+                    HStack(spacing: PaperSpacing.control) {
+                        timelineMarker(color: event.category.ringColor, symbol: "calendar")
+                        VStack(alignment: .leading, spacing: PaperSpacing.micro) {
+                            Text(event.title)
+                                .font(.body.weight(.medium))
+                                .foregroundStyle(theme.text)
+                                .multilineTextAlignment(.leading)
+                            Text("\(event.startTime.formatted(date: .omitted, time: .shortened)) - \(event.endTime.formatted(date: .omitted, time: .shortened))")
+                                .font(PaperTypography.metadata)
+                                .foregroundStyle(theme.weakText)
+                        }
+                        Spacer(minLength: PaperSpacing.compact)
+                        Text(event.category.displayName)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(event.category.tagText)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(event.category.tagBackground, in: Capsule())
                     }
-                    Spacer()
-                    Text(event.category.displayName)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(event.category.tagText)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(event.category.tagBackground, in: Capsule())
                 }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(theme.paper.opacity(0.52), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
             }
             ForEach(scheduledTodos) { item in
                 Button {
                     complete(item)
                 } label: {
-                    HStack(spacing: 12) {
-                        AnimatedCheckCircle(isDone: false, tint: theme.active)
+                    HStack(spacing: PaperSpacing.control) {
+                        timelineMarker(color: theme.active, symbol: "checklist")
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.text)
                                 .font(.body.weight(.medium))
@@ -208,15 +284,21 @@ struct TodayHomeView: View {
                                 .foregroundStyle(theme.weakText)
                         }
                         Spacer()
-                        Image(systemName: "checkmark")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(theme.weakText)
+                        Text("待办")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(theme.active)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(theme.active.opacity(0.12), in: Capsule())
                     }
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 10)
-                .background(theme.active.opacity(0.1), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                .paperCard(theme, elevation: .flat)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("待办，\(item.text)")
+                .accessibilityValue("\(scheduleText(for: item))，未完成")
+                .accessibilityHint("点击标记完成，使用上下文菜单调整时间")
                 .contextMenu {
                     Button {
                         schedulingItem = item
@@ -226,6 +308,18 @@ struct TodayHomeView: View {
                 }
             }
         }
+    }
+
+    private func timelineMarker(color: Color, symbol: String) -> some View {
+        ZStack {
+            Circle()
+                .fill(color.opacity(0.14))
+                .frame(width: 34, height: 34)
+            Image(systemName: symbol)
+                .font(.system(size: PaperIconSize.small, weight: .bold))
+                .foregroundStyle(color)
+        }
+        .accessibilityHidden(true)
     }
 
     private var taskSection: some View {
@@ -262,8 +356,12 @@ struct TodayHomeView: View {
                     .buttonStyle(.plain)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 11)
-                    .background(theme.paper.opacity(0.52), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
-                    .contextMenu {
+                     .background(theme.paper.opacity(0.52), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+                     .accessibilityElement(children: .combine)
+                     .accessibilityLabel("待办，\(item.text)")
+                     .accessibilityValue("未安排时间，未完成")
+                     .accessibilityHint("点击标记完成，使用上下文菜单安排时间")
+                     .contextMenu {
                         Button {
                             schedulingItem = item
                         } label: {
@@ -299,7 +397,7 @@ struct TodayHomeView: View {
     }
 
     private func complete(_ item: TodoItem) {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+        withAnimation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.75)) {
             item.isDone = true
             item.paper?.updatedAt = Date()
             do {
@@ -314,6 +412,7 @@ struct TodayHomeView: View {
 private struct TodayActionButton: ButtonStyle {
     let theme: PaperPalette
     let filled: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -327,7 +426,7 @@ private struct TodayActionButton: ButtonStyle {
                         .stroke(theme.active.opacity(0.35), lineWidth: 1)
                 }
             }
-            .scaleEffect(configuration.isPressed ? 0.97 : 1)
+            .scaleEffect(reduceMotion ? 1 : (configuration.isPressed ? 0.97 : 1))
     }
 }
 

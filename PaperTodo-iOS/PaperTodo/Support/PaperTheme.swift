@@ -187,6 +187,10 @@ extension EnvironmentValues {
 }
 
 extension PaperPalette {
+    var brandAction: Color { accent }
+
+    var onAccent: Color { Color.black.opacity(0.82) }
+
     var accentGradient: LinearGradient {
         LinearGradient(colors: [tint, active], startPoint: .topLeading, endPoint: .bottomTrailing)
     }

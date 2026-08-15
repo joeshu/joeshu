@@ -5,6 +5,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.settings) private var settings
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Query(sort: \Paper.updatedAt, order: .reverse) private var papers: [Paper]
     @State private var paperPendingDeletion: Paper?
     @State private var saveErrorMessage: String?
@@ -103,6 +104,12 @@ struct ContentView: View {
                     TodoPaperView(paper: paper)
                 case .note:
                     NotePaperView(paper: paper)
+                }
+            }
+            .transaction { transaction in
+                if reduceMotion {
+                    transaction.animation = nil
+                    transaction.disablesAnimations = true
                 }
             }
             .confirmationDialog(
@@ -362,38 +369,16 @@ struct PaperFilterBar: View {
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
+            HStack(spacing: PaperSpacing.compact) {
                 ForEach(PaperFilter.allCases) { item in
                     Button {
                         withAnimation(.easeOut(duration: 0.2)) {
                             filter = item
                         }
                     } label: {
-                        VStack(spacing: 4) {
-                            Text("\(item.rawValue) \(counts[item])")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(filter == item ? theme.paper : theme.weakText)
-                            Capsule()
-                                .fill(filter == item ? theme.paper.opacity(0.9) : .clear)
-                                .frame(width: 18, height: 2)
-                        }
-                        .padding(.horizontal, 13)
-                        .padding(.vertical, 7)
-                        .frame(minHeight: 44)
-                            .background(
-                                Capsule()
-                                    .fill(
-                                        filter == item
-                                            ? AnyShapeStyle(theme.activeGradient)
-                                            : AnyShapeStyle(theme.paper.opacity(0.55))
-                                    )
-                            )
-                            .overlay {
-                                Capsule()
-                                    .stroke(theme.paperBorder.opacity(filter == item ? 0 : 0.5), lineWidth: 1)
-                            }
+                        Label("\(item.rawValue) \(counts[item])", systemImage: filter == item ? "checkmark" : "circle")
                     }
-                    .buttonStyle(PaperPressStyle(pressedScale: 0.96))
+                    .buttonStyle(PaperFilterChipStyle(palette: theme, selected: filter == item))
                     .accessibilityLabel("筛选\(item.rawValue)")
                     .accessibilityValue("\(counts[item]) 项")
                     .accessibilityAddTraits(filter == item ? .isSelected : [])
@@ -409,18 +394,30 @@ struct PaperFilterBar: View {
 struct FilterEmptyState: View {
     let filter: PaperFilter
     let theme: PaperPalette
+    let onAddTodo: () -> Void
+    let onAddNote: () -> Void
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: PaperSpacing.control) {
             Image(systemName: filter == .pending ? "checkmark.circle" : "rectangle.stack")
-                .font(.title2)
+                .font(.system(size: PaperIconSize.large, weight: .light))
                 .foregroundStyle(theme.weakText)
             Text(filter == .pending ? "没有未完成的待办" : "这个分类暂时为空")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(theme.text)
             Text("切换分类查看其它纸片")
-                .font(.caption)
+                .font(PaperTypography.metadata)
                 .foregroundStyle(theme.weakText)
+            HStack(spacing: PaperSpacing.compact) {
+                Button(action: onAddTodo) {
+                    Label("新建待办", systemImage: "checklist")
+                }
+                .buttonStyle(PaperSecondaryButtonStyle(palette: theme))
+                Button(action: onAddNote) {
+                    Label("新建笔记", systemImage: "note.text")
+                }
+                .buttonStyle(PaperSecondaryButtonStyle(palette: theme))
+            }
         }
         .frame(maxWidth: .infinity)
     }
@@ -603,24 +600,40 @@ struct PaperCard: View {
         paper.pendingTodos.first?.text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
+    private var typeLabel: String {
+        paper.kind == .todo ? "待办清单" : "Markdown 笔记"
+    }
+
+    private var hasScheduledToday: Bool {
+        paper.todoItems.contains { item in
+            guard let start = item.scheduledStart else { return false }
+            return Calendar.current.isDateInToday(start)
+        }
+    }
+
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: PaperSpacing.control) {
             RoundedRectangle(cornerRadius: PaperRadius.small, style: .continuous)
                 .fill(paper.kind == .todo ? theme.tint : theme.active)
                 .frame(width: 4)
 
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
+            VStack(alignment: .leading, spacing: PaperSpacing.compact) {
+                HStack(spacing: PaperSpacing.compact) {
                     Image(systemName: icon)
-                        .font(.caption.weight(.bold))
+                        .font(.system(size: PaperIconSize.small, weight: .bold))
                         .foregroundStyle(paper.kind == .todo ? theme.tint : theme.active)
-                    Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
-                        .font(.system(.headline, design: .rounded))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)
+                            .font(.system(.headline, design: .rounded).weight(.semibold))
+                            .lineLimit(2)
+                        Text(typeLabel)
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(theme.weakText)
+                    }
                         .foregroundStyle(theme.text)
-                        .lineLimit(1)
                 }
                 Text(detailText)
-                    .font(.caption2.weight(.medium))
+                    .font(PaperTypography.metadata.weight(.medium))
                     .foregroundStyle(theme.weakText)
                 Text(summary)
                     .font(.subheadline)
@@ -628,7 +641,7 @@ struct PaperCard: View {
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
                 if paper.kind == .todo, let nextTaskText, !nextTaskText.isEmpty {
-                    HStack(spacing: 6) {
+                    HStack(spacing: PaperSpacing.compact) {
                         Image(systemName: "arrow.right.circle")
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(theme.active)
@@ -638,9 +651,14 @@ struct PaperCard: View {
                             .lineLimit(1)
                     }
                 }
-                Text(paper.updatedAt, style: .relative)
-                    .font(.caption2)
-                    .foregroundStyle(theme.weakText.opacity(0.82))
+                HStack(spacing: PaperSpacing.compact) {
+                    Text(paper.updatedAt, style: .relative)
+                    if hasScheduledToday {
+                        Label("今天已排期", systemImage: "clock")
+                    }
+                }
+                .font(.caption2)
+                .foregroundStyle(theme.weakText.opacity(0.82))
                 if paper.kind == .todo && !paper.todoItems.isEmpty {
                     HStack(spacing: 8) {
                         ProgressView(value: progress)
@@ -656,7 +674,7 @@ struct PaperCard: View {
 
             Spacer()
 
-            VStack(alignment: .trailing, spacing: 8) {
+            VStack(alignment: .trailing, spacing: PaperSpacing.compact) {
                 Label(statusText, systemImage: paper.isPinned ? "pin.fill" : (paper.kind == .todo && progress == 1 ? "checkmark.seal.fill" : icon))
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(paper.isPinned || (paper.kind == .todo && progress == 1) ? theme.active : theme.weakText)
@@ -666,8 +684,8 @@ struct PaperCard: View {
                     .foregroundStyle(theme.weakText.opacity(0.5))
             }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
+        .padding(.horizontal, PaperSpacing.content)
+        .padding(.vertical, 14)
         .background(
             RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                 .fill(theme.surfaceGradient)
@@ -688,8 +706,11 @@ struct PaperCard: View {
                 )
                 .allowsHitTesting(false)
         }
-        .shadow(color: theme.shadow.opacity(0.75), radius: 3, y: 1)
-        .shadow(color: theme.shadow.opacity(0.48), radius: 16, y: 6)
+        .shadow(
+            color: theme.shadow.opacity(paper.isPinned ? 0.2 : 0.12),
+            radius: paper.isPinned ? PaperElevation.floating.shadowRadius : PaperElevation.raised.shadowRadius,
+            y: paper.isPinned ? PaperElevation.floating.shadowY : PaperElevation.raised.shadowY
+        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(paper.title.isEmpty ? (paper.kind == .todo ? "待办" : "笔记") : paper.title)，\(statusText)")
         .accessibilityHint("双击打开")
@@ -723,7 +744,7 @@ struct HomeOverview: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("今日工作台")
+                    Text("工作概览")
                         .font(.system(.title3, design: .rounded).weight(.bold))
                         .foregroundStyle(theme.text)
                     Text(metrics.pendingCount == 0 ? "所有待办都已处理" : "还有 \(metrics.pendingCount) 项待办等待处理")

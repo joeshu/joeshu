@@ -28,11 +28,15 @@ struct NotePaperView: View {
     var body: some View {
         @Bindable var settings = settings
         VStack(alignment: .leading, spacing: 0) {
-            TextField("纸片标题", text: $paper.title)
-                .font(.system(.title3, design: .rounded).weight(.semibold))
+            HStack(spacing: PaperSpacing.compact) {
+                Image(systemName: previewing ? "eye" : "square.and.pencil")
+                    .foregroundStyle(theme.active)
+                TextField("纸片标题", text: $paper.title)
+                    .font(.system(.title2, design: .rounded).weight(.semibold))
+            }
                 .foregroundStyle(theme.text)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, PaperSpacing.content)
+                .padding(.vertical, PaperSpacing.control)
                 .onChange(of: paper.title) { _, _ in
                     paper.updatedAt = Date()
                     scheduleSave()
@@ -58,8 +62,7 @@ struct NotePaperView: View {
                         RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
                             .stroke(theme.paperBorder.opacity(0.5), lineWidth: 1)
                     )
-                    .shadow(color: theme.shadow.opacity(0.65), radius: 3, y: 1)
-                    .shadow(color: theme.shadow.opacity(0.42), radius: 16, y: 6)
+                    .shadow(color: theme.shadow.opacity(PaperElevation.raised.shadowOpacity), radius: PaperElevation.raised.shadowRadius, y: PaperElevation.raised.shadowY)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
                 }
@@ -102,7 +105,8 @@ struct NotePaperView: View {
                     .foregroundStyle(theme.text)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
-                    .background(.ultraThinMaterial, in: Capsule())
+                    .background(theme.paper.opacity(0.82), in: Capsule())
+                    .overlay(Capsule().stroke(theme.paperBorder.opacity(0.7), lineWidth: 1))
                     .padding(.bottom, 12)
             }
         }

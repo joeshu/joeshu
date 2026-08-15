@@ -25,6 +25,7 @@ PaperTodo 是一个基于 SwiftUI 和 SwiftData 的 iOS 个人工作台，提供
 
 - `.monkeycode/specs/calendar-quadrant-home/`：首页日历和四象限模式的需求、设计和历史任务清单。
 - `.monkeycode/specs/global-optimization/`：全局主题、性能、交互、资源安全和错误处理的实施任务清单。
+- `.monkeycode/specs/papertodo-commercial-ui-upgrade/`：PaperTodo 商业化 UI、界面和视觉升级的需求、设计与优先级实施清单。
 
 ## 当前验证边界
 

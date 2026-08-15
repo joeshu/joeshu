@@ -581,18 +581,16 @@ private struct CalendarContextToolbar: View {
                 navigationControls
                 viewMenu
                 filterMenu
-                naturalLanguageButton
-                addButton
+                addMenu
             }
             VStack(alignment: .leading, spacing: 12) {
                 contextSummary
-                HStack {
+                HStack(spacing: PaperSpacing.compact) {
                     navigationControls
                     viewMenu
                     filterMenu
-                    naturalLanguageButton
                     Spacer()
-                    addButton
+                    addMenu
                 }
             }
         }
@@ -629,16 +627,17 @@ private struct CalendarContextToolbar: View {
     }
 
     private var navigationControls: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 2) {
             Button(action: onPrevious) {
                 Image(systemName: "chevron.left")
+                    .frame(width: 36, height: 36)
             }
             .accessibilityLabel("上个月")
 
             Button(action: onToday) {
                 Text("今天")
                     .font(.caption.weight(.bold))
-                    .frame(minWidth: 44)
+                    .frame(minWidth: 48, minHeight: 36)
             }
             .foregroundStyle(isCurrentMonth ? theme.weakText : theme.accent)
             .background(
@@ -649,6 +648,7 @@ private struct CalendarContextToolbar: View {
 
             Button(action: onNext) {
                 Image(systemName: "chevron.right")
+                    .frame(width: 36, height: 36)
             }
             .accessibilityLabel("下个月")
         }
@@ -657,30 +657,26 @@ private struct CalendarContextToolbar: View {
         .padding(4)
         .background(theme.paper.opacity(0.58), in: Capsule())
         .overlay(Capsule().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
+        .buttonStyle(PaperPressStyle(pressedScale: 0.96))
     }
 
-    private var addButton: some View {
-        Button(action: onAdd) {
-            Image(systemName: "plus")
-                .font(.system(size: 14, weight: .bold))
-                .frame(width: 44, height: 44)
-                .foregroundStyle(theme.paper)
-                .background(theme.accent, in: Circle())
-                .shadow(color: theme.accent.opacity(0.25), radius: 8, y: 4)
+    private var addMenu: some View {
+        Menu {
+            Button(action: onAdd) {
+                Label("新建日程", systemImage: "plus")
+            }
+            Button(action: onNaturalLanguage) {
+                Label("自然语言创建", systemImage: "text.badge.plus")
+            }
+        } label: {
+            Label("新增", systemImage: "plus")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(theme.onAccent)
+                .frame(minWidth: 76, minHeight: 44)
+                .padding(.horizontal, 8)
+                .background(theme.brandAction, in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
         }
-        .accessibilityLabel("新建日程")
-    }
-
-    private var naturalLanguageButton: some View {
-        Button(action: onNaturalLanguage) {
-            Image(systemName: "text.badge.plus")
-                .font(.system(size: 15, weight: .semibold))
-                .frame(width: 44, height: 44)
-                .foregroundStyle(theme.text)
-                .background(theme.paper.opacity(0.58), in: Circle())
-                .overlay(Circle().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
-        }
-        .accessibilityLabel("自然语言快速创建")
+        .accessibilityLabel("新增日历内容")
     }
 
     private var viewMenu: some View {
@@ -701,6 +697,7 @@ private struct CalendarContextToolbar: View {
                 .overlay(Capsule().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
         }
         .accessibilityLabel("切换日历视图")
+        .accessibilityValue(displayMode.rawValue)
     }
 
     private var filterMenu: some View {
@@ -741,6 +738,7 @@ private struct CalendarContextToolbar: View {
                 .overlay(Circle().stroke(theme.paperBorder.opacity(0.6), lineWidth: 1))
         }
         .accessibilityLabel("筛选日历")
+        .accessibilityValue(filters.isActive ? "已应用筛选" : "未应用筛选")
     }
 }
 
@@ -873,14 +871,7 @@ private struct WeekCalendarCard: View {
                 onMoveTodo: onMoveTodo
             )
         }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
-        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
-                .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
-        )
-        .shadow(color: theme.shadow.opacity(0.28), radius: 18, y: 9)
+        .paperCard(theme, elevation: .raised)
     }
 
     private var weekEventCount: Int {
@@ -920,6 +911,8 @@ private struct WeekCalendarCard: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(dayEvents.count + dayTodos.count) 项安排")
+            .accessibilityValue(selected ? "已选中" : (today ? "今天" : "未选中"))
+            .accessibilityHint("选择此日期查看安排")
 
             if dayEvents.isEmpty && dayTodos.isEmpty {
                 Button {
@@ -957,6 +950,9 @@ private struct WeekCalendarCard: View {
                     }
                     .buttonStyle(.plain)
                     .draggable(CalendarDropPayload.event(event.id))
+                    .accessibilityLabel("日历事件，\(event.title)")
+                    .accessibilityValue(event.isCompleted ? "已完成" : "未完成")
+                    .accessibilityHint("打开事件编辑")
                     .contextMenu {
                         Button { onToggleCompletion(event) } label: {
                             Label(event.isCompleted ? "标记为未完成" : "标记为已完成", systemImage: event.isCompleted ? "arrow.uturn.backward" : "checkmark")
@@ -980,6 +976,9 @@ private struct WeekCalendarCard: View {
                         .background(theme.active.opacity(0.12), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel("待办，\(item.text)")
+                    .accessibilityValue(item.isDone ? "已完成" : "未完成")
+                    .accessibilityHint("选择日期并查看待办")
                     .draggable(CalendarDropPayload.todo(item.id))
                     .contextMenu {
                         Button { onToggleTodo(item) } label: {
@@ -1232,19 +1231,7 @@ private struct MonthCard: View {
                 }
             }
         }
-        .padding(16)
-        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
-        .background(theme.surfaceGradient, in: RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
-                .stroke(theme.paperBorder.opacity(0.55), lineWidth: 1)
-        )
-        .overlay(alignment: .top) {
-            RoundedRectangle(cornerRadius: PaperRadius.shell, style: .continuous)
-                .stroke(theme.accent.opacity(0.22), lineWidth: 1)
-                .allowsHitTesting(false)
-        }
-        .shadow(color: theme.shadow.opacity(0.35), radius: 20, y: 12)
+        .paperCard(theme, elevation: .raised)
     }
 
     private var monthEventCount: Int {
@@ -1286,14 +1273,14 @@ private struct MonthCard: View {
                 HStack(spacing: 3) {
                     ForEach(visibleEvents) { event in
                         Circle()
-                            .fill(event.category.ringColor)
+                            .fill(event.isCompleted ? theme.weakText.opacity(0.45) : event.category.ringColor)
                             .frame(width: 5, height: 5)
                             .accessibilityHidden(true)
                     }
                     if dayTodos.count > 0 {
-                        Circle()
-                            .fill(theme.active)
-                            .frame(width: 5, height: 5)
+                        RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                            .fill(dayTodos.allSatisfy(\.isDone) ? theme.weakText.opacity(0.45) : theme.active)
+                            .frame(width: 7, height: 5)
                             .accessibilityHidden(true)
                     }
                     if itemCount > visibleEvents.count + (dayTodos.isEmpty ? 0 : 1) {
@@ -1308,7 +1295,9 @@ private struct MonthCard: View {
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("\(date.formatted(.dateTime.month().day()))，\(itemCount) 项安排")
+        .accessibilityLabel(
+            "\(date.formatted(.dateTime.month().day()))，\(itemCount) 项安排\(calendar.isDateInToday(date) ? "，今天" : "")\(selected ? "，已选中" : "")"
+        )
     }
 
     private func eventCoversDate(_ event: CalendarEvent, _ date: Date) -> Bool {
@@ -1461,7 +1450,7 @@ private struct DayTimelineCard: View {
                 }
             }
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, PaperSpacing.content)
         .padding(.top, 18)
         .padding(.bottom, 16)
         .background(.thinMaterial, in: UnevenRoundedRectangle(topLeadingRadius: PaperRadius.shell, bottomLeadingRadius: PaperRadius.shell, bottomTrailingRadius: PaperRadius.block, topTrailingRadius: PaperRadius.block))
@@ -1475,7 +1464,12 @@ private struct DayTimelineCard: View {
                 .stroke(theme.accent.opacity(0.3), lineWidth: 1)
                 .allowsHitTesting(false)
         }
-        .shadow(color: theme.shadow.opacity(0.4), radius: 24, x: -8, y: 8)
+        .shadow(
+            color: theme.shadow.opacity(PaperElevation.floating.shadowOpacity),
+            radius: PaperElevation.floating.shadowRadius,
+            x: -6,
+            y: PaperElevation.floating.shadowY
+        )
     }
 
     private var weekStrip: some View {
@@ -1615,6 +1609,12 @@ private struct TimelineEventRow: View {
                         Text(timeSummary)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(theme.timeColor)
+                        Label("日历", systemImage: "calendar")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(event.isCompleted ? theme.weakText : event.category.tagText)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(event.isCompleted ? theme.paper.opacity(0.42) : event.category.tagBackground, in: Capsule())
                         Text(event.category.displayName)
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(event.category.tagText)
@@ -1624,7 +1624,7 @@ private struct TimelineEventRow: View {
                     }
                     Text(event.title)
                         .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                        .foregroundStyle(event.isCompleted ? theme.weakText : event.category.tagText)
+                            .foregroundStyle(event.isCompleted ? theme.weakText : theme.text)
                         .strikethrough(event.isCompleted)
                 }
                 .padding(.horizontal, 14)
@@ -1714,9 +1714,16 @@ private struct ScheduledTodoTimelineRow: View {
                     Text(timeSummary)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(theme.timeColor)
+                    Label("待办", systemImage: "checklist")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(item.isDone ? theme.weakText : theme.active)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(item.isDone ? theme.paper.opacity(0.42) : theme.active.opacity(0.12), in: Capsule())
                     Text(item.text)
                         .font(.system(.subheadline, design: .rounded).weight(.semibold))
-                        .foregroundStyle(theme.text)
+                        .foregroundStyle(item.isDone ? theme.weakText : theme.text)
+                        .strikethrough(item.isDone)
                         .multilineTextAlignment(.leading)
                 }
                 .padding(.horizontal, 14)

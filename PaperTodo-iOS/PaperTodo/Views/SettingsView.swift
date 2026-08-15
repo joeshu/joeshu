@@ -19,7 +19,8 @@ struct SettingsView: View {
     var body: some View {
         @Bindable var settings = settings
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: PaperSpacing.section) {
+                settingsIntro
                 settingsSection("外观", systemImage: "paintpalette", theme: theme) {
                     PickerRow(title: "显示模式", value: settings.appearance.rawValue, theme: theme) {
                         Picker("显示模式", selection: $settings.appearance) {
@@ -29,6 +30,17 @@ struct SettingsView: View {
                         }
                     }
                     ThemePickerRow(selection: $settings.colorScheme, dark: effectiveDarkMode)
+                }
+
+                settingsSection("首页", systemImage: "square.grid.2x2", theme: theme) {
+                    PickerRow(title: "默认视角", value: settings.homeMode.rawValue, theme: theme) {
+                        Picker("默认视角", selection: $settings.homeMode) {
+                            ForEach(HomeMode.allCases) { mode in
+                                Label(mode.rawValue, systemImage: mode.symbolName)
+                                    .tag(mode)
+                            }
+                        }
+                    }
                 }
 
                 settingsSection("待办", systemImage: "checklist", theme: theme) {
@@ -52,11 +64,25 @@ struct SettingsView: View {
                     }
                 }
             }
-            .padding(16)
+            .padding(PaperSpacing.content)
+            .frame(maxWidth: 720)
+            .frame(maxWidth: .infinity)
         }
-        .background(theme.paper.opacity(0.22).ignoresSafeArea())
+        .background(theme.backgroundGradient.ignoresSafeArea())
         .navigationTitle("设置")
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var settingsIntro: some View {
+        VStack(alignment: .leading, spacing: PaperSpacing.micro) {
+            Text("PaperTodo")
+                .font(.system(.largeTitle, design: .rounded).weight(.bold))
+                .foregroundStyle(theme.text)
+            Text("调整你的工作节奏与纸张气质")
+                .font(PaperTypography.metadata)
+                .foregroundStyle(theme.weakText)
+        }
+        .padding(.horizontal, 4)
     }
 
     @ViewBuilder
@@ -68,7 +94,7 @@ struct SettingsView: View {
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: systemImage)
-                .font(.system(.subheadline, design: .rounded).weight(.bold))
+                .font(PaperTypography.sectionTitle)
                 .foregroundStyle(theme.text)
             VStack(spacing: 0) {
                 content()
@@ -78,7 +104,7 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: PaperRadius.block, style: .continuous)
                     .stroke(theme.paperBorder.opacity(0.65), lineWidth: 1)
             }
-            .shadow(color: theme.shadow.opacity(0.48), radius: 14, y: 5)
+            .shadow(color: theme.shadow.opacity(PaperElevation.raised.shadowOpacity), radius: PaperElevation.raised.shadowRadius, y: PaperElevation.raised.shadowY)
         }
     }
 }
@@ -102,18 +128,35 @@ private struct PickerRow<PickerContent: View>: View {
     }
 
     var body: some View {
-        HStack {
-            Text(title)
-                .foregroundStyle(theme.text)
-            Spacer()
-            Text(value)
-                .font(.subheadline.weight(.medium))
-                .foregroundStyle(theme.weakText)
-            picker
-                .labelsHidden()
-                .pickerStyle(.menu)
-                .tint(theme.active)
-                .foregroundStyle(theme.weakText)
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .foregroundStyle(theme.text)
+                Spacer(minLength: PaperSpacing.compact)
+                Text(value)
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(theme.weakText)
+                picker
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .tint(theme.active)
+                    .foregroundStyle(theme.weakText)
+            }
+            VStack(alignment: .leading, spacing: PaperSpacing.micro) {
+                Text(title)
+                    .foregroundStyle(theme.text)
+                HStack {
+                    Text(value)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(theme.weakText)
+                    Spacer()
+                    picker
+                        .labelsHidden()
+                        .pickerStyle(.menu)
+                        .tint(theme.active)
+                        .foregroundStyle(theme.weakText)
+                }
+            }
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 11)
@@ -140,6 +183,7 @@ private struct ToggleRow: View {
 private struct ThemePickerRow: View {
     @Binding var selection: PaperColorScheme
     let dark: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -156,7 +200,7 @@ private struct ThemePickerRow: View {
                 ForEach(PaperColorScheme.allCases) { scheme in
                     let palette = PaperPalette.scheme(scheme, dark: dark)
                     Button {
-                        withAnimation(.easeOut(duration: 0.2)) {
+                        withAnimation(reduceMotion ? nil : .easeOut(duration: 0.2)) {
                             selection = scheme
                         }
                     } label: {
