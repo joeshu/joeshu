@@ -231,10 +231,10 @@ struct CalendarHomeView: View {
                 days: days,
                 weekdays: weekdays,
                 events: events,
+                scheduledTodos: papers.flatMap(\.todoItems),
                 selectedDate: selectedDate,
                 calendar: calendar,
                 theme: theme,
-                scheduledTodos: papers.flatMap(\.todoItems),
                 onSelect: selectDate
             )
 
@@ -294,10 +294,10 @@ struct CalendarHomeView: View {
                     days: days,
                     weekdays: weekdays,
                     events: events,
+                    scheduledTodos: papers.flatMap(\.todoItems),
                     selectedDate: selectedDate,
                     calendar: calendar,
                     theme: theme,
-                    scheduledTodos: papers.flatMap(\.todoItems),
                     onSelect: selectDate
                 )
                 .frame(maxWidth: .infinity)
