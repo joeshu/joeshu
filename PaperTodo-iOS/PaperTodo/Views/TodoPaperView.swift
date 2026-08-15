@@ -244,48 +244,52 @@ struct TodoPaperView: View {
     private func todoRow(_ item: TodoItem) -> some View {
         todoRowContent(item)
             .contentShape(Rectangle())
-        .onTapGesture {
-            guard editingItemID != item.id else { return }
-            toggle(item)
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(item.text)
-        .accessibilityValue(item.isDone ? "已完成" : "未完成")
-        .accessibilityHint("双击切换完成状态，使用上下文菜单编辑")
-        .onDrag { NSItemProvider(object: item.id.uuidString as NSString) }
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                deleteItem(item)
-            } label: {
-                Label("删除", systemImage: "trash")
-            }
-        }
-        .contextMenu {
-            Button {
-                deleteItem(item)
-            } label: {
-                Label("删除", systemImage: "trash")
-            }
-            Button {
-                pushUndo()
-                beginEditing(item)
-            } label: {
-                Label("编辑", systemImage: "pencil")
-            }
-            Button {
+            .onTapGesture {
+                guard editingItemID != item.id else { return }
                 toggle(item)
-            } label: {
-                Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
             }
-            Button {
-                schedulingItem = item
-            } label: {
-                Label("安排时间", systemImage: "clock.badge.plus")
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(item.text)
+            .accessibilityValue(item.isDone ? "已完成" : "未完成")
+            .accessibilityHint("双击切换完成状态，向左滑动显示删除")
+            .onDrag { NSItemProvider(object: item.id.uuidString as NSString) }
+            .contextMenu {
+                Button(role: .destructive) {
+                    deleteItem(item)
+                } label: {
+                    Label("删除", systemImage: "trash")
+                }
+                Button {
+                    pushUndo()
+                    beginEditing(item)
+                } label: {
+                    Label("编辑", systemImage: "pencil")
+                }
+                Button {
+                    toggle(item)
+                } label: {
+                    Label(item.isDone ? "标记未完成" : "标记完成", systemImage: item.isDone ? "circle" : "checkmark.circle")
+                }
+                Button {
+                    schedulingItem = item
+                } label: {
+                    Label("安排时间", systemImage: "clock.badge.plus")
+                }
             }
-        }
-        .padding(.horizontal, PaperSpacing.compact)
-        .padding(.vertical, PaperSpacing.micro)
-        .background(theme.paper.opacity(0.24), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+            .padding(.horizontal, PaperSpacing.compact)
+            .padding(.vertical, PaperSpacing.micro)
+            .background(theme.paper.opacity(0.24), in: RoundedRectangle(cornerRadius: PaperRadius.control, style: .continuous))
+            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                Button(role: .destructive) {
+                    deleteItem(item)
+                } label: {
+                    Label("删除", systemImage: "trash")
+                }
+                .tint(theme.danger)
+            }
+            .accessibilityAction(named: "删除") {
+                deleteItem(item)
+            }
     }
 
     private func todoRowContent(_ item: TodoItem) -> some View {
