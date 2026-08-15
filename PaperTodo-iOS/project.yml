@@ -38,6 +38,26 @@ targets:
     dependencies:
       - target: PaperTodoWidget
 
+  PaperTodoLiveContainer:
+    type: application
+    platform: iOS
+    sources:
+      - path: PaperTodo
+    info:
+      path: PaperTodo/Info.plist
+      properties:
+        CFBundleDisplayName: PaperTodo
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: true
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.papertodo.livecontainer
+        TARGETED_DEVICE_FAMILY: "1,2"
+        CODE_SIGNING_ALLOWED: NO
+
   PaperTodoWidget:
     type: app-extension
     platform: iOS
@@ -67,6 +87,14 @@ schemes:
       targets:
         PaperTodo: all
         PaperTodoWidget: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  PaperTodoLiveContainer:
+    build:
+      targets:
+        PaperTodoLiveContainer: all
     run:
       config: Debug
     archive:

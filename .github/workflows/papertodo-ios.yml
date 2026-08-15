@@ -64,9 +64,53 @@ jobs:
           zip -r PaperTodo-unsigned.ipa Payload
           ls -lh PaperTodo-unsigned.ipa
 
+      - name: Build LiveContainer app
+        working-directory: PaperTodo-iOS
+        run: |
+          set +e
+          xcodebuild \
+            -project PaperTodo.xcodeproj \
+            -scheme PaperTodoLiveContainer \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build-livecontainer \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build 2>&1 | tee xcodebuild-livecontainer.log
+          build_status=${PIPESTATUS[0]}
+          while IFS= read -r line; do
+            echo "::error title=LiveContainer build::$line"
+          done < <(grep -E 'error:|fatal error:' xcodebuild-livecontainer.log || true)
+          exit "$build_status"
+
+      - name: Package LiveContainer IPA
+        working-directory: PaperTodo-iOS
+        run: |
+          APP_PATH="build-livecontainer/Build/Products/Release-iphoneos/PaperTodoLiveContainer.app"
+          mkdir -p Payload-LiveContainer
+          cp -R "$APP_PATH" Payload-LiveContainer/
+          zip -r PaperTodo-LiveContainer.ipa Payload-LiveContainer
+          ls -lh PaperTodo-LiveContainer.ipa
+
       - name: Upload IPA
         uses: actions/upload-artifact@v4
         with:
           name: PaperTodo-unsigned-ipa
           path: PaperTodo-iOS/PaperTodo-unsigned.ipa
           if-no-files-found: error
+
+      - name: Upload LiveContainer IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaperTodo-LiveContainer-ipa
+          path: PaperTodo-iOS/PaperTodo-LiveContainer.ipa
+          if-no-files-found: error
+
+      - name: Upload LiveContainer build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaperTodo-LiveContainer-xcodebuild-log
+          path: PaperTodo-iOS/xcodebuild-livecontainer.log
+          if-no-files-found: warn
